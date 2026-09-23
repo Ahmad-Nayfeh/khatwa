@@ -28,6 +28,7 @@ object TestSupport {
     fun shell(cmd: String): String = device.executeShellCommand(cmd).also { Log.i(TAG, "$ $cmd\n$it") }
 
     fun grantBasics() {
+        wake()
         shell("pm grant $PKG android.permission.ACTIVITY_RECOGNITION")
         shell("pm grant $PKG android.permission.POST_NOTIFICATIONS")
         shell("appops set $PKG SYSTEM_ALERT_WINDOW allow")
@@ -73,7 +74,7 @@ object TestSupport {
         val intent = context.packageManager.getLaunchIntentForPackage(PKG)!!
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         context.startActivity(intent)
-        device.wait(Until.hasObject(By.pkg(PKG).depth(0)), 10_000)
+        if (!device.wait(Until.hasObject(By.pkg(PKG)), 10_000)) dump("launch-not-visible")
     }
 
     fun launchPackage(pkg: String) {
@@ -86,6 +87,32 @@ object TestSupport {
     fun screenshot(name: String) {
         shell("screencap -p $EVIDENCE_DIR/$name.png")
         Log.i(TAG, "screenshot $name")
+    }
+
+    /** Screenshot + accessibility hierarchy dump (pulled by CI via run-as) for diagnosing failures. */
+    fun dump(name: String) {
+        screenshot(name)
+        try {
+            val dir = java.io.File(context.filesDir, "evidence").apply { mkdirs() }
+            device.dumpWindowHierarchy(java.io.File(dir, "$name.xml"))
+            Log.i(TAG, "hierarchy dumped: $name; currentPackage=${device.currentPackageName}")
+        } catch (e: Exception) {
+            Log.w(TAG, "hierarchy dump failed: $e")
+        }
+    }
+
+    /** Waits for a node and, if it never appears, records a screenshot + hierarchy before failing. */
+    fun waitFor(selector: androidx.test.uiautomator.BySelector, timeoutMs: Long, name: String): androidx.test.uiautomator.UiObject2? {
+        val obj = device.wait(Until.findObject(selector), timeoutMs)
+        if (obj == null) dump("missing-$name")
+        return obj
+    }
+
+    fun wake() {
+        shell("settings put global device_provisioned 1")
+        shell("settings put secure user_setup_complete 1")
+        shell("input keyevent KEYCODE_WAKEUP")
+        shell("wm dismiss-keyguard")
     }
 
     fun evidence(msg: String) = Log.i(TAG, msg)

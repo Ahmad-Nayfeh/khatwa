@@ -25,13 +25,13 @@ class StepCountTest {
     @Test
     fun stepsAreCountedAndShownOnHome() {
         TestSupport.launchApp()
-        val steps = device.wait(Until.findObject(By.res("home_steps")), 15_000)
+        val steps = TestSupport.waitFor(By.res("home_steps"), 15_000, "home_steps")
         assertNotNull("home screen did not show the step counter", steps)
         TestSupport.screenshot("01-home-before-steps")
 
         val before = TestSupport.container.tracker.today.value.steps
         TestSupport.fake().add(1234)
-        val shown = device.wait(Until.findObject(By.res("home_steps").text(fmt(before + 1234))), 10_000)
+        val shown = TestSupport.waitFor(By.res("home_steps").text(fmt(before + 1234)), 10_000, "home_1234")
         assertNotNull("home did not update to ${fmt(before + 1234)}", shown)
         TestSupport.screenshot("02-home-after-1234-steps")
 
@@ -53,7 +53,7 @@ class StepCountTest {
         Thread.sleep(500)
         TestSupport.fake().add(200)
         val expected = before + 700
-        val shown = device.wait(Until.findObject(By.res("home_steps").text(fmt(expected))), 10_000)
+        val shown = TestSupport.waitFor(By.res("home_steps").text(fmt(expected)), 10_000, "home_reboot")
         assertNotNull("after reboot home should show ${fmt(expected)}", shown)
         TestSupport.screenshot("03-home-after-reboot")
         assertTrue(TestSupport.container.tracker.today.value.steps == expected)

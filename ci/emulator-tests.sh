@@ -12,7 +12,28 @@ TEST_APK=app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 RELEASE_APK=app/build/outputs/apk/release/app-release.apk
 
 adb wait-for-device
-adb shell input keyevent 82 || true
+# Make the device usable for UI automation: mark setup complete, keep the screen on,
+# wake it and dismiss the (swipe) keyguard. Without this the app window is behind the
+# lock screen and UiAutomator sees nothing.
+prepare_screen() {
+  adb shell settings put global device_provisioned 1 || true
+  adb shell settings put secure user_setup_complete 1 || true
+  adb shell svc power stayon true || true
+  adb shell input keyevent KEYCODE_WAKEUP || true
+  adb shell wm dismiss-keyguard || true
+  adb shell input keyevent 82 || true
+  sleep 2
+}
+diag() {
+  adb shell screencap -p "/sdcard/khatwa-evidence/$1.png" || true
+  {
+    echo "== $1 =="; date
+    adb shell dumpsys window windows | grep -E "mCurrentFocus|mFocusedApp" || true
+    adb shell dumpsys activity activities | grep -E "mResumedActivity|topResumedActivity" || true
+    adb shell dumpsys window | grep -iE "keyguard(Showing|Occluded)|mDreamingLockscreen|isKeyguard" | head -5 || true
+  } >> "$EVIDENCE/window-state.txt" 2>&1
+}
+prepare_screen
 adb logcat -c || true
 adb logcat -v time > "$EVIDENCE/logcat.txt" 2>&1 &
 LOGCAT_PID=$!
@@ -22,6 +43,8 @@ finish() {
   echo "== collecting evidence =="
   adb pull /sdcard/khatwa-evidence "$EVIDENCE/" 2>/dev/null || true
   adb exec-out run-as $PKG cat databases/khatwa.db > "$EVIDENCE/khatwa.db" 2>/dev/null || true
+  adb exec-out run-as $PKG sh -c 'cd files/evidence 2>/dev/null && tar cf - .' > "$EVIDENCE/hierarchy.tar" 2>/dev/null || true
+  (cd "$EVIDENCE" && mkdir -p hierarchy && tar xf hierarchy.tar -C hierarchy 2>/dev/null; rm -f hierarchy.tar) || true
   adb shell dumpsys activity services $PKG > "$EVIDENCE/dumpsys-services.txt" 2>/dev/null || true
   adb shell "settings get secure enabled_accessibility_services" > "$EVIDENCE/accessibility-setting.txt" 2>/dev/null || true
   cp -r app/build/reports/androidTests "$EVIDENCE/androidTest-report" 2>/dev/null || true
@@ -45,6 +68,8 @@ adb shell pm grant $PKG android.permission.POST_NOTIFICATIONS || true
 adb shell appops set $PKG SYSTEM_ALERT_WINDOW allow || true
 
 echo "== instrumented tests =="
+prepare_screen
+diag "00-before-tests"
 ./gradlew :app:connectedDebugAndroidTest --stacktrace
 adb shell screencap -p /sdcard/khatwa-evidence/99-after-tests.png || true
 
@@ -54,8 +79,10 @@ adb install -r -g "$RELEASE_APK"
 adb shell pm grant $PKG android.permission.ACTIVITY_RECOGNITION || true
 adb shell pm grant $PKG android.permission.POST_NOTIFICATIONS || true
 adb logcat -c || true
+prepare_screen
 adb shell monkey -p $PKG -c android.intent.category.LAUNCHER 1 >/dev/null
 sleep 10
+diag "release-00-launched"
 adb shell screencap -p /sdcard/khatwa-evidence/release-01-launch.png
 # Walk through onboarding by tapping the "next"/"start" button found via uiautomator dump.
 tap_text() {
