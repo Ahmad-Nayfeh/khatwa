@@ -81,6 +81,9 @@ object TestSupport {
         val c = container
         runBlocking {
             c.settings.setOnboardingDone(LocalDate.now())
+            // Deterministic evidence: the dark scheme regardless of the emulator's system theme.
+            // (The default for users is "system"; the light-theme test switches explicitly.)
+            c.settings.setThemeMode(com.khatwa.app.settings.ThemeMode.DARK)
             c.tracker.load()
         }
         StepService.stop(context)
