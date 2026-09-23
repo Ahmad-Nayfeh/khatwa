@@ -1,0 +1,47 @@
+{
+  "description": "Shared test vectors for the khatwa daily laptop code. code = HMAC-SHA256(secret, date) -> first 4 bytes big-endian, top bit cleared -> mod 1000000 -> 6 digits zero-padded. Both the Kotlin (core/) and C# (laptop-lock/) tests must pass every vector.",
+  "vectors": [
+    {
+      "secret": "abcdefghijklmnopqrstuvwx",
+      "date": "2026-01-01",
+      "code": "358895",
+      "hmacHex": "f6656e6fd63f6f8223efba907d911befe0ef9868f5f365bdd899ed478a8eb0e6"
+    },
+    {
+      "secret": "abcdefghijklmnopqrstuvwx",
+      "date": "2026-01-02",
+      "code": "155173",
+      "hmacHex": "5979cf65b04065619b115b06f63a883a664b9c525318f2f49c63034901a53fd0"
+    },
+    {
+      "secret": "K7mP2qR9sT4vW6xZ3bN8cD5f",
+      "date": "2026-09-23",
+      "code": "178291",
+      "hmacHex": "89f6f0335da7cb1c0742b8446faf1c7deed253ab0e1dfbfa77bfdb9c388f68f3"
+    },
+    {
+      "secret": "K7mP2qR9sT4vW6xZ3bN8cD5f",
+      "date": "2026-09-22",
+      "code": "531511",
+      "hmacHex": "1bceb4b778fb0f3d8db0e74d257972f7ecbc3f4aa8051682d97e66a999bd0614"
+    },
+    {
+      "secret": "secret",
+      "date": "2000-02-29",
+      "code": "290136",
+      "hmacHex": "f9224958ff6957c35304eb2363134bfc0df54e9d439b7e1f7c02ebfda02c6913"
+    },
+    {
+      "secret": "ZZZZZZZZZZZZZZZZZZZZZZZZ",
+      "date": "2031-12-31",
+      "code": "195157",
+      "hmacHex": "b3de1fd5d25dfe49ebade2b98cc2734b7ea9fe8b8500fee31a2621a47fde7c6f"
+    },
+    {
+      "secret": "aB3dE5fG7hJ9kL2mN4pQ6rS8",
+      "date": "2027-06-15",
+      "code": "871597",
+      "hmacHex": "74943b6d8494e6c7244dc35c7339d757bb4b9b07b5b38c232628c894fee5b487"
+    }
+  ]
+}

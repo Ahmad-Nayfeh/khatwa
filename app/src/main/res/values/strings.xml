@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">خطوة</string>
+    <string name="accessibility_label">خطوة: قفل حتى تمشي</string>
+    <string name="accessibility_description">تستخدم «خطوة» خدمة الإتاحة فقط لمعرفة اسم التطبيق المفتوح حالياً، حتى تعرض شاشة القفل فوق التطبيقات غير المسموحة أثناء تفعيل القفل. لا تقرأ محتوى الشاشة ولا تسجّل ما تكتبه ولا ترسل أي شيء خارج الجهاز.</string>
+    <string name="notification_channel_service">عدّاد الخطوات</string>
+    <string name="notification_channel_events">تنبيهات خطوة</string>
+</resources>

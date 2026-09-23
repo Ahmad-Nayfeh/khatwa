@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Debug-only adb hooks. Absent from the release manifest (verified in CI). -->
+        <receiver android:name=".debug.DebugReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="com.khatwa.app.debug.ENABLE_FAKE" />
+                <action android:name="com.khatwa.app.debug.ADD_STEPS" />
+                <action android:name="com.khatwa.app.debug.REBOOT" />
+                <action android:name="com.khatwa.app.debug.ONBOARD" />
+                <action android:name="com.khatwa.app.debug.DUMP" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

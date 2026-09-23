@@ -1,0 +1,177 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    name: Android · unit tests, APKs, emulator
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit tests (core + app)
+        run: ./gradlew :core:test :app:testDebugUnitTest --stacktrace
+
+      - name: Decode release keystore (only if the secrets exist)
+        env:
+          KHATWA_KEYSTORE_BASE64: ${{ secrets.KHATWA_KEYSTORE_BASE64 }}
+          KHATWA_KEYSTORE_PASSWORD: ${{ secrets.KHATWA_KEYSTORE_PASSWORD }}
+          KHATWA_KEY_ALIAS: ${{ secrets.KHATWA_KEY_ALIAS }}
+          KHATWA_KEY_PASSWORD: ${{ secrets.KHATWA_KEY_PASSWORD }}
+        run: bash ci/prepare-signing.sh
+
+      - name: Build APKs (debug, release, androidTest)
+        run: ./gradlew :app:assembleDebug :app:assembleRelease :app:assembleDebugAndroidTest --stacktrace
+
+      - name: Verify the release APK contains no debug hooks
+        run: bash ci/verify-release.sh
+
+      - name: Collect APKs
+        run: |
+          mkdir -p out
+          VERSION=$(grep -E 'versionName = ' app/build.gradle.kts | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+          cp app/build/outputs/apk/debug/app-debug.apk "out/khatwa-${VERSION}-debug.apk"
+          cp app/build/outputs/apk/release/app-release.apk "out/khatwa-${VERSION}.apk"
+          ls -la out
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: khatwa-apk
+          path: out/*.apk
+          if-no-files-found: error
+
+      - name: Upload unit test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-reports
+          path: |
+            core/build/reports/tests
+            app/build/reports/tests
+          if-no-files-found: ignore
+
+      - name: Free runner disk space for the emulator
+        run: |
+          df -h / | tail -1
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/node_modules /opt/ghc /usr/local/.ghcup \
+            /usr/share/swift /usr/local/share/powershell /opt/hostedtoolcache/CodeQL \
+            /usr/local/share/chromium /usr/local/lib/android/sdk/ndk /usr/lib/jvm/temurin-8-jdk-amd64 \
+            /usr/lib/jvm/temurin-11-jdk-amd64 /usr/lib/jvm/temurin-21-jdk-amd64 || true
+          sudo docker image prune -af >/dev/null 2>&1 || true
+          sudo apt-get clean >/dev/null 2>&1 || true
+          df -h / | tail -1
+
+      - name: Enable KVM for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Emulator tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          cores: 4
+          ram-size: 4096M
+          disk-size: 2048M
+          emulator-boot-timeout: 900
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          disable-animations: true
+          script: bash ci/emulator-tests.sh
+
+      - name: Upload emulator evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emulator-evidence
+          path: ci/evidence
+          if-no-files-found: warn
+
+  windows:
+    name: Windows · laptop lock (tests, single-file exe)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: C# unit tests (incl. shared HMAC vectors)
+        run: dotnet test laptop-lock/KhatwaLock.Tests/KhatwaLock.Tests.csproj -c Release --logger "trx;LogFileName=results.trx"
+
+      - name: Publish self-contained single-file exe
+        run: |
+          $version = (Select-String -Path app/build.gradle.kts -Pattern 'versionName = ' | Select-Object -First 1).Line -replace '.*"([^"]+)".*','$1'
+          dotnet publish laptop-lock/KhatwaLock.App/KhatwaLock.App.csproj -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishReadyToRun=false `
+            -p:Version=$version -o out
+          Copy-Item out/KhatwaLock.exe "out/khatwa-laptop-lock-$version.exe"
+          Get-ChildItem out
+
+      - name: Self-test the published exe (HMAC vectors + code output)
+        run: |
+          # The exe is a GUI-subsystem program: run it with redirected output and wait explicitly.
+          $exe = (Get-ChildItem out/khatwa-laptop-lock-*.exe | Select-Object -First 1).FullName
+          $p = Start-Process -FilePath $exe -ArgumentList '--selftest' -Wait -PassThru -NoNewWindow -RedirectStandardOutput selftest.txt
+          Get-Content selftest.txt
+          if ($p.ExitCode -ne 0) { throw "selftest failed (exit $($p.ExitCode))" }
+          $p = Start-Process -FilePath $exe -ArgumentList '--code','abcdefghijklmnopqrstuvwx','2026-01-01' -Wait -PassThru -NoNewWindow -RedirectStandardOutput code.txt
+          $code = (Get-Content code.txt -Raw).Trim()
+          Write-Host "code for shared vector: $code"
+          if ($code -ne "358895") { throw "code mismatch: '$code'" }
+
+      - name: UI smoke (lock form on the runner desktop, 3 s)
+        continue-on-error: true
+        run: |
+          $exe = (Get-ChildItem out/khatwa-laptop-lock-*.exe | Select-Object -First 1).FullName
+          $p = Start-Process -FilePath $exe -ArgumentList '--ui-smoke','3' -Wait -PassThru -NoNewWindow -RedirectStandardOutput uismoke.txt
+          Get-Content uismoke.txt
+          Write-Host "ui-smoke exit code: $($p.ExitCode)"
+          if ($p.ExitCode -ne 0) { throw "ui-smoke failed (the hosted runner may have no interactive desktop)" }
+
+      - name: Upload exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: khatwa-laptop-lock-exe
+          path: |
+            out/khatwa-laptop-lock-*.exe
+            laptop-lock/install.ps1
+            laptop-lock/uninstall.ps1
+          if-no-files-found: error
+
+      - name: Upload C# test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: csharp-test-results
+          path: laptop-lock/KhatwaLock.Tests/TestResults
+          if-no-files-found: ignore
