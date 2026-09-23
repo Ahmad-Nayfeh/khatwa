@@ -49,15 +49,22 @@ object TestSupport {
     }
 
     /** Mark onboarding done with default settings and use the fake step source. */
-    fun onboardWithFakeSteps() = runBlocking {
+    fun onboardWithFakeSteps() {
         FakeStepSource.setEnabled(context, true)
         val c = container
-        c.settings.setOnboardingDone(LocalDate.now())
-        c.tracker.load()
+        runBlocking {
+            c.settings.setOnboardingDone(LocalDate.now())
+            c.tracker.load()
+        }
         StepService.stop(context)
-        Thread.sleep(500)
-        StepService.start(context)
-        Thread.sleep(1500)
+        Thread.sleep(700)
+        // Start from the foreground (the activity), exactly like a user would.
+        launchApp()
+        val started = StepService.start(context)
+        val end = System.currentTimeMillis() + 15_000
+        while (System.currentTimeMillis() < end && !fake().isStarted) Thread.sleep(200)
+        Log.i(TAG, "service start requested=$started fakeStarted=${fake().isStarted}")
+        check(fake().isStarted) { "StepService did not start with the fake step source" }
     }
 
     fun fake(): FakeStepSource = FakeStepSource.get(context)

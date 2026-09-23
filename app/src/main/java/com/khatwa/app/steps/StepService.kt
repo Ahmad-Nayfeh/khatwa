@@ -137,7 +137,7 @@ class StepService : Service() {
         }
 
         fun stop(context: Context) {
-            context.startService(Intent(context, StepService::class.java).setAction(ACTION_STOP))
+            context.stopService(Intent(context, StepService::class.java))
         }
     }
 }

@@ -34,7 +34,11 @@ class ScheduledLockTest {
             c.lock.unlock(com.khatwa.app.lock.UnlockReason.CANCELLED)
             c.settings.setScheduleSkipDate(null)
             c.lock.refreshPolicy()
+            // A goal far above whatever earlier tests walked, so "goal not met" holds.
+            c.settings.setGoals(null, null, null, manual = 100_000)
+            c.tracker.refreshGoalNow()
         }
+        waitUntil(10_000) { c.tracker.today.value.goal == 100_000 }
         c.lock.refreshHealth()
     }
 
@@ -75,6 +79,7 @@ class ScheduledLockTest {
 
         runBlocking {
             c.settings.setSchedule(ScheduleConfig(enabled = false))
+            c.settings.setGoals(null, null, null, null, clearManual = true)
             c.alarms.scheduleAll(c.settings.current())
         }
     }

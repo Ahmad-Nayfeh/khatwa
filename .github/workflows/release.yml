@@ -45,9 +45,39 @@ jobs:
           name: release-apk
           path: out/*.apk
 
+  windows:
+    name: Build laptop lock exe
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: C# tests
+        run: dotnet test laptop-lock/KhatwaLock.Tests/KhatwaLock.Tests.csproj -c Release
+      - name: Publish exe
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          dotnet publish laptop-lock/KhatwaLock.App/KhatwaLock.App.csproj -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:Version=$version -o out
+          Copy-Item out/KhatwaLock.exe "out/khatwa-laptop-lock-$version.exe"
+          & "out/khatwa-laptop-lock-$version.exe" --selftest
+          if ($LASTEXITCODE -ne 0) { throw "selftest failed" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-exe
+          path: |
+            out/khatwa-laptop-lock-*.exe
+            laptop-lock/install.ps1
+            laptop-lock/uninstall.ps1
+
   publish:
     name: Publish GitHub Release
-    needs: [android]
+    needs: [android, windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -61,7 +91,9 @@ jobs:
           files: |
             assets/**/*.apk
             assets/**/*.exe
+            assets/**/install.ps1
+            assets/**/uninstall.ps1
           body: |
             ## khatwa ${{ github.ref_name }}
-            - `khatwa-${{ needs.android.outputs.version }}.apk`: تطبيق أندرويد (ثبّته من خارج المتجر، انظر README).
-            - `khatwa-laptop-lock-*.exe`: برنامج قفل اللابتوب لويندوز (يُضاف عند اكتمال مرحلة اللابتوب).
+            - `khatwa-${{ needs.android.outputs.version }}.apk`: تطبيق أندرويد. ثبّته من خارج المتجر كما يشرح README.
+            - `khatwa-laptop-lock-${{ needs.android.outputs.version }}.exe`: برنامج قفل اللابتوب لويندوز، مع `install.ps1` و`uninstall.ps1`.

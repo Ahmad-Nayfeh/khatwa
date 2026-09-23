@@ -110,3 +110,64 @@ jobs:
           name: emulator-evidence
           path: ci/evidence
           if-no-files-found: warn
+
+  windows:
+    name: Windows · laptop lock (tests, single-file exe)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: C# unit tests (incl. shared HMAC vectors)
+        run: dotnet test laptop-lock/KhatwaLock.Tests/KhatwaLock.Tests.csproj -c Release --logger "trx;LogFileName=results.trx"
+
+      - name: Publish self-contained single-file exe
+        run: |
+          $version = (Select-String -Path app/build.gradle.kts -Pattern 'versionName = ' | Select-Object -First 1).Line -replace '.*"([^"]+)".*','$1'
+          dotnet publish laptop-lock/KhatwaLock.App/KhatwaLock.App.csproj -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishReadyToRun=false `
+            -p:Version=$version -o out
+          Copy-Item out/KhatwaLock.exe "out/khatwa-laptop-lock-$version.exe"
+          Get-ChildItem out
+
+      - name: Self-test the published exe (HMAC vectors + code output)
+        run: |
+          $exe = Get-ChildItem out/khatwa-laptop-lock-*.exe | Select-Object -First 1
+          & $exe.FullName --selftest
+          if ($LASTEXITCODE -ne 0) { throw "selftest failed" }
+          $code = & $exe.FullName --code abcdefghijklmnopqrstuvwx 2026-01-01
+          Write-Host "code for shared vector: $code"
+          if ($code.Trim() -ne "358895") { throw "code mismatch: $code" }
+
+      - name: UI smoke (lock form on the runner desktop, 3 s)
+        continue-on-error: true
+        run: |
+          $exe = Get-ChildItem out/khatwa-laptop-lock-*.exe | Select-Object -First 1
+          & $exe.FullName --ui-smoke 3
+          Write-Host "ui-smoke exit code: $LASTEXITCODE"
+          if ($LASTEXITCODE -ne 0) { throw "ui-smoke failed (the hosted runner may have no interactive desktop)" }
+
+      - name: Upload exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: khatwa-laptop-lock-exe
+          path: |
+            out/khatwa-laptop-lock-*.exe
+            laptop-lock/install.ps1
+            laptop-lock/uninstall.ps1
+          if-no-files-found: error
+
+      - name: Upload C# test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: csharp-test-results
+          path: laptop-lock/KhatwaLock.Tests/TestResults
+          if-no-files-found: ignore

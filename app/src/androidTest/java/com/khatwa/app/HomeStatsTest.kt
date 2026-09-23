@@ -30,6 +30,7 @@ class HomeStatsTest {
         // timestamps are in the past.
         runBlocking { c.tracker.reload() }
         val before = runBlocking { c.db.sessions().all().size }
+        val stepsBefore = c.tracker.today.value.steps
         val now = System.currentTimeMillis()
 
         // 12 minutes at ~100 steps/min, ending 20 minutes ago, one event every 6 seconds (10 steps).
@@ -39,7 +40,7 @@ class HomeStatsTest {
         t = now - 11 * 60_000L
         repeat(60) { fake.emitAt(t, 10); t += 6_000 }
         // Wait for the channel to drain, then let the tracker close stale candidates.
-        waitUntil { c.tracker.today.value.steps >= 1800 }
+        waitUntil { c.tracker.today.value.steps >= stepsBefore + 1800 }
         runBlocking { c.tracker.tick() }
 
         val sessions = runBlocking { c.db.sessions().all() }

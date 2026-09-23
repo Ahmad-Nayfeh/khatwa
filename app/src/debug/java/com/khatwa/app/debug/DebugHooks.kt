@@ -32,6 +32,7 @@ class FakeStepSource private constructor(context: Context) : StepSource {
 
     override val name: String = "fake"
     override val available: Boolean = true
+    val isStarted: Boolean get() = listener != null
 
     var reading: Long
         get() = prefs.getLong(KEY_READING, 0L)
