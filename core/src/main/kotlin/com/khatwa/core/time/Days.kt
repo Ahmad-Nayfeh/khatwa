@@ -8,9 +8,9 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.temporal.TemporalAdjusters
 
-/** Calendar helpers shared by the app. The statistics week starts on Saturday. */
+/** Calendar helpers shared by the app. The week starts on Sunday (Friday and Saturday are the weekend). */
 object Days {
-    val WEEK_START: DayOfWeek = DayOfWeek.SATURDAY
+    val WEEK_START: DayOfWeek = DayOfWeek.SUNDAY
 
     fun localDate(epochMs: Long, zone: ZoneId): LocalDate =
         Instant.ofEpochMilli(epochMs).atZone(zone).toLocalDate()

@@ -138,7 +138,7 @@ fun HomeScreen(container: AppContainer, onOpenSettings: () -> Unit) {
                 ComparePill(pct, Modifier.weight(1f))
             }
             VSpace(6.dp)
-            Muted("المقارنة مع نفس الأيام المنقضية من الأسبوع الماضي. الأسبوع يبدأ السبت.")
+            Muted("المقارنة مع نفس الأيام المنقضية من الأسبوع الماضي. الأسبوع يبدأ الأحد.")
         }
         VSpace()
 

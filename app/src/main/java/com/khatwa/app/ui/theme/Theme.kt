@@ -105,7 +105,10 @@ private val KhatwaTypography = Typography(
     labelMedium = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium, lineHeight = 16.sp),
 )
 
-/** Arabic-first theme: always RTL, dark by default. */
+/**
+ * Arabic-first theme. The layout direction is forced to RTL because every string in the app is
+ * Arabic; charts (Vico) and Material components read LocalLayoutDirection, so they mirror with it.
+ */
 @Composable
 fun KhatwaTheme(dark: Boolean = true, content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
@@ -117,5 +120,10 @@ fun KhatwaTheme(dark: Boolean = true, content: @Composable () -> Unit) {
     }
 }
 
+/** Resolves the stored theme mode ("system" / "light" / "dark") to whether the dark scheme applies. */
 @Composable
-fun rememberIsDark(): Boolean = isSystemInDarkTheme()
+fun isDarkFor(themeMode: String?): Boolean = when (themeMode) {
+    com.khatwa.app.settings.ThemeMode.LIGHT -> false
+    com.khatwa.app.settings.ThemeMode.DARK -> true
+    else -> isSystemInDarkTheme()
+}

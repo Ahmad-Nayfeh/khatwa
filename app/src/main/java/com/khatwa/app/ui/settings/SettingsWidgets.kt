@@ -85,10 +85,25 @@ fun SwitchRow(title: String, checked: Boolean, subtitle: String? = null, onChang
     }
 }
 
-/** Day-of-week chips, ISO numbering (Mon=1..Sun=7), shown Saturday first. */
+/** Single-choice chips in a row (theme mode and similar small enumerations). */
+@Composable
+fun ChoiceRow(options: List<Pair<String, String>>, selected: String, onChange: (String) -> Unit) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        options.forEach { (value, label) ->
+            FilterChip(
+                selected = value == selected,
+                onClick = { onChange(value) },
+                label = { Text(label, maxLines = 1) },
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+/** Day-of-week chips, ISO numbering (Mon=1..Sun=7), shown Sunday first (the week starts on Sunday). */
 @Composable
 fun DayOfWeekPicker(selected: Set<Int>, single: Boolean = false, onChange: (Set<Int>) -> Unit) {
-    val order = listOf(6, 7, 1, 2, 3, 4, 5)
+    val order = listOf(7, 1, 2, 3, 4, 5, 6)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         order.forEach { d ->
             val on = d in selected

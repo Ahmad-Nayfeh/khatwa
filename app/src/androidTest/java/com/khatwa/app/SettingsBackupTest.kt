@@ -56,6 +56,18 @@ class SettingsBackupTest {
         assertTrue(TestSupport.clickText("الحكم"))
         assertNotNull(device.wait(Until.findObject(By.textContains("حكمة.")), 5_000))
         TestSupport.screenshot("43-quotes-editor")
+
+        // Light theme evidence: the same screens with the light colour scheme.
+        runBlocking { c.settings.setThemeMode(com.khatwa.app.settings.ThemeMode.LIGHT) }
+        TestSupport.launchApp()
+        assertNotNull(device.wait(Until.findObject(By.res("home_steps")), 15_000))
+        Thread.sleep(800)
+        TestSupport.screenshot("44-light-home")
+        device.findObject(By.res("tab_stats"))?.click()
+        device.wait(Until.hasObject(By.textContains("آخر 30 يوماً")), 5_000)
+        Thread.sleep(800)
+        TestSupport.screenshot("45-light-stats")
+        runBlocking { c.settings.setThemeMode(com.khatwa.app.settings.ThemeMode.SYSTEM) }
     }
 
     @Test

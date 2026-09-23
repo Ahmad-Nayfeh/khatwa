@@ -70,7 +70,17 @@ private fun SettingsRoot(container: AppContainer, open: (String) -> Unit) {
                 if (s.morningEnabled) TimePickerRow("وقت الإشعار الصباحي", s.morningMinute) { m ->
                     scope.launch { container.settings.setMorning(true, m); container.alarms.scheduleAll(container.settings.current()) }
                 }
-                SwitchRow("الوضع الداكن", s.darkMode) { on -> scope.launch { container.settings.setDarkMode(on) } }
+                VSpace(8.dp)
+                Text("المظهر", style = MaterialTheme.typography.bodyLarge)
+                VSpace(6.dp)
+                ChoiceRow(
+                    options = listOf(
+                        com.khatwa.app.settings.ThemeMode.SYSTEM to "تلقائي",
+                        com.khatwa.app.settings.ThemeMode.LIGHT to "فاتح",
+                        com.khatwa.app.settings.ThemeMode.DARK to "داكن",
+                    ),
+                    selected = s.themeMode,
+                ) { mode -> scope.launch { container.settings.setThemeMode(mode) } }
             }
         }
         VSpace()

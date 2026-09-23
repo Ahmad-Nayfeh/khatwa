@@ -37,7 +37,8 @@ data class Settings(
     val weightReminderMinute: Int = 9 * 60,
     val morningEnabled: Boolean = false,
     val morningMinute: Int = 7 * 60,
-    val darkMode: Boolean = true,
+    /** "system" (follow the device), "light" or "dark". See [ThemeMode]. */
+    val themeMode: String = ThemeMode.SYSTEM,
     val lockStateJson: String? = null,
     val quoteOverrideDate: String? = null,
     val quoteOverrideIndex: Int = -1,
@@ -56,6 +57,15 @@ data class Settings(
     companion object {
         const val DEFAULT_EMERGENCY_PHRASE = "أختار الاستسلام اليوم وأعلم أن هذا يُسجَّل"
     }
+}
+
+/** Theme choice stored in settings. */
+object ThemeMode {
+    const val SYSTEM = "system"
+    const val LIGHT = "light"
+    const val DARK = "dark"
+    val ALL = listOf(SYSTEM, LIGHT, DARK)
+    fun normalize(v: String?): String = if (v in ALL) v!! else SYSTEM
 }
 
 class SettingsRepository(private val context: Context) {
@@ -116,7 +126,7 @@ class SettingsRepository(private val context: Context) {
         it[K.morningMinute] = minute
     }
 
-    suspend fun setDarkMode(v: Boolean) = edit { it[K.darkMode] = v }
+    suspend fun setThemeMode(v: String) = edit { it[K.themeMode] = ThemeMode.normalize(v) }
 
     suspend fun setLockStateJson(json: String?) = edit {
         if (json == null) it.remove(K.lockState) else it[K.lockState] = json
@@ -150,8 +160,9 @@ class SettingsRepository(private val context: Context) {
         for ((name, value) in map) {
             when (name) {
                 K.onboardingDone.name, K.scheduleEnabled.name, K.blockSettings.name, K.allowlistInitialized.name,
-                K.weightReminderEnabled.name, K.morningEnabled.name, K.darkMode.name ->
+                K.weightReminderEnabled.name, K.morningEnabled.name ->
                     p[booleanPreferencesKey(name)] = value.toBooleanStrictOrNull() ?: false
+                K.themeMode.name -> p[K.themeMode] = ThemeMode.normalize(value)
                 K.tempGoal.name, K.finalGoal.name, K.weeklyIncrement.name, K.manualGoal.name, K.scheduleStart.name,
                 K.scheduleEnd.name, K.weightReminderDay.name, K.weightReminderMinute.name, K.morningMinute.name,
                 K.quoteOverrideIndex.name ->
@@ -185,7 +196,7 @@ class SettingsRepository(private val context: Context) {
         val weightReminderMinute = intPreferencesKey("weight_reminder_minute")
         val morningEnabled = booleanPreferencesKey("morning_enabled")
         val morningMinute = intPreferencesKey("morning_minute")
-        val darkMode = booleanPreferencesKey("dark_mode")
+        val themeMode = stringPreferencesKey("theme_mode")
         val lockState = stringPreferencesKey("lock_state")
         val quoteOverrideDate = stringPreferencesKey("quote_override_date")
         val quoteOverrideIndex = intPreferencesKey("quote_override_index")
@@ -217,7 +228,7 @@ class SettingsRepository(private val context: Context) {
             weightReminderMinute = this[K.weightReminderMinute] ?: defaults.weightReminderMinute,
             morningEnabled = this[K.morningEnabled] ?: false,
             morningMinute = this[K.morningMinute] ?: defaults.morningMinute,
-            darkMode = this[K.darkMode] ?: true,
+            themeMode = ThemeMode.normalize(this[K.themeMode]),
             lockStateJson = this[K.lockState],
             quoteOverrideDate = this[K.quoteOverrideDate],
             quoteOverrideIndex = this[K.quoteOverrideIndex] ?: -1,

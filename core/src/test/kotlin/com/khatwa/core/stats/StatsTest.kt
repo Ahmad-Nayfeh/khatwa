@@ -44,28 +44,32 @@ class StatsTest {
     }
 
     @Test
-    fun `week starts on Saturday`() {
+    fun `week starts on Sunday`() {
         val wed = LocalDate.of(2026, 9, 23)
         assertEquals(DayOfWeek.WEDNESDAY, wed.dayOfWeek)
-        assertEquals(LocalDate.of(2026, 9, 19), Days.weekStart(wed))
-        assertEquals(DayOfWeek.SATURDAY, Days.weekStart(wed).dayOfWeek)
-        val sat = LocalDate.of(2026, 9, 19)
-        assertEquals(sat, Days.weekStart(sat))
+        assertEquals(LocalDate.of(2026, 9, 20), Days.weekStart(wed))
+        assertEquals(DayOfWeek.SUNDAY, Days.weekStart(wed).dayOfWeek)
+        val sun = LocalDate.of(2026, 9, 20)
+        assertEquals(sun, Days.weekStart(sun))
+        // Saturday belongs to the week that started the previous Sunday (Fri + Sat are the weekend).
+        val sat = LocalDate.of(2026, 9, 26)
+        assertEquals(sun, Days.weekStart(sat))
+        assertEquals(sat, Days.weekEnd(wed))
     }
 
     @Test
     fun `week compare uses the same elapsed days of the previous week`() {
-        val today = LocalDate.of(2026, 9, 21) // Monday -> week started Saturday 19th, 3 days elapsed
+        val today = LocalDate.of(2026, 9, 22) // Tuesday -> week started Sunday 20th, 3 days elapsed
         val steps = HashMap<LocalDate, Long>()
-        // This week: Sat, Sun, Mon
-        steps[LocalDate.of(2026, 9, 19)] = 3000
+        // This week: Sun, Mon, Tue
         steps[LocalDate.of(2026, 9, 20)] = 3000
         steps[LocalDate.of(2026, 9, 21)] = 3000
-        // Last week: Sat, Sun, Mon + later days that must be ignored
-        steps[LocalDate.of(2026, 9, 12)] = 2000
+        steps[LocalDate.of(2026, 9, 22)] = 3000
+        // Last week: Sun, Mon, Tue + later days that must be ignored
         steps[LocalDate.of(2026, 9, 13)] = 2000
         steps[LocalDate.of(2026, 9, 14)] = 2000
-        steps[LocalDate.of(2026, 9, 17)] = 9999
+        steps[LocalDate.of(2026, 9, 15)] = 2000
+        steps[LocalDate.of(2026, 9, 18)] = 9999
         val c = Stats.weekCompare(steps, today)
         assertEquals(9000, c.thisWeek)
         assertEquals(6000, c.lastWeek)

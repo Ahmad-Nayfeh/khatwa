@@ -3,9 +3,11 @@ package com.khatwa.app.ui
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -16,6 +18,7 @@ import androidx.lifecycle.lifecycleScope
 import com.khatwa.app.KhatwaApp
 import com.khatwa.app.steps.StepService
 import com.khatwa.app.ui.theme.KhatwaTheme
+import com.khatwa.app.ui.theme.isDarkFor
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -26,7 +29,16 @@ class MainActivity : ComponentActivity() {
         val container = KhatwaApp.container(this)
         setContent {
             val settings by container.settings.flow.collectAsStateWithLifecycle(initialValue = null)
-            KhatwaTheme(dark = settings?.darkMode ?: true) {
+            val dark = isDarkFor(settings?.themeMode)
+            // Status/navigation bar icons must follow the chosen theme, not only the system one.
+            LaunchedEffect(dark) {
+                val transparent = android.graphics.Color.TRANSPARENT
+                enableEdgeToEdge(
+                    statusBarStyle = if (dark) SystemBarStyle.dark(transparent) else SystemBarStyle.light(transparent, transparent),
+                    navigationBarStyle = if (dark) SystemBarStyle.dark(transparent) else SystemBarStyle.light(transparent, transparent),
+                )
+            }
+            KhatwaTheme(dark = dark) {
                 Surface(
                     modifier = Modifier.fillMaxSize().semantics { testTagsAsResourceId = true },
                     color = androidx.compose.material3.MaterialTheme.colorScheme.background,
