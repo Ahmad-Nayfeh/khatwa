@@ -130,6 +130,34 @@ object TestSupport {
         }
     }
 
+    /**
+     * Scrolls a scroll container one page forward through the accessibility action instead of an
+     * injected touch swipe. Touch swipes are unreliable on the software-rendered CI emulator
+     * (frames take hundreds of ms), while ACTION_SCROLL_FORWARD is handled by Compose directly.
+     */
+    fun scrollForward(resId: String): Boolean {
+        val automation = InstrumentationRegistry.getInstrumentation()
+            .getUiAutomation(androidx.test.uiautomator.Configurator.getInstance().uiAutomationFlags)
+        val root = automation.rootInActiveWindow ?: return false.also { Log.w(TAG, "scrollForward: no root window") }
+        val node = findNode(root) { it.viewIdResourceName == resId }
+            ?: return false.also { Log.w(TAG, "scrollForward: no node with id $resId") }
+        val ok = node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+        Log.i(TAG, "scrollForward($resId) -> $ok")
+        return ok
+    }
+
+    private fun findNode(
+        node: android.view.accessibility.AccessibilityNodeInfo,
+        pred: (android.view.accessibility.AccessibilityNodeInfo) -> Boolean,
+    ): android.view.accessibility.AccessibilityNodeInfo? {
+        if (pred(node)) return node
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            findNode(child, pred)?.let { return it }
+        }
+        return null
+    }
+
     /** Waits for a node and, if it never appears, records a screenshot + hierarchy before failing. */
     fun waitFor(selector: androidx.test.uiautomator.BySelector, timeoutMs: Long, name: String): androidx.test.uiautomator.UiObject2? {
         var obj = device.wait(Until.findObject(selector), timeoutMs)

@@ -53,18 +53,18 @@ class HomeStatsTest {
         TestSupport.launchApp()
         val steps = device.wait(Until.findObject(By.res("home_steps")), 15_000)
         assertNotNull(steps)
-        // The quote card sits below the fold once the lock section is on screen: swipe up to it
-        // (bounded swipes, not scrollUntil, which can loop on a Compose scroll container).
+        // The quote card sits below the fold once the lock section is on screen. Scroll to it with
+        // the accessibility scroll action (touch swipes are not reliable on the slow CI emulator).
         var quote = device.findObject(By.res("home_quote"))
-        var swipes = 0
-        while (quote == null && swipes < 4) {
-            val w = device.displayWidth; val h = device.displayHeight
-            device.swipe(w / 2, (h * 0.75).toInt(), w / 2, (h * 0.35).toInt(), 20)
-            Thread.sleep(600)
-            quote = device.findObject(By.res("home_quote"))
-            swipes++
+        var scrolls = 0
+        while (quote == null && scrolls < 4) {
+            TestSupport.scrollForward("home_scroll")
+            scrolls++
+            quote = device.wait(Until.findObject(By.res("home_quote")), 3_000)
         }
-        assertNotNull("quote card missing after $swipes swipes", quote)
+        if (quote == null) TestSupport.dump("missing-home_quote")
+        val quotesInDb = runBlocking { c.db.quotes().count() }
+        assertNotNull("quote card missing after $scrolls scrolls (quotes in db: $quotesInDb)", quote)
         TestSupport.screenshot("10-home-with-session")
 
         // Stats tab

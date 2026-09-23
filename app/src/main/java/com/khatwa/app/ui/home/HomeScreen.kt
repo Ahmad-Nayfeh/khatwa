@@ -74,7 +74,7 @@ fun HomeScreen(container: AppContainer, onOpenSettings: () -> Unit) {
     val progress = if (today.goal > 0) today.steps.toFloat() / today.goal else 0f
 
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).testTag("home_scroll").padding(horizontal = 20.dp, vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         if (!PermissionChecks.activityRecognition(context)) {
