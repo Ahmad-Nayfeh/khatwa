@@ -68,6 +68,7 @@ adb install -r "$TEST_APK"
 adb shell pm grant $PKG android.permission.ACTIVITY_RECOGNITION || true
 adb shell pm grant $PKG android.permission.POST_NOTIFICATIONS || true
 adb shell appops set $PKG SYSTEM_ALERT_WINDOW allow || true
+adb shell appops set $PKG ACCESS_RESTRICTED_SETTINGS allow || true
 
 echo "== instrumented tests =="
 prepare_screen

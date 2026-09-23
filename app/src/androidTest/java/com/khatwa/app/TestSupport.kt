@@ -21,7 +21,29 @@ object TestSupport {
     const val EVIDENCE_DIR = "/sdcard/khatwa-evidence"
     private const val TAG = "KhatwaEvidence"
 
+    init {
+        // By default UiAutomation SUPPRESSES every other accessibility service while a test runs,
+        // which would keep our own KhatwaAccessibilityService from ever binding. Opt out before
+        // the first UiDevice is created.
+        androidx.test.uiautomator.Configurator.getInstance()
+            .setUiAutomationFlags(android.app.UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES)
+    }
+
     val device: UiDevice get() = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+
+    /** Finds a node by exact text and clicks it, retrying once if the node went stale. */
+    fun clickText(text: String, timeoutMs: Long = 5_000): Boolean {
+        repeat(3) {
+            try {
+                val obj = device.wait(Until.findObject(By.text(text)), timeoutMs) ?: return false
+                obj.click()
+                return true
+            } catch (e: androidx.test.uiautomator.StaleObjectException) {
+                Thread.sleep(300)
+            }
+        }
+        return false
+    }
     val context: Context get() = InstrumentationRegistry.getInstrumentation().targetContext
     val container: AppContainer get() = KhatwaApp.container(context)
 
@@ -40,8 +62,12 @@ object TestSupport {
 
     fun enableAccessibility() {
         val component = "$PKG/com.khatwa.app.lock.KhatwaAccessibilityService"
+        // Android 13+ "restricted settings" for sideloaded apps: allow them explicitly (what the
+        // user does by hand through App info > Allow restricted settings).
+        shell("appops set $PKG ACCESS_RESTRICTED_SETTINGS allow")
         shell("settings put secure enabled_accessibility_services $component")
         shell("settings put secure accessibility_enabled 1")
+        Log.i(TAG, "enabled services now: " + shell("settings get secure enabled_accessibility_services").trim())
     }
 
     fun disableAccessibility() {

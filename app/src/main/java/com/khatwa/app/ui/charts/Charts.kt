@@ -18,6 +18,7 @@ import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLa
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
+import com.patrykandpatrick.vico.core.cartesian.Zoom
 import com.patrykandpatrick.vico.compose.common.component.rememberLineComponent
 import com.patrykandpatrick.vico.compose.common.fill
 import com.patrykandpatrick.vico.compose.common.shape.rounded
@@ -53,8 +54,11 @@ private fun labelsFormatter(labels: List<String>) = object : CartesianValueForma
 }
 
 private val thousands = object : CartesianValueFormatter {
-    override fun format(context: CartesianMeasuringContext, value: Double, verticalAxisPosition: Axis.Position.Vertical?): CharSequence =
-        if (value >= 1000) String.format(Locale.US, "%.0fk", value / 1000) else String.format(Locale.US, "%.0f", value)
+    override fun format(context: CartesianMeasuringContext, value: Double, verticalAxisPosition: Axis.Position.Vertical?): CharSequence = when {
+        value >= 10_000 -> String.format(Locale.US, "%.0fk", value / 1000)
+        value >= 1000 -> String.format(Locale.US, "%.1fk", value / 1000).removeSuffix(".0k").let { if (it.endsWith("k")) it else "${it}k" }
+        else -> String.format(Locale.US, "%.0f", value)
+    }
 }
 
 private val plain = object : CartesianValueFormatter {
@@ -115,7 +119,7 @@ fun BarChart(
         modelProducer = modelProducer,
         modifier = modifier.height(height.dp),
         scrollState = rememberVicoScrollState(scrollEnabled = false),
-        zoomState = rememberVicoZoomState(zoomEnabled = false),
+        zoomState = rememberVicoZoomState(zoomEnabled = false, initialZoom = Zoom.Content),
     )
 }
 
@@ -182,7 +186,7 @@ fun MonthlyStepsAndWeightChart(
         modelProducer = modelProducer,
         modifier = modifier.height(200.dp),
         scrollState = rememberVicoScrollState(scrollEnabled = false),
-        zoomState = rememberVicoZoomState(zoomEnabled = false),
+        zoomState = rememberVicoZoomState(zoomEnabled = false, initialZoom = Zoom.Content),
     )
 }
 
@@ -217,7 +221,7 @@ fun WeightLineChart(
         modelProducer = modelProducer,
         modifier = modifier.height(160.dp),
         scrollState = rememberVicoScrollState(scrollEnabled = false),
-        zoomState = rememberVicoZoomState(zoomEnabled = false),
+        zoomState = rememberVicoZoomState(zoomEnabled = false, initialZoom = Zoom.Content),
     )
 }
 

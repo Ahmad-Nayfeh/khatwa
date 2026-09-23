@@ -74,8 +74,7 @@ class HomeStatsTest {
         TestSupport.launchApp()
         device.wait(Until.findObject(By.res("home_steps")), 15_000)
         device.findObject(By.res("tab_settings"))?.click()
-        device.wait(Until.hasObject(By.text("سجل الوزن")), 5_000)
-        device.findObject(By.text("سجل الوزن"))?.click()
+        assertTrue(TestSupport.clickText("سجل الوزن"))
         assertNotNull(device.wait(Until.findObject(By.textContains("80.5")), 5_000))
         TestSupport.screenshot("12-weight-log")
     }

@@ -89,12 +89,17 @@ fun LockSection(container: AppContainer, today: Today, onOpenSettings: () -> Uni
             VSpace(10.dp)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(1000, 2000, 3000).forEach { n ->
-                    SecondaryButton(Fmt.n(n), Modifier.weight(1f).testTag("lock_start_$n"), enabled = health.ok) {
-                        scope.launch { container.lock.startManual(n) }
-                    }
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = { scope.launch { container.lock.startManual(n) } },
+                        enabled = health.ok,
+                        modifier = Modifier.weight(1f).testTag("lock_start_$n"),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 12.dp),
+                    ) { Text(Fmt.n(n), maxLines = 1, softWrap = false) }
                 }
-                SecondaryButton("مخصص", Modifier.weight(1f).testTag("lock_start_custom"), enabled = health.ok) { custom = true }
             }
+            VSpace(8.dp)
+            SecondaryButton("عدد مخصص", Modifier.fillMaxWidth().testTag("lock_start_custom"), enabled = health.ok) { custom = true }
         }
         VSpace()
     }

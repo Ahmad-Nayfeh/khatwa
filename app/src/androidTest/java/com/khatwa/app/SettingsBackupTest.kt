@@ -36,7 +36,7 @@ class SettingsBackupTest {
         assertNotNull(device.wait(Until.findObject(By.text("قفل اللابتوب")), 5_000))
         TestSupport.screenshot("40-settings-root")
 
-        device.findObject(By.text("قفل اللابتوب")).click()
+        assertTrue(TestSupport.clickText("قفل اللابتوب"))
         val gen = device.wait(Until.findObject(By.res("laptop_generate")), 5_000)
         if (gen != null) {
             gen.click()
@@ -48,12 +48,12 @@ class SettingsBackupTest {
         TestSupport.screenshot("41-laptop-lock-settings")
         device.pressBack()
 
-        device.wait(Until.findObject(By.text("حالة الصلاحيات")), 5_000)?.click()
+        assertTrue(TestSupport.clickText("حالة الصلاحيات"))
         assertNotNull(device.wait(Until.findObject(By.textContains("النشاط البدني")), 5_000))
         TestSupport.screenshot("42-permissions-status")
         device.pressBack()
 
-        device.wait(Until.findObject(By.text("الحكم")), 5_000)?.click()
+        assertTrue(TestSupport.clickText("الحكم"))
         assertNotNull(device.wait(Until.findObject(By.textContains("حكمة.")), 5_000))
         TestSupport.screenshot("43-quotes-editor")
     }
