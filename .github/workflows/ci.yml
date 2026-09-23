@@ -139,20 +139,24 @@ jobs:
 
       - name: Self-test the published exe (HMAC vectors + code output)
         run: |
-          $exe = Get-ChildItem out/khatwa-laptop-lock-*.exe | Select-Object -First 1
-          & $exe.FullName --selftest
-          if ($LASTEXITCODE -ne 0) { throw "selftest failed" }
-          $code = & $exe.FullName --code abcdefghijklmnopqrstuvwx 2026-01-01
+          # The exe is a GUI-subsystem program: run it with redirected output and wait explicitly.
+          $exe = (Get-ChildItem out/khatwa-laptop-lock-*.exe | Select-Object -First 1).FullName
+          $p = Start-Process -FilePath $exe -ArgumentList '--selftest' -Wait -PassThru -NoNewWindow -RedirectStandardOutput selftest.txt
+          Get-Content selftest.txt
+          if ($p.ExitCode -ne 0) { throw "selftest failed (exit $($p.ExitCode))" }
+          $p = Start-Process -FilePath $exe -ArgumentList '--code','abcdefghijklmnopqrstuvwx','2026-01-01' -Wait -PassThru -NoNewWindow -RedirectStandardOutput code.txt
+          $code = (Get-Content code.txt -Raw).Trim()
           Write-Host "code for shared vector: $code"
-          if ($code.Trim() -ne "358895") { throw "code mismatch: $code" }
+          if ($code -ne "358895") { throw "code mismatch: '$code'" }
 
       - name: UI smoke (lock form on the runner desktop, 3 s)
         continue-on-error: true
         run: |
-          $exe = Get-ChildItem out/khatwa-laptop-lock-*.exe | Select-Object -First 1
-          & $exe.FullName --ui-smoke 3
-          Write-Host "ui-smoke exit code: $LASTEXITCODE"
-          if ($LASTEXITCODE -ne 0) { throw "ui-smoke failed (the hosted runner may have no interactive desktop)" }
+          $exe = (Get-ChildItem out/khatwa-laptop-lock-*.exe | Select-Object -First 1).FullName
+          $p = Start-Process -FilePath $exe -ArgumentList '--ui-smoke','3' -Wait -PassThru -NoNewWindow -RedirectStandardOutput uismoke.txt
+          Get-Content uismoke.txt
+          Write-Host "ui-smoke exit code: $($p.ExitCode)"
+          if ($p.ExitCode -ne 0) { throw "ui-smoke failed (the hosted runner may have no interactive desktop)" }
 
       - name: Upload exe
         uses: actions/upload-artifact@v4

@@ -65,8 +65,9 @@ jobs:
           dotnet publish laptop-lock/KhatwaLock.App/KhatwaLock.App.csproj -c Release -r win-x64 --self-contained true `
             -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:Version=$version -o out
           Copy-Item out/KhatwaLock.exe "out/khatwa-laptop-lock-$version.exe"
-          & "out/khatwa-laptop-lock-$version.exe" --selftest
-          if ($LASTEXITCODE -ne 0) { throw "selftest failed" }
+          $p = Start-Process -FilePath (Resolve-Path "out/khatwa-laptop-lock-$version.exe") -ArgumentList '--selftest' -Wait -PassThru -NoNewWindow -RedirectStandardOutput selftest.txt
+          Get-Content selftest.txt
+          if ($p.ExitCode -ne 0) { throw "selftest failed" }
       - uses: actions/upload-artifact@v4
         with:
           name: release-exe
