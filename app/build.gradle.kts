@@ -1,3 +1,4 @@
+import java.security.KeyStore
 import java.util.Properties
 
 plugins {
@@ -16,6 +17,24 @@ val keystoreProps = Properties().apply {
     if (f.exists()) f.inputStream().use { load(it) }
 }
 val hasReleaseKeystore = keystoreProps.getProperty("storeFile")?.let { rootProject.file(it).exists() } == true
+
+// PKCS12 keystores keep one password for the store and the key (keytool silently ignores a
+// different -keypass). Pick whichever password actually unlocks the key so a mismatched
+// KHATWA_KEY_PASSWORD secret cannot break the release build.
+val releaseKeyPassword: String? = if (!hasReleaseKeystore) null else run {
+    val storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+    val storePassword = keystoreProps.getProperty("storePassword") ?: ""
+    val alias = keystoreProps.getProperty("keyAlias") ?: ""
+    val candidates = listOf(keystoreProps.getProperty("keyPassword") ?: "", storePassword)
+    candidates.firstOrNull { candidate ->
+        runCatching {
+            val ks = KeyStore.getInstance("PKCS12")
+            storeFile.inputStream().use { ks.load(it, storePassword.toCharArray()) }
+            ks.getKey(alias, candidate.toCharArray()) != null
+        }.getOrDefault(false)
+    }.also { if (it == null) logger.warn("khatwa: no candidate password unlocks key '$alias' in ${storeFile.name}") }
+        ?: keystoreProps.getProperty("keyPassword")
+}
 
 android {
     namespace = "com.khatwa.app"
@@ -37,7 +56,7 @@ android {
                 storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
                 storePassword = keystoreProps.getProperty("storePassword")
                 keyAlias = keystoreProps.getProperty("keyAlias")
-                keyPassword = keystoreProps.getProperty("keyPassword")
+                keyPassword = releaseKeyPassword
             }
         }
     }
