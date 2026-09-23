@@ -37,6 +37,10 @@ object AlarmKinds {
     }
 
     suspend fun onMidnight(container: AppContainer) {
+        // A scheduled lock never crosses midnight.
+        if (container.lock.state.value is com.khatwa.core.lock.LockState.Scheduled) {
+            container.lock.unlock(com.khatwa.app.lock.UnlockReason.TIME_UP)
+        }
         container.alarms.scheduleAll(container.settings.current())
     }
 

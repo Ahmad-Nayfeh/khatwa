@@ -1,5 +1,6 @@
 package com.khatwa.app.ui.settings
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,7 +17,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import androidx.activity.compose.BackHandler
 import com.khatwa.app.AppContainer
 import com.khatwa.app.ui.components.Muted
 import com.khatwa.app.ui.components.VSpace
@@ -28,6 +28,8 @@ fun SettingsNav(container: AppContainer) {
     BackHandler(enabled = screen != "root") { screen = "root" }
     val back = { screen = "root" }
     when (screen) {
+        "schedule" -> ScheduledLockScreen(container, back)
+        "allowlist" -> AllowlistScreen(container, back)
         "weight" -> WeightScreen(container, back)
         else -> SettingsRoot(container) { screen = it }
     }
@@ -38,8 +40,10 @@ private fun SettingsRoot(container: AppContainer, open: (String) -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp)) {
         Text("الإعدادات", style = MaterialTheme.typography.headlineMedium)
         VSpace()
+        SettingsEntry("القفل المجدول", "وقت البدء والانتهاء وأيام الأسبوع") { open("schedule") }
+        SettingsEntry("قائمة المسموح", "التطبيقات المتاحة أثناء القفل، وحظر الإعدادات") { open("allowlist") }
         SettingsEntry("سجل الوزن", "إدخال أسبوعي وتذكير اختياري") { open("weight") }
-        Muted("بقية الإعدادات تُضاف في المراحل التالية.", Modifier.padding(top = 12.dp))
+        Muted("بقية الإعدادات تُضاف في المرحلة التالية.", Modifier.padding(top = 12.dp))
         Box(Modifier.padding(bottom = 24.dp).testTag("settings_root"))
     }
 }

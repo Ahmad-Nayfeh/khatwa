@@ -26,6 +26,8 @@ class BootReceiver : BroadcastReceiver() {
                     StepService.start(context)
                     container.alarms.scheduleAll(settings)
                     SnapshotWorker.schedule(context)
+                    // The start alarm may have been missed while the phone was off.
+                    com.khatwa.app.alarms.ScheduledLock.checkNow(container)
                 }
             } finally {
                 pending.finish()

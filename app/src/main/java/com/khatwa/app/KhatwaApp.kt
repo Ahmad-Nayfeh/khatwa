@@ -7,6 +7,7 @@ import androidx.work.Configuration
 import com.khatwa.app.alarms.AlarmScheduler
 import com.khatwa.app.data.KhatwaDatabase
 import com.khatwa.app.debug.DebugHooks
+import com.khatwa.app.lock.LockController
 import com.khatwa.app.notifications.Notifications
 import com.khatwa.app.settings.SettingsRepository
 import com.khatwa.app.steps.SnapshotWorker
@@ -26,10 +27,12 @@ class AppContainer(val app: Application) {
     val alarms = AlarmScheduler(app)
     val tracker = StepTracker(db, settings, scope)
     val features = Features(this)
+    val lock = LockController(this)
 
     /** Called once from Application.onCreate. */
     fun start() {
         notifications.createChannels()
+        lock.start()
         scope.launch {
             val s = settings.current()
             if (s.onboardingDone) {
@@ -37,6 +40,7 @@ class AppContainer(val app: Application) {
                 StepService.start(app)
                 alarms.scheduleAll(s)
                 SnapshotWorker.schedule(app)
+                com.khatwa.app.alarms.ScheduledLock.checkNow(this@AppContainer)
             }
             features.start()
         }

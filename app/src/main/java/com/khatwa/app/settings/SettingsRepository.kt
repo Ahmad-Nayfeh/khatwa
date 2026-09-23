@@ -42,6 +42,8 @@ data class Settings(
     val quoteOverrideDate: String? = null,
     val quoteOverrideIndex: Int = -1,
     val emergencyPhrase: String = DEFAULT_EMERGENCY_PHRASE,
+    /** Date (ISO) on which a scheduled lock was surrendered; it is not re-armed that day. */
+    val scheduleSkipDate: String? = null,
 ) {
     fun goalConfig(today: LocalDate): GoalConfig = GoalConfig(
         startDate = goalStartDate ?: today,
@@ -120,6 +122,12 @@ class SettingsRepository(private val context: Context) {
         if (json == null) it.remove(K.lockState) else it[K.lockState] = json
     }
 
+    suspend fun setScheduleSkipDate(date: String?) = edit {
+        if (date == null) it.remove(K.scheduleSkipDate) else it[K.scheduleSkipDate] = date
+    }
+
+    suspend fun setEmergencyPhrase(phrase: String) = edit { it[K.emergencyPhrase] = phrase }
+
     suspend fun setQuoteOverride(date: String?, index: Int) = edit {
         if (date == null) { it.remove(K.quoteOverrideDate); it.remove(K.quoteOverrideIndex) }
         else { it[K.quoteOverrideDate] = date; it[K.quoteOverrideIndex] = index }
@@ -150,7 +158,8 @@ class SettingsRepository(private val context: Context) {
                     value.toIntOrNull()?.let { p[intPreferencesKey(name)] = it }
                 K.allowlist.name, K.scheduleDays.name ->
                     p[stringSetPreferencesKey(name)] = value.split(",").filter { it.isNotBlank() }.toSet()
-                K.goalStartDate.name, K.laptopSecret.name, K.lockState.name, K.quoteOverrideDate.name, K.emergencyPhrase.name ->
+                K.goalStartDate.name, K.laptopSecret.name, K.lockState.name, K.quoteOverrideDate.name, K.emergencyPhrase.name,
+                K.scheduleSkipDate.name ->
                     p[stringPreferencesKey(name)] = value
             }
         }
@@ -181,6 +190,7 @@ class SettingsRepository(private val context: Context) {
         val quoteOverrideDate = stringPreferencesKey("quote_override_date")
         val quoteOverrideIndex = intPreferencesKey("quote_override_index")
         val emergencyPhrase = stringPreferencesKey("emergency_phrase")
+        val scheduleSkipDate = stringPreferencesKey("schedule_skip_date")
     }
 
     private fun Preferences.toSettings(): Settings {
@@ -212,6 +222,7 @@ class SettingsRepository(private val context: Context) {
             quoteOverrideDate = this[K.quoteOverrideDate],
             quoteOverrideIndex = this[K.quoteOverrideIndex] ?: -1,
             emergencyPhrase = this[K.emergencyPhrase] ?: Settings.DEFAULT_EMERGENCY_PHRASE,
+            scheduleSkipDate = this[K.scheduleSkipDate],
         )
     }
 }
