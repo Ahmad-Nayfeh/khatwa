@@ -53,7 +53,11 @@ class HomeStatsTest {
         TestSupport.launchApp()
         val steps = device.wait(Until.findObject(By.res("home_steps")), 15_000)
         assertNotNull(steps)
-        assertNotNull("quote card missing", device.wait(Until.findObject(By.res("home_quote")), 5_000))
+        // The quote card sits below the fold once the lock section is on screen: scroll to it.
+        val scrollable = device.findObject(By.scrollable(true))
+        val quote = scrollable?.scrollUntil(androidx.test.uiautomator.Direction.DOWN, Until.findObject(By.res("home_quote")))
+            ?: device.wait(Until.findObject(By.res("home_quote")), 5_000)
+        assertNotNull("quote card missing", quote)
         TestSupport.screenshot("10-home-with-session")
 
         // Stats tab
