@@ -126,7 +126,7 @@ fun HomeScreen(container: AppContainer, onOpenSettings: () -> Unit) {
             SectionTitle("هذا الأسبوع")
             BarChart(
                 values = ui.week.map { it.steps },
-                labels = ui.week.map { Fmt.arabicDaysShort[it.date.dayOfWeek.value] ?: "" },
+                labels = ui.week.map { Fmt.arabicDaysShort[it.date.dayOfWeek.value] ?: "?" },
                 goal = today.goal.toLong(),
                 thicknessDp = 22,
                 height = 170,

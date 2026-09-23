@@ -41,9 +41,15 @@ import java.util.Locale
  * does not depend on the library's API surface.
  */
 
+/**
+ * Maps an x index to its label. Vico throws if a formatter returns an empty string (it may ask
+ * for indices outside the data when measuring), so anything unknown becomes a single space.
+ */
 private fun labelsFormatter(labels: List<String>) = object : CartesianValueFormatter {
-    override fun format(context: CartesianMeasuringContext, value: Double, verticalAxisPosition: Axis.Position.Vertical?): CharSequence =
-        labels.getOrNull(value.toInt()) ?: ""
+    override fun format(context: CartesianMeasuringContext, value: Double, verticalAxisPosition: Axis.Position.Vertical?): CharSequence {
+        val i = Math.round(value).toInt()
+        return labels.getOrNull(i)?.takeIf { it.isNotBlank() } ?: " "
+    }
 }
 
 private val thousands = object : CartesianValueFormatter {
