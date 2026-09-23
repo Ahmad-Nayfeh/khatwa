@@ -62,6 +62,7 @@ class SettingsBackupTest {
     fun backupRoundTripRestoresData() {
         val backup = Backup(c)
         runBlocking {
+            c.db.weights().deleteAll()
             c.db.weights().insert(com.khatwa.app.data.WeightEntity(date = "2026-01-05", kg = 77.7, createdMs = 1L))
             c.settings.setLaptopSecret("abcdefghijklmnopqrstuvwx")
         }

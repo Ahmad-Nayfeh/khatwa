@@ -16,6 +16,8 @@ adb wait-for-device
 # wake it and dismiss the (swipe) keyguard. Without this the app window is behind the
 # lock screen and UiAutomator sees nothing.
 prepare_screen() {
+  # Never let "System UI isn't responding" / crash dialogs cover the app on the slow headless emulator.
+  adb shell settings put global hide_error_dialogs 1 || true
   adb shell settings put global device_provisioned 1 || true
   adb shell settings put secure user_setup_complete 1 || true
   adb shell svc power stayon true || true

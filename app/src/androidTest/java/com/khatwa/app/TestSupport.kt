@@ -74,7 +74,10 @@ object TestSupport {
         val intent = context.packageManager.getLaunchIntentForPackage(PKG)!!
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         context.startActivity(intent)
-        if (!device.wait(Until.hasObject(By.pkg(PKG)), 10_000)) dump("launch-not-visible")
+        if (!device.wait(Until.hasObject(By.pkg(PKG)), 10_000)) {
+            dismissAnrDialog()
+            if (!device.wait(Until.hasObject(By.pkg(PKG)), 5_000)) dump("launch-not-visible")
+        }
     }
 
     fun launchPackage(pkg: String) {
@@ -103,12 +106,18 @@ object TestSupport {
 
     /** Waits for a node and, if it never appears, records a screenshot + hierarchy before failing. */
     fun waitFor(selector: androidx.test.uiautomator.BySelector, timeoutMs: Long, name: String): androidx.test.uiautomator.UiObject2? {
-        val obj = device.wait(Until.findObject(selector), timeoutMs)
+        var obj = device.wait(Until.findObject(selector), timeoutMs)
+        if (obj == null) {
+            dismissAnrDialog()
+            obj = device.wait(Until.findObject(selector), 3_000)
+        }
         if (obj == null) dump("missing-$name")
         return obj
     }
 
     fun wake() {
+        shell("settings put global hide_error_dialogs 1")
+        dismissAnrDialog()
         shell("settings put global device_provisioned 1")
         shell("settings put secure user_setup_complete 1")
         shell("input keyevent KEYCODE_WAKEUP")
@@ -116,6 +125,15 @@ object TestSupport {
     }
 
     fun evidence(msg: String) = Log.i(TAG, msg)
+
+    /** The headless emulator sometimes shows "System UI isn't responding"; tap Wait / Close. */
+    fun dismissAnrDialog() {
+        repeat(2) {
+            val wait = device.findObject(By.text("Wait")) ?: device.findObject(By.textContains("isn't responding"))?.let { null }
+            if (wait != null) { wait.click(); Thread.sleep(500) }
+            else device.findObject(By.text("Close app"))?.let { it.click(); Thread.sleep(500) }
+        }
+    }
 
     /** First installed launchable package from the candidates (a "blocked" app for lock tests). */
     fun firstInstalled(vararg candidates: String): String? =

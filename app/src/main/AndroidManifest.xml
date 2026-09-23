@@ -52,9 +52,11 @@
                 android:value="Counting the user's steps continuously from the step sensor so the walk-to-unlock lock can react in real time." />
         </service>
 
+        <!-- exported must be true: system_server binds this service (the BIND_ACCESSIBILITY_SERVICE
+             permission keeps everyone else out). With false the system never binds it. -->
         <service
             android:name=".lock.KhatwaAccessibilityService"
-            android:exported="false"
+            android:exported="true"
             android:label="@string/accessibility_label"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
