@@ -83,10 +83,20 @@ class HomeStatsTest {
             c.db.weights().insert(com.khatwa.app.data.WeightEntity(date = java.time.LocalDate.now().toString(), kg = 80.5, createdMs = System.currentTimeMillis()))
         }
         TestSupport.launchApp()
-        device.wait(Until.findObject(By.res("home_steps")), 15_000)
-        device.findObject(By.res("tab_settings"))?.click()
+        assertNotNull("home not shown", TestSupport.waitFor(By.res("home_steps"), 15_000, "home_steps_weight"))
+        // The settings tab click can be swallowed while the slow emulator is still composing the
+        // home screen: click, wait for the settings list, retry once.
+        var entry: androidx.test.uiautomator.UiObject2? = null
+        repeat(2) { attempt ->
+            if (entry == null) {
+                TestSupport.clickRes("tab_settings")
+                entry = device.wait(Until.findObject(By.text("سجل الوزن")), 8_000)
+                if (entry == null) TestSupport.dump("missing-weight-entry-$attempt")
+            }
+        }
+        assertNotNull("settings entry 'سجل الوزن' not found", entry)
         assertTrue(TestSupport.clickText("سجل الوزن"))
-        assertNotNull(device.wait(Until.findObject(By.textContains("80.5")), 5_000))
+        assertNotNull("weight 80.5 not listed", TestSupport.waitFor(By.textContains("80.5"), 8_000, "weight_80_5"))
         TestSupport.screenshot("12-weight-log")
     }
 

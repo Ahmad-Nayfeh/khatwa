@@ -95,7 +95,9 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_6
-          cores: 4
+          # 2 of the runner's 4 vCPUs: with 4 the emulator starves the runner agent
+          # (QEMU "hanging thread" errors followed by "runner received a shutdown signal").
+          cores: 2
           ram-size: 4096M
           disk-size: 2048M
           emulator-boot-timeout: 900

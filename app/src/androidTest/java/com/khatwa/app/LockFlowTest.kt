@@ -41,10 +41,12 @@ class LockFlowTest {
     }
 
     private fun blockedApp(): String {
+        // Lightest candidates first: Chrome renders through SwiftShader/Vulkan on the CI emulator and
+        // starves the runner (QEMU "hanging thread" errors, then the runner is shut down).
         val pkg = TestSupport.firstInstalled(
-            "com.android.chrome", "com.google.android.calculator", "com.android.calculator2",
-            "com.google.android.deskclock", "com.android.deskclock", "com.google.android.apps.maps",
-            "com.android.settings",
+            "com.google.android.deskclock", "com.android.deskclock", "com.google.android.calculator",
+            "com.android.calculator2", "com.android.settings", "com.android.chrome",
+            "com.google.android.apps.maps",
         )
         assumeTrue("no blockable app on this image", pkg != null)
         return pkg!!

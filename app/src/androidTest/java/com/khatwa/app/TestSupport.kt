@@ -44,6 +44,20 @@ object TestSupport {
         }
         return false
     }
+    /** Finds a node by resource id (test tag) and clicks it, retrying if it went stale. */
+    fun clickRes(resId: String, timeoutMs: Long = 5_000): Boolean {
+        repeat(3) {
+            try {
+                val obj = device.wait(Until.findObject(By.res(resId)), timeoutMs) ?: return false
+                obj.click()
+                return true
+            } catch (e: androidx.test.uiautomator.StaleObjectException) {
+                Thread.sleep(300)
+            }
+        }
+        return false
+    }
+
     val context: Context get() = InstrumentationRegistry.getInstrumentation().targetContext
     val container: AppContainer get() = KhatwaApp.container(context)
 
