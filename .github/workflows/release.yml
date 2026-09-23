@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    name: Build signed APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - id: ver
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - name: Decode release keystore
+        env:
+          KHATWA_KEYSTORE_BASE64: ${{ secrets.KHATWA_KEYSTORE_BASE64 }}
+          KHATWA_KEYSTORE_PASSWORD: ${{ secrets.KHATWA_KEYSTORE_PASSWORD }}
+          KHATWA_KEY_ALIAS: ${{ secrets.KHATWA_KEY_ALIAS }}
+          KHATWA_KEY_PASSWORD: ${{ secrets.KHATWA_KEY_PASSWORD }}
+        run: bash ci/prepare-signing.sh
+      - name: Unit tests
+        run: ./gradlew :core:test --stacktrace
+      - name: Build release APK
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+          CODE=$(git rev-list --count HEAD)
+          ./gradlew :app:assembleRelease -Pkhatwa.versionName="$VERSION" -Pkhatwa.versionCode="$CODE" --stacktrace
+          bash ci/verify-release.sh
+          mkdir -p out && cp app/build/outputs/apk/release/app-release.apk "out/khatwa-${VERSION}.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-apk
+          path: out/*.apk
+
+  publish:
+    name: Publish GitHub Release
+    needs: [android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+      - name: List assets
+        run: find assets -type f
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: khatwa ${{ github.ref_name }}
+          files: |
+            assets/**/*.apk
+            assets/**/*.exe
+          body: |
+            ## khatwa ${{ github.ref_name }}
+            - `khatwa-${{ needs.android.outputs.version }}.apk`: تطبيق أندرويد (ثبّته من خارج المتجر، انظر README).
+            - `khatwa-laptop-lock-*.exe`: برنامج قفل اللابتوب لويندوز (يُضاف عند اكتمال مرحلة اللابتوب).

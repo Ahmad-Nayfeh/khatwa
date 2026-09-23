@@ -1,0 +1,40 @@
+# --- Android / Gradle ---
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/*/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+*.log
+*.hprof
+/app/release/
+/app/debug/
+
+# Signing: never commit keystores or secrets
+*.jks
+*.keystore
+keystore.properties
+google-services.json
+
+# --- .NET ---
+laptop-lock/**/bin/
+laptop-lock/**/obj/
+laptop-lock/**/publish/
+laptop-lock/**/*.user
+laptop-lock/**/*.suo
+laptop-lock/.vs/
+laptop-lock/**/TestResults/
+
+# --- Misc ---
+/ci/evidence/
+node_modules/
+.kotlin/
