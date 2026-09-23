@@ -18,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -31,6 +32,7 @@ class StepService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private var source: StepSource? = null
     private var notificationJob: Job? = null
+    private val readings = Channel<Pair<Long, Long>>(Channel.UNLIMITED)
 
     private val tracker get() = KhatwaApp.container(this).tracker
 
@@ -52,12 +54,18 @@ class StepService : Service() {
         super.onCreate()
         val container = KhatwaApp.container(this)
         startInForeground()
-        scope.launch { tracker.load() }
+        // Sensor events must be applied strictly in order (a later, larger reading processed
+        // before an earlier one would look like a reboot), so they go through one channel
+        // drained by a single consumer coroutine.
+        scope.launch {
+            tracker.load()
+            for ((reading, eventMs) in readings) {
+                runCatching { tracker.onReading(reading, eventMs) }.onFailure { Log.e(TAG, "reading failed", it) }
+            }
+        }
         val src = StepSourceFactory.create(this)
         source = src
-        val started = src.start { reading, eventMs ->
-            scope.launch { runCatching { tracker.onReading(reading, eventMs) }.onFailure { Log.e(TAG, "reading failed", it) } }
-        }
+        val started = src.start { reading, eventMs -> readings.trySend(reading to eventMs) }
         Log.i(TAG, "step source '${src.name}' started=$started available=${src.available}")
         lastSnapshotMs = System.currentTimeMillis()
         handler.postDelayed(ticker, TICK_MS)
@@ -99,6 +107,7 @@ class StepService : Service() {
     override fun onDestroy() {
         handler.removeCallbacks(ticker)
         source?.stop()
+        readings.close()
         notificationJob?.cancel()
         runBlocking { runCatching { tracker.flush() } }
         scope.cancel()

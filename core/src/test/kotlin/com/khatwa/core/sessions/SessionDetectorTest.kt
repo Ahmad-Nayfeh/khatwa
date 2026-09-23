@@ -108,6 +108,18 @@ class SessionDetectorTest {
     }
 
     @Test
+    fun `an out-of-order timestamp is clamped and does not break detection`() {
+        val d = SessionDetector()
+        val out = ArrayList<WalkSession>()
+        var t = walk(d, 0, 6 * min, out = out)
+        d.onSteps(t - 30_000, 1) // arrives late with an older timestamp
+        t = walk(d, t + 600, 6 * min, out = out)
+        val s = d.flush(t + 5 * min)
+        assertNotNull(s)
+        assertTrue(s.durationMs >= 11 * min)
+    }
+
+    @Test
     fun `reset closes a running candidate`() {
         val d = SessionDetector()
         val out = ArrayList<WalkSession>()

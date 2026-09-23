@@ -42,9 +42,14 @@ class SessionDetector(private val config: SessionConfig = SessionConfig()) {
 
     val hasCandidate: Boolean get() = candidateStart >= 0
 
+    private var lastEventT: Long = Long.MIN_VALUE
+
     /** Feed one sensor event. Returns a completed session if this event closed one. */
-    fun onSteps(timestampMs: Long, deltaSteps: Long): WalkSession? {
+    fun onSteps(rawTimestampMs: Long, deltaSteps: Long): WalkSession? {
         if (deltaSteps < 0) return null
+        // Timestamps must not go backwards (batched deliveries can arrive slightly out of order).
+        val timestampMs = if (rawTimestampMs < lastEventT) lastEventT else rawTimestampMs
+        lastEventT = timestampMs
         var finished: WalkSession? = null
 
         // A long silence closes any candidate before the new event is considered.
@@ -88,10 +93,11 @@ class SessionDetector(private val config: SessionConfig = SessionConfig()) {
         return s
     }
 
-    /** Force-close (e.g. day rollover). */
+    /** Force-close (e.g. day rollover) and forget all history. */
     fun reset(): WalkSession? {
         val s = if (hasCandidate) closeCandidate() else null
         window.clear(); windowSteps = 0
+        lastEventT = Long.MIN_VALUE
         return s
     }
 
