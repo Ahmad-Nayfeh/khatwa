@@ -53,11 +53,18 @@ class HomeStatsTest {
         TestSupport.launchApp()
         val steps = device.wait(Until.findObject(By.res("home_steps")), 15_000)
         assertNotNull(steps)
-        // The quote card sits below the fold once the lock section is on screen: scroll to it.
-        val scrollable = device.findObject(By.scrollable(true))
-        val quote = scrollable?.scrollUntil(androidx.test.uiautomator.Direction.DOWN, Until.findObject(By.res("home_quote")))
-            ?: device.wait(Until.findObject(By.res("home_quote")), 5_000)
-        assertNotNull("quote card missing", quote)
+        // The quote card sits below the fold once the lock section is on screen: swipe up to it
+        // (bounded swipes, not scrollUntil, which can loop on a Compose scroll container).
+        var quote = device.findObject(By.res("home_quote"))
+        var swipes = 0
+        while (quote == null && swipes < 4) {
+            val w = device.displayWidth; val h = device.displayHeight
+            device.swipe(w / 2, (h * 0.75).toInt(), w / 2, (h * 0.35).toInt(), 20)
+            Thread.sleep(600)
+            quote = device.findObject(By.res("home_quote"))
+            swipes++
+        }
+        assertNotNull("quote card missing after $swipes swipes", quote)
         TestSupport.screenshot("10-home-with-session")
 
         // Stats tab
