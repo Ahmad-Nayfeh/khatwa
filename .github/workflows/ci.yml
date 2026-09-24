@@ -5,6 +5,10 @@ on:
     branches:
       - main
       - 'claude/**'
+    # Documentation-only pushes (README, screenshots) do not need the emulator run.
+    paths-ignore:
+      - 'README.md'
+      - 'docs/**'
   workflow_dispatch:
 
 concurrency:
