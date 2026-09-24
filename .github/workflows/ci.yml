@@ -113,7 +113,14 @@ jobs:
           export PATH="$JAVA_HOME_21_X64/bin:$PATH"
           java -version 2>&1 | tee /tmp/javaver.txt
           grep -q 'version "21' /tmp/javaver.txt || { echo "Java 21 not found at $JAVA_HOME_21_X64"; ls -la "$JAVA_HOME_21_X64" || true; exit 1; }
-          npx --yes firebase-tools@15 emulators:start --only auth,firestore --project khatwa-de941 > ../ci/firebase-emulator.log 2>&1 &
+          # Keep the runner responsive while the Android emulator runs (a starved runner loses its
+          # connection): stop the idle build daemons, and give the Firestore JVM a small heap, one
+          # CPU and a lower priority.
+          (cd .. && ./gradlew --stop) || true
+          pkill -f KotlinCompileDaemon || true
+          export JAVA_TOOL_OPTIONS="-Xmx512m -XX:ActiveProcessorCount=1 -XX:+UseSerialGC"
+          nice -n 10 npx --yes firebase-tools@15 emulators:start --only auth,firestore --project khatwa-de941 > ../ci/firebase-emulator.log 2>&1 &
+          free -m
           for i in $(seq 1 60); do
             if curl -sf http://127.0.0.1:8080 >/dev/null && curl -sf http://127.0.0.1:9099 >/dev/null; then echo "firebase emulators up"; break; fi
             sleep 2
