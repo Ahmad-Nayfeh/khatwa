@@ -95,6 +95,7 @@ class GroupsRepository(private val context: Context, private val settings: Setti
 
     suspend fun ensureSignedIn(): String {
         if (!configured) throw GroupsException(GroupsException.Kind.NOT_CONFIGURED)
+        db // initialise first: points auth + firestore at the emulator when one is set, installs App Check
         auth.currentUser?.uid?.let { return it }
         val result = wrap { auth.signInAnonymously().await() }
         val id = result.user?.uid ?: throw GroupsException(GroupsException.Kind.NOT_SIGNED_IN)
@@ -129,6 +130,7 @@ class GroupsRepository(private val context: Context, private val settings: Setti
     suspend fun createGroup(name: String, description: String): String {
         val me = ensureSignedIn()
         val nickname = settings.current().groupsNickname.ifBlank { "khatwa" }
+        ensureProfile(nickname)
         val owned = wrap { db.document("users/$me").get().await() }.getLong("ownedGroups") ?: 0L
         if (owned >= 5) throw GroupsException(GroupsException.Kind.TOO_MANY_GROUPS)
         val gid = db.collection("groups").document().id

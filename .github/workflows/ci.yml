@@ -29,7 +29,14 @@ jobs:
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '17'
+          # 21 for the Firebase emulators (firebase-tools needs it); the last one (17) is the default for Gradle.
+          java-version: |
+            21
+            17
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
 
       - uses: gradle/actions/setup-gradle@v4
 
@@ -101,6 +108,8 @@ jobs:
       - name: Start the Firebase emulators (auth + firestore) for the groups test
         run: |
           cd firebase
+          export JAVA_HOME="$JAVA_HOME_21_X64" PATH="$JAVA_HOME_21_X64/bin:$PATH"
+          java -version
           npx --yes firebase-tools@15 emulators:start --only auth,firestore --project khatwa-de941 > ../ci/firebase-emulator.log 2>&1 &
           for i in $(seq 1 60); do
             if curl -sf http://127.0.0.1:8080 >/dev/null && curl -sf http://127.0.0.1:9099 >/dev/null; then echo "firebase emulators up"; break; fi
@@ -155,7 +164,7 @@ jobs:
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
       - name: Install
         working-directory: firebase
         run: npm install --no-audit --no-fund

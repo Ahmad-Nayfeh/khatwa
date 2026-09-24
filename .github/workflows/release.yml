@@ -24,6 +24,18 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - id: ver
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - name: Firebase config (real file from the secret, placeholder otherwise)
+        env:
+          KHATWA_GOOGLE_SERVICES_BASE64: ${{ secrets.KHATWA_GOOGLE_SERVICES_BASE64 }}
+        run: |
+          if [ -n "$KHATWA_GOOGLE_SERVICES_BASE64" ]; then
+            echo "$KHATWA_GOOGLE_SERVICES_BASE64" | base64 -d > app/google-services.json
+            echo "google-services.json: real"
+          else
+            cp app/google-services.placeholder.json app/google-services.json
+            echo "google-services.json: placeholder (groups unavailable in this release)"
+          fi
+
       - name: Decode release keystore
         env:
           KHATWA_KEYSTORE_BASE64: ${{ secrets.KHATWA_KEYSTORE_BASE64 }}
@@ -96,5 +108,11 @@ jobs:
             assets/**/uninstall.ps1
           body: |
             ## khatwa ${{ github.ref_name }}
-            - `khatwa-${{ needs.android.outputs.version }}.apk`: تطبيق أندرويد. ثبّته من خارج المتجر كما يشرح README.
-            - `khatwa-laptop-lock-${{ needs.android.outputs.version }}.exe`: برنامج قفل اللابتوب لويندوز، مع `install.ps1` و`uninstall.ps1`.
+
+            **الجوال (أندرويد):** نزّل `khatwa-${{ needs.android.outputs.version }}.apk` على الجوال وافتحه لتثبيته (اسمح بالتثبيت من هذا المصدر إن طُلب). الشرح خطوة بخطوة في README ← الفقرة 1.
+
+            **اللابتوب (ويندوز 10/11):** نزّل `khatwa-laptop-lock-${{ needs.android.outputs.version }}.exe` وشغّله، لا تثبيت ولا سكربتات: عند أول فتح يطلب كود الاقتران من الجوال (الإعدادات ← قفل اللابتوب)، ثم يعمل بالأكواد التي تظهر في الصفحة الرئيسية للجوال. إن ظهر تحذير SmartScreen اضغط «مزيد من المعلومات» ثم «التشغيل على أي حال». README ← الفقرة 2.
+
+            `install.ps1` و`uninstall.ps1` اختياريان (تشغيل تلقائي عند الدخول بصلاحيات أعلى)؛ لا تحتاجهما في الاستخدام العادي.
+
+            **Phone (Android):** download `khatwa-${{ needs.android.outputs.version }}.apk` on the phone and open it to install. **Laptop (Windows):** download and run `khatwa-laptop-lock-${{ needs.android.outputs.version }}.exe`; it asks for the pairing code from the phone on first launch. No installer needed.

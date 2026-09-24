@@ -49,7 +49,7 @@ class GroupsTest {
     fun createJoinAndRank() {
         assumeTrue("firebase emulator not reachable at $EMULATOR_HOST:8080", emulatorReachable())
         GroupsRepository.emulatorHost = EMULATOR_HOST
-        assumeTrue("google-services placeholder: groups not configured in this build", c.groups.configured || true)
+        assumeTrue("google-services placeholder: groups not configured in this build", c.groups.configured)
         runBlocking { c.settings.setGroupsEnabled(false) }
 
         // --- user A through the UI: enable, create a group, read the invite code.
@@ -109,10 +109,11 @@ class GroupsTest {
         card!!.click()
         assertNotNull(device.wait(Until.findObject(By.res("member_row_1")), 20_000))
         TestSupport.screenshot("54-group-leaderboard")
-        assertTrue(TestSupport.clickRes("tab_groups"))
+        device.pressBack()
         // Public list: the group is visible with 2 members.
-        TestSupport.clickRes("groups_tab_all")
+        assertTrue("all-groups tab missing", TestSupport.clickRes("groups_tab_all", 8_000))
         assertNotNull(device.wait(Until.findObject(By.textContains("مشاة الحي")), 15_000))
+        Thread.sleep(800)
         TestSupport.screenshot("55-groups-public")
 
         // B leaves; A cannot leave (owner) but can delete.
