@@ -3,6 +3,7 @@ package com.khatwa.app.ui.groups
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.khatwa.app.AppContainer
+import com.khatwa.app.groups.Account
 import com.khatwa.app.groups.Group
 import com.khatwa.app.groups.GroupsException
 import com.khatwa.app.groups.GroupsSync
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -47,8 +49,18 @@ data class GroupDetailState(
     val error: GroupsException.Kind? = null,
 )
 
+/** A positive, one-off notice shown on the Groups tab. */
+enum class GroupsNotice { RESET_SENT, ADMIN_GRANTED }
+
 class GroupsViewModel(private val c: AppContainer) : ViewModel() {
-    val enabled: StateFlow<Boolean> = c.settings.flow.map { it.groupsEnabled }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    /** The signed-in account (null: nobody is signed in on this phone). */
+    val account: StateFlow<Account?> = c.groups.observeAccount().stateIn(viewModelScope, SharingStarted.Eagerly, c.groups.account)
+    private val groupsOn: StateFlow<Boolean> = c.settings.flow.map { it.groupsEnabled }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    /** The uid whose groups are shown: groups turned on and someone signed in, else null. */
+    private val session: StateFlow<String?> = combine(groupsOn, account) { on, acc -> if (on) acc?.uid else null }
+        .distinctUntilChanged().stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    val enabled: StateFlow<Boolean> = session.map { it != null }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    val isAdmin: StateFlow<Boolean> = c.groups.observeIsAdmin().catch { emit(false) }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
     val nickname: StateFlow<String> = c.settings.flow.map { it.groupsNickname }.stateIn(viewModelScope, SharingStarted.Eagerly, "")
     val configured: Boolean get() = c.groups.configured
 
@@ -56,6 +68,8 @@ class GroupsViewModel(private val c: AppContainer) : ViewModel() {
     val busy: StateFlow<Boolean> = _busy
     private val _message = MutableStateFlow<GroupsException.Kind?>(null)
     val message: StateFlow<GroupsException.Kind?> = _message
+    private val _notice = MutableStateFlow<GroupsNotice?>(null)
+    val notice: StateFlow<GroupsNotice?> = _notice
     private val _lastSync = MutableStateFlow<Long?>(null)
     val lastSync: StateFlow<Long?> = _lastSync
 
@@ -63,12 +77,12 @@ class GroupsViewModel(private val c: AppContainer) : ViewModel() {
     val memberFilters = MutableStateFlow(MemberFilters())
     private val today: LocalDate get() = c.tracker.today.value.date
 
-    val myGroups: StateFlow<List<Group>> = enabled.flatMapLatest { on ->
-        if (!on || !configured) flowOf(emptyList()) else c.groups.observeMyGroups().catch { e -> fail(e); emit(emptyList()) }
+    val myGroups: StateFlow<List<Group>> = session.flatMapLatest { uid ->
+        if (uid == null || !configured) flowOf(emptyList()) else c.groups.observeMyGroups().catch { e -> fail(e); emit(emptyList()) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val publicGroups: StateFlow<List<RankedGroup>> = enabled.flatMapLatest { on ->
-        if (!on || !configured) flowOf(emptyList()) else c.groups.observePublicGroups().catch { e -> fail(e); emit(emptyList()) }
+    val publicGroups: StateFlow<List<RankedGroup>> = session.flatMapLatest { uid ->
+        if (uid == null || !configured) flowOf(emptyList()) else c.groups.observePublicGroups().catch { e -> fail(e); emit(emptyList()) }
     }.combine(publicFilters) { groups, f ->
         val ranked = groups
             .filter { f.query.isBlank() || it.name.contains(f.query, ignoreCase = true) }
@@ -115,11 +129,28 @@ class GroupsViewModel(private val c: AppContainer) : ViewModel() {
 
     fun close() { selected.value = null }
 
-    fun enable(nickname: String) = run {
+    /** New account (on an old anonymous account the email is added to it, keeping its groups). */
+    fun signUp(email: String, password: String, nickname: String) = run {
         val name = nickname.trim().take(24)
         if (name.isBlank()) return@run
-        c.settings.setGroupsNickname(name)
-        c.groups.ensureProfile(name)
+        c.groups.signUp(email, password, name)
+        turnOn()
+    }
+
+    fun signIn(email: String, password: String) = run {
+        c.groups.signIn(email, password)
+        turnOn()
+    }
+
+    fun resetPassword(email: String) = run {
+        c.groups.sendPasswordReset(email)
+        _notice.value = GroupsNotice.RESET_SENT
+    }
+
+    /** Turns groups on for the signed-in account (they were turned off on this phone). */
+    fun enable() = run { turnOn() }
+
+    private suspend fun turnOn() {
         c.settings.setGroupsEnabled(true)
         GroupsSync.schedule(c.app, true)
         sync()
@@ -128,6 +159,17 @@ class GroupsViewModel(private val c: AppContainer) : ViewModel() {
     fun disable() = run {
         c.settings.setGroupsEnabled(false)
         GroupsSync.schedule(c.app, false)
+    }
+
+    fun signOut() = run {
+        c.settings.setGroupsEnabled(false)
+        GroupsSync.schedule(c.app, false)
+        c.groups.signOut()
+    }
+
+    fun claimAdmin(key: String) = run {
+        c.groups.claimAdmin(key)
+        _notice.value = GroupsNotice.ADMIN_GRANTED
     }
 
     fun rename(nickname: String) = run {
@@ -161,7 +203,7 @@ class GroupsViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
-    fun clearMessage() { _message.value = null }
+    fun clearMessage() { _message.value = null; _notice.value = null }
 
     private fun run(block: suspend () -> Unit): Job = viewModelScope.launch {
         _busy.value = true
@@ -176,7 +218,7 @@ class GroupsViewModel(private val c: AppContainer) : ViewModel() {
 fun Strings.errorText(kind: GroupsException.Kind): String = when (kind) {
     GroupsException.Kind.NOT_CONFIGURED -> errorNotConfigured
     GroupsException.Kind.OFFLINE -> errorOffline
-    GroupsException.Kind.NOT_SIGNED_IN -> errorUnknown
+    GroupsException.Kind.NOT_SIGNED_IN -> errorNotSignedIn
     GroupsException.Kind.INVALID_CODE -> errorInvalidCode
     GroupsException.Kind.UNKNOWN_CODE -> errorUnknownCode
     GroupsException.Kind.ALREADY_MEMBER -> errorAlreadyMember
@@ -185,4 +227,12 @@ fun Strings.errorText(kind: GroupsException.Kind): String = when (kind) {
     GroupsException.Kind.OWNER_CANNOT_LEAVE -> errorOwnerCannotLeave
     GroupsException.Kind.DENIED -> errorDenied
     GroupsException.Kind.UNKNOWN -> errorUnknown
+    GroupsException.Kind.EMAIL_IN_USE -> errorEmailInUse
+    GroupsException.Kind.INVALID_EMAIL -> errorInvalidEmail
+    GroupsException.Kind.WEAK_PASSWORD -> errorWeakPassword
+    GroupsException.Kind.WRONG_CREDENTIALS -> errorWrongCredentials
+    GroupsException.Kind.SIGN_IN_DISABLED -> errorSignInDisabled
+    GroupsException.Kind.TOO_MANY_ATTEMPTS -> errorTooManyAttempts
+    GroupsException.Kind.WRONG_ADMIN_KEY -> errorWrongAdminKey
+    GroupsException.Kind.REMOVE_OWNER_FIRST -> errorRemoveOwnerFirst
 }

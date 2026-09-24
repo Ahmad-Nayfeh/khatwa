@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
@@ -34,6 +35,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.khatwa.app.AppContainer
@@ -52,18 +55,27 @@ import com.khatwa.app.util.Fmt
 import com.khatwa.core.groups.GroupSort
 import com.khatwa.core.groups.Period
 
-/** Groups tab: opt-in card, then "my groups" / "all groups" with the public ranking. */
+/** Groups tab: account (create / sign in), then "my groups" / "all groups" with the public ranking. */
 @Composable
 fun GroupsScreen(container: AppContainer) {
     val vm = containerViewModel { GroupsViewModel(it) }
     val s = strings
     val enabled by vm.enabled.collectAsStateWithLifecycle()
+    val account by vm.account.collectAsStateWithLifecycle()
+    val isAdmin by vm.isAdmin.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
+    val notice by vm.notice.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
     var openGroup by rememberSaveable { mutableStateOf<String?>(null) }
+    var openAdmin by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(enabled) { if (enabled) vm.sync() }
 
+    if (openAdmin && isAdmin) {
+        BackHandler { openAdmin = false }
+        AdminScreen(container, onBack = { openAdmin = false })
+        return
+    }
     if (openGroup != null) {
         BackHandler { openGroup = null; vm.close() }
         GroupDetailScreen(vm, openGroup!!, onBack = { openGroup = null; vm.close() })
@@ -75,54 +87,113 @@ fun GroupsScreen(container: AppContainer) {
         VSpace()
         if (busy) { LinearProgressIndicator(Modifier.fillMaxWidth()); VSpace(8.dp) }
         message?.let { kind ->
-            KCard(tone = CardTone.Warning) {
+            KCard(tone = CardTone.Warning, modifier = Modifier.testTag("groups_message")) {
                 Text(s.errorText(kind))
                 TextButton(onClick = { vm.clearMessage() }) { Text(s.done) }
             }
             VSpace()
         }
+        notice?.let { n ->
+            KCard(tone = CardTone.Accent, modifier = Modifier.testTag("groups_notice")) {
+                Text(when (n) { GroupsNotice.RESET_SENT -> s.resetSent; GroupsNotice.ADMIN_GRANTED -> s.adminGranted })
+                TextButton(onClick = { vm.clearMessage() }) { Text(s.done) }
+            }
+            VSpace()
+        }
+        val acc = account
         when {
             !vm.configured -> KCard(tone = CardTone.Soft) { Text(s.groupsNotConfigured) }
-            !enabled -> OptInCard(vm, s)
-            else -> EnabledContent(vm, s) { gid -> vm.open(gid); openGroup = gid }
+            // An old anonymous account creates its email account here (same uid: its groups stay).
+            acc == null || (acc.anonymous && !enabled) -> AccountCard(vm, s)
+            !enabled -> SignedInOffCard(vm, s, acc.email)
+            else -> EnabledContent(vm, s, acc, isAdmin, openAdmin = { openAdmin = true }) { gid -> vm.open(gid); openGroup = gid }
         }
         Box(Modifier.padding(bottom = 24.dp))
     }
 }
 
+/** Create an account (nickname, email, password) or sign in; "forgot password" sends a reset email. */
 @Composable
-private fun OptInCard(vm: GroupsViewModel, s: Strings) {
+private fun AccountCard(vm: GroupsViewModel, s: Strings) {
+    var signIn by rememberSaveable { mutableStateOf(false) }
     var nickname by rememberSaveable { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     KCard {
-        SectionTitle(s.groupsTitle)
-        Text(s.groupsIntro)
+        SectionTitle(if (signIn) s.signIn else s.createAccount)
+        Text(s.accountIntro)
         VSpace(8.dp)
         Muted(s.groupsWhatIsSent)
         VSpace(6.dp)
         Muted(s.groupsPrivacy)
         VSpace()
-        OutlinedTextField(
-            value = nickname, onValueChange = { nickname = it.take(24) }, label = { Text(s.nickname) },
-            supportingText = { Text(s.nicknameHint) }, singleLine = true,
-            modifier = Modifier.fillMaxWidth().testTag("groups_nickname"),
-        )
+        if (!signIn) {
+            OutlinedTextField(
+                value = nickname, onValueChange = { nickname = it.take(24) }, label = { Text(s.nickname) },
+                supportingText = { Text(s.nicknameHint) }, singleLine = true,
+                modifier = Modifier.fillMaxWidth().testTag("groups_nickname"),
+            )
+            VSpace(4.dp)
+        }
+        EmailPasswordFields(s, email, { email = it }, password, { password = it })
         VSpace(8.dp)
-        PrimaryButton(s.enableGroups, Modifier.fillMaxWidth().testTag("groups_enable"), enabled = nickname.isNotBlank()) { vm.enable(nickname) }
+        val ready = email.isNotBlank() && password.length >= 6 && (signIn || nickname.isNotBlank())
+        PrimaryButton(if (signIn) s.signIn else s.createAccount, Modifier.fillMaxWidth().testTag("groups_account_submit"), enabled = ready) {
+            if (signIn) vm.signIn(email, password) else vm.signUp(email, password, nickname)
+        }
+        TextButton(onClick = { signIn = !signIn }, modifier = Modifier.testTag("groups_account_switch")) {
+            Text(if (signIn) s.noAccount else s.haveAccount)
+        }
+        if (signIn) {
+            TextButton(onClick = { vm.resetPassword(email) }, enabled = email.isNotBlank(), modifier = Modifier.testTag("groups_forgot")) {
+                Text(s.forgotPassword)
+            }
+        }
     }
     VSpace()
     Muted(s.groupsLimitation)
 }
 
+@Composable
+private fun EmailPasswordFields(s: Strings, email: String, onEmail: (String) -> Unit, password: String, onPassword: (String) -> Unit) {
+    OutlinedTextField(
+        value = email, onValueChange = { onEmail(it.trim().take(120)) }, label = { Text(s.email) }, singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+        modifier = Modifier.fillMaxWidth().testTag("groups_email"),
+    )
+    VSpace(4.dp)
+    OutlinedTextField(
+        value = password, onValueChange = { onPassword(it.take(64)) }, label = { Text(s.password) },
+        supportingText = { Text(s.passwordHint) }, singleLine = true,
+        visualTransformation = PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        modifier = Modifier.fillMaxWidth().testTag("groups_password"),
+    )
+}
+
+/** Signed in, but groups are turned off on this phone. */
+@Composable
+private fun SignedInOffCard(vm: GroupsViewModel, s: Strings, email: String?) {
+    KCard {
+        SectionTitle(s.groupsTitle)
+        Text(s.signedInAs(email ?: "—"))
+        VSpace()
+        PrimaryButton(s.turnOnGroups, Modifier.fillMaxWidth().testTag("groups_enable")) { vm.enable() }
+        VSpace(8.dp)
+        SecondaryButton(s.signOut, Modifier.fillMaxWidth().testTag("groups_sign_out")) { vm.signOut() }
+    }
+}
+
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
-private fun EnabledContent(vm: GroupsViewModel, s: Strings, open: (String) -> Unit) {
+private fun EnabledContent(vm: GroupsViewModel, s: Strings, account: com.khatwa.app.groups.Account, isAdmin: Boolean, openAdmin: () -> Unit, open: (String) -> Unit) {
     val nickname by vm.nickname.collectAsStateWithLifecycle()
     val myGroups by vm.myGroups.collectAsStateWithLifecycle()
     val publicGroups by vm.publicGroups.collectAsStateWithLifecycle()
     val filters by vm.publicFilters.collectAsStateWithLifecycle()
     val lastSync by vm.lastSync.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(0) }
-    var dialog by rememberSaveable { mutableStateOf<String?>(null) } // "create" | "join" | "nickname" | "disable"
+    var dialog by rememberSaveable { mutableStateOf<String?>(null) } // "create" | "join" | "nickname" | "disable" | "save" | "admin"
 
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
@@ -131,6 +202,20 @@ private fun EnabledContent(vm: GroupsViewModel, s: Strings, open: (String) -> Un
         }
         TextButton(onClick = { dialog = "nickname" }) { Text(s.edit) }
         TextButton(onClick = { vm.sync() }) { Text(s.refresh) }
+    }
+    account.email?.let { Muted(s.signedInAs(it)) }
+    if (account.anonymous) {
+        VSpace(8.dp)
+        KCard(tone = CardTone.Warning) {
+            SectionTitle(s.saveAccountTitle)
+            Text(s.saveAccountText)
+            VSpace(6.dp)
+            PrimaryButton(s.saveAccountTitle, Modifier.fillMaxWidth().testTag("groups_save_account")) { dialog = "save" }
+        }
+    }
+    if (isAdmin) {
+        VSpace(8.dp)
+        PrimaryButton(s.adminPanel, Modifier.fillMaxWidth().testTag("admin_open"), onClick = openAdmin)
     }
     VSpace(8.dp)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -161,6 +246,17 @@ private fun EnabledContent(vm: GroupsViewModel, s: Strings, open: (String) -> Un
         VSpace()
         SecondaryButton(s.disableGroups, Modifier.fillMaxWidth()) { dialog = "disable" }
         Muted(s.disableGroupsHint)
+        if (!account.anonymous) {
+            VSpace()
+            SecondaryButton(s.signOut, Modifier.fillMaxWidth().testTag("groups_sign_out")) { vm.signOut() }
+            Muted(s.signOutHint)
+        }
+        if (!isAdmin && !account.anonymous) {
+            VSpace()
+            TextButton(onClick = { dialog = "admin" }, modifier = Modifier.testTag("admin_key_open")) {
+                Text(s.adminKey, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
+            }
+        }
     } else {
         OutlinedTextField(
             value = filters.query, onValueChange = { vm.publicFilters.value = filters.copy(query = it) },
@@ -243,6 +339,39 @@ private fun EnabledContent(vm: GroupsViewModel, s: Strings, open: (String) -> Un
                 title = { Text(s.nickname) },
                 text = { OutlinedTextField(value = name, onValueChange = { name = it.take(24) }, singleLine = true, modifier = Modifier.fillMaxWidth()) },
                 confirmButton = { TextButton(enabled = name.isNotBlank(), onClick = { dialog = null; vm.rename(name) }) { Text(s.save) } },
+                dismissButton = { TextButton(onClick = { dialog = null }) { Text(s.cancel) } },
+            )
+        }
+        "save" -> {
+            var email by remember { mutableStateOf("") }
+            var password by remember { mutableStateOf("") }
+            val nickname by vm.nickname.collectAsStateWithLifecycle()
+            AlertDialog(
+                modifier = Modifier.semantics { testTagsAsResourceId = true },
+                onDismissRequest = { dialog = null },
+                title = { Text(s.saveAccountTitle) },
+                text = { Column { EmailPasswordFields(s, email, { email = it }, password, { password = it }) } },
+                confirmButton = {
+                    TextButton(enabled = email.isNotBlank() && password.length >= 6, onClick = { dialog = null; vm.signUp(email, password, nickname.ifBlank { "khatwa" }) }, modifier = Modifier.testTag("groups_save_confirm")) { Text(s.save) }
+                },
+                dismissButton = { TextButton(onClick = { dialog = null }) { Text(s.cancel) } },
+            )
+        }
+        "admin" -> {
+            var key by remember { mutableStateOf("") }
+            AlertDialog(
+                modifier = Modifier.semantics { testTagsAsResourceId = true },
+                onDismissRequest = { dialog = null },
+                title = { Text(s.adminKey) },
+                text = {
+                    OutlinedTextField(
+                        value = key, onValueChange = { key = it.take(40) }, supportingText = { Text(s.adminKeyHint) }, singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        modifier = Modifier.fillMaxWidth().testTag("admin_key"),
+                    )
+                },
+                confirmButton = { TextButton(enabled = key.isNotBlank(), onClick = { dialog = null; vm.claimAdmin(key) }, modifier = Modifier.testTag("admin_key_confirm")) { Text(s.confirm) } },
                 dismissButton = { TextButton(onClick = { dialog = null }) { Text(s.cancel) } },
             )
         }
