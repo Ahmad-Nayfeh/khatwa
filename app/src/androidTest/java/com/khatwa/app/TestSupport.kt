@@ -135,17 +135,45 @@ object TestSupport {
         Log.i(TAG, "screenshot $name")
     }
 
-    /** Screenshot + accessibility hierarchy dump (pulled by CI via run-as) for diagnosing failures. */
+    /**
+     * Screenshot + accessibility hierarchy dump for diagnosing failures. The hierarchy goes to
+     * logcat (tag KhatwaHierarchy), which CI keeps; the app's own files are gone by then because
+     * the test run uninstalls the app.
+     */
     fun dump(name: String) {
         screenshot(name)
         try {
-            val dir = java.io.File(context.filesDir, "evidence").apply { mkdirs() }
-            device.dumpWindowHierarchy(java.io.File(dir, "$name.xml"))
+            val out = java.io.ByteArrayOutputStream()
+            device.dumpWindowHierarchy(out)
+            out.toString(Charsets.UTF_8.name()).chunked(3_000).forEachIndexed { i, part ->
+                Log.i("KhatwaHierarchy", "$name[$i] $part")
+            }
             Log.i(TAG, "hierarchy dumped: $name; currentPackage=${device.currentPackageName}")
         } catch (e: Exception) {
             Log.w(TAG, "hierarchy dump failed: $e")
         }
     }
+
+    /**
+     * Waits for a node by resource id (test tag), clearing the accessibility cache every two
+     * seconds (API 34+). On the CI emulator the cache can keep an old copy of a Compose screen,
+     * so a node that is visibly on screen is never found (GroupsTest's leaderboard row).
+     */
+    fun findRes(resId: String, timeoutMs: Long): androidx.test.uiautomator.UiObject2? {
+        val end = System.currentTimeMillis() + timeoutMs
+        while (true) {
+            device.wait(Until.findObject(By.res(resId)), 2_000)?.let { return it }
+            if (System.currentTimeMillis() >= end) return null
+            if (android.os.Build.VERSION.SDK_INT >= 34) {
+                val cleared = automation().clearCache()
+                Log.i(TAG, "findRes($resId): accessibility cache cleared=$cleared")
+            }
+        }
+    }
+
+    /** The UiAutomation UiDevice uses (asking with other flags would reconnect it). */
+    private fun automation(): android.app.UiAutomation = InstrumentationRegistry.getInstrumentation()
+        .getUiAutomation(androidx.test.uiautomator.Configurator.getInstance().uiAutomationFlags)
 
     /**
      * Scrolls a scroll container one page forward through the accessibility action instead of an
@@ -157,9 +185,7 @@ object TestSupport {
     fun scrollBackward(resId: String): Boolean = scrollPage(resId, forward = false)
 
     private fun scrollPage(resId: String, forward: Boolean): Boolean {
-        val automation = InstrumentationRegistry.getInstrumentation()
-            .getUiAutomation(androidx.test.uiautomator.Configurator.getInstance().uiAutomationFlags)
-        val root = automation.rootInActiveWindow ?: return false.also { Log.w(TAG, "scrollPage: no root window") }
+        val root = automation().rootInActiveWindow ?: return false.also { Log.w(TAG, "scrollPage: no root window") }
         val node = findNode(root) { it.viewIdResourceName == resId }
             ?: return false.also { Log.w(TAG, "scrollPage: no node with id $resId") }
         val action = if (forward) android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_FORWARD

@@ -125,7 +125,7 @@ class GroupsTest {
         }
         if (!opened) TestSupport.dump("missing-group_detail")
         assertTrue("group detail did not open", opened)
-        val secondRow = device.wait(Until.findObject(By.res("member_row_1")), 20_000)
+        val secondRow = TestSupport.findRes("member_row_1", 20_000)
         if (secondRow == null) TestSupport.dump("missing-member_row_1")
         assertNotNull("second leaderboard row missing", secondRow)
         TestSupport.screenshot("54-group-leaderboard")
