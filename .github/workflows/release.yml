@@ -4,6 +4,14 @@ on:
   push:
     tags:
       - 'v*'
+  # Also startable from the Actions tab / API: builds and publishes release v<version>, creating the
+  # tag on the commit it runs on.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version without the leading v (e.g. 0.2.0)'
+        required: true
+        default: '0.2.0'
 
 permissions:
   contents: write
@@ -17,13 +25,19 @@ jobs:
       version: ${{ steps.ver.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the versionCode is the commit count
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
       - id: ver
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then v="$INPUT_VERSION"; else v="${GITHUB_REF_NAME#v}"; fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
       - name: Firebase config (real file from the secret, placeholder otherwise)
         env:
           KHATWA_GOOGLE_SERVICES_BASE64: ${{ secrets.KHATWA_GOOGLE_SERVICES_BASE64 }}
@@ -73,7 +87,7 @@ jobs:
         run: dotnet test laptop-lock/KhatwaLock.Tests/KhatwaLock.Tests.csproj -c Release
       - name: Publish exe
         run: |
-          $version = "${{ github.ref_name }}".TrimStart('v')
+          $version = if ("${{ github.event_name }}" -eq "workflow_dispatch") { "${{ inputs.version }}" } else { "${{ github.ref_name }}".TrimStart('v') }
           dotnet publish laptop-lock/KhatwaLock.App/KhatwaLock.App.csproj -c Release -r win-x64 --self-contained true `
             -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:Version=$version -o out
           Copy-Item out/KhatwaLock.exe "out/khatwa-laptop-lock-$version.exe"
@@ -100,14 +114,16 @@ jobs:
         run: find assets -type f
       - uses: softprops/action-gh-release@v2
         with:
-          name: khatwa ${{ github.ref_name }}
+          tag_name: v${{ needs.android.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: khatwa v${{ needs.android.outputs.version }}
           files: |
             assets/**/*.apk
             assets/**/*.exe
             assets/**/install.ps1
             assets/**/uninstall.ps1
           body: |
-            ## khatwa ${{ github.ref_name }}
+            ## khatwa v${{ needs.android.outputs.version }}
 
             **الجوال (أندرويد):** نزّل `khatwa-${{ needs.android.outputs.version }}.apk` على الجوال وافتحه لتثبيته (اسمح بالتثبيت من هذا المصدر إن طُلب). الشرح خطوة بخطوة في README ← الفقرة 1.
 
