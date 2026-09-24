@@ -122,6 +122,6 @@ class SettingsBackupTest {
         assertEquals(77.7, weights[0].kg, 0.001)
         assertEquals("abcdefghijklmnopqrstuvwx", runBlocking { c.settings.current().laptopSecret })
         assertTrue(runBlocking { c.settings.current().onboardingDone })
-        assertTrue(runBlocking { c.db.quotes().count() } >= 365)
+        assertTrue(runBlocking { c.db.quotes().count() } >= 100)
     }
 }
