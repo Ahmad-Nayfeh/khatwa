@@ -5,6 +5,10 @@ on:
     branches:
       - main
       - 'claude/**'
+    # Documentation-only pushes (README, screenshots) do not need the emulator run.
+    paths-ignore:
+      - 'README.md'
+      - 'docs/**'
   workflow_dispatch:
 
 concurrency:
@@ -92,11 +96,15 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
-          target: google_apis
+          # AOSP image (no Google apps/services): the google_apis image kept hanging the
+          # emulator's QEMU threads on the hosted runner until the runner itself was shut down.
+          target: default
           arch: x86_64
           profile: pixel_6
-          cores: 4
-          ram-size: 4096M
+          # 2 of the runner's 4 vCPUs: with 4 the emulator starves the runner agent
+          # (QEMU "hanging thread" errors followed by "runner received a shutdown signal").
+          cores: 2
+          ram-size: 3072M
           disk-size: 2048M
           emulator-boot-timeout: 900
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none

@@ -44,6 +44,20 @@ object TestSupport {
         }
         return false
     }
+    /** Finds a node by resource id (test tag) and clicks it, retrying if it went stale. */
+    fun clickRes(resId: String, timeoutMs: Long = 5_000): Boolean {
+        repeat(3) {
+            try {
+                val obj = device.wait(Until.findObject(By.res(resId)), timeoutMs) ?: return false
+                obj.click()
+                return true
+            } catch (e: androidx.test.uiautomator.StaleObjectException) {
+                Thread.sleep(300)
+            }
+        }
+        return false
+    }
+
     val context: Context get() = InstrumentationRegistry.getInstrumentation().targetContext
     val container: AppContainer get() = KhatwaApp.container(context)
 
@@ -81,6 +95,9 @@ object TestSupport {
         val c = container
         runBlocking {
             c.settings.setOnboardingDone(LocalDate.now())
+            // Deterministic evidence: the dark scheme regardless of the emulator's system theme.
+            // (The default for users is "system"; the light-theme test switches explicitly.)
+            c.settings.setThemeMode(com.khatwa.app.settings.ThemeMode.DARK)
             c.tracker.load()
         }
         StepService.stop(context)
@@ -135,14 +152,20 @@ object TestSupport {
      * injected touch swipe. Touch swipes are unreliable on the software-rendered CI emulator
      * (frames take hundreds of ms), while ACTION_SCROLL_FORWARD is handled by Compose directly.
      */
-    fun scrollForward(resId: String): Boolean {
+    fun scrollForward(resId: String): Boolean = scrollPage(resId, forward = true)
+
+    fun scrollBackward(resId: String): Boolean = scrollPage(resId, forward = false)
+
+    private fun scrollPage(resId: String, forward: Boolean): Boolean {
         val automation = InstrumentationRegistry.getInstrumentation()
             .getUiAutomation(androidx.test.uiautomator.Configurator.getInstance().uiAutomationFlags)
-        val root = automation.rootInActiveWindow ?: return false.also { Log.w(TAG, "scrollForward: no root window") }
+        val root = automation.rootInActiveWindow ?: return false.also { Log.w(TAG, "scrollPage: no root window") }
         val node = findNode(root) { it.viewIdResourceName == resId }
-            ?: return false.also { Log.w(TAG, "scrollForward: no node with id $resId") }
-        val ok = node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
-        Log.i(TAG, "scrollForward($resId) -> $ok")
+            ?: return false.also { Log.w(TAG, "scrollPage: no node with id $resId") }
+        val action = if (forward) android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
+        else android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
+        val ok = node.performAction(action)
+        Log.i(TAG, "scrollPage($resId, forward=$forward) -> $ok")
         return ok
     }
 
