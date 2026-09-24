@@ -61,7 +61,7 @@ class LockFlowTest {
     fun manualLockBlocksAllowsAndUnlocks() {
         val blocked = blockedApp()
         val allowed = allowedApp()
-        val pairSecret = "ABCDEFGHJKLMNPQR"
+        val pairSecret = "12345678" // shared vector: counter 1 -> lock 179578, unlock 880387
         runBlocking { c.settings.setLaptopSecret(pairSecret); c.lock.startManual(1000) }
         assertTrue(c.lock.state.value is LockState.Manual)
         TestSupport.evidence("lock started; blocked=$blocked allowed=$allowed policy=${c.lock.currentPolicy().decide(blocked)}")
@@ -72,7 +72,11 @@ class LockFlowTest {
         TestSupport.launchApp()
         val lockCodeShown = TestSupport.waitFor(By.res("home_lock_code"), 10_000, "home_lock_code")
         assertNotNull("laptop lock code missing on Home", lockCodeShown)
-        assertEquals(com.khatwa.core.laptop.LaptopCode.format(com.khatwa.core.laptop.LaptopCode.lockCode(pairSecret, ch!!.id)), lockCodeShown!!.text)
+        assertEquals("first challenge after pairing", 1L, ch!!.counter)
+        assertEquals("179 578", lockCodeShown!!.text)
+        // A freshly paired laptop (last counter 0) recognises it as challenge 1.
+        assertEquals(1L, com.khatwa.core.laptop.LaptopCode.verifyLockCode(pairSecret, lockCodeShown.text, 0))
+        assertTrue("no copy button any more", !device.hasObject(By.res("home_lock_code_copy")))
         TestSupport.evidence("laptop lock code shown: ${lockCodeShown.text}")
         TestSupport.screenshot("19-home-laptop-lock-code")
 
@@ -113,7 +117,8 @@ class LockFlowTest {
         TestSupport.launchApp()
         val unlockShown = TestSupport.waitFor(By.res("home_unlock_code"), 10_000, "home_unlock_code")
         assertNotNull("laptop unlock code missing on Home", unlockShown)
-        assertEquals(com.khatwa.core.laptop.LaptopCode.format(com.khatwa.core.laptop.LaptopCode.unlockCode(pairSecret, ch.id)), unlockShown!!.text)
+        assertEquals("880 387", unlockShown!!.text)
+        assertTrue(com.khatwa.core.laptop.LaptopCode.verifyUnlockCode(pairSecret, 1, unlockShown.text))
         TestSupport.evidence("laptop unlock code shown: ${unlockShown.text}")
         TestSupport.screenshot("28-home-laptop-unlock-code")
         assertTrue(TestSupport.clickRes("home_unlock_dismiss"))

@@ -84,11 +84,12 @@ internal static class Program
     private static int UiSmoke(string[] args)
     {
         var seconds = args.Length > 1 && int.TryParse(args[1], out var s) ? s : 3;
-        var config = new LockConfig { Secret = "ABCDEFGHJKLMNPQR" };
+        var config = new LockConfig { Secret = "12345678" };
         var tmp = Path.Combine(Path.GetTempPath(), "khatwa-ui-smoke");
         Directory.CreateDirectory(tmp);
         var state = new LockStateStore(Path.Combine(tmp, "state.json"));
-        state.MarkLocked("K7MP");
+        state.Clear();
+        state.MarkLocked(1);
         ApplicationConfiguration.Initialize();
         var form = new LockForm(config, state, new SurrenderLog(Path.Combine(tmp, "surrenders.json")), smokeTest: true);
         var timer = new System.Windows.Forms.Timer { Interval = seconds * 1000 };
@@ -101,22 +102,24 @@ internal static class Program
 
     private static int SelfTest()
     {
-        // Two of the shared vectors (shared/hmac-vectors.json), kept in sync by the unit tests.
-        var ok = ChallengeCodes.LockCode("ABCDEFGHJKLMNPQR", "K7MP") == "K7MPY3HE"
-                 && ChallengeCodes.UnlockCode("ABCDEFGHJKLMNPQR", "K7MP") == "MTL5N2MS"
-                 && ChallengeCodes.LockCode("secret", "TEST") == "TESTFTBD"
-                 && ChallengeCodes.UnlockCode("secret", "TEST") == "99UNHD57"
-                 && ChallengeCodes.VerifyLockCode("ABCDEFGHJKLMNPQR", "k7mp-y3he") == "K7MP"
-                 && ChallengeCodes.VerifyLockCode("ABCDEFGHJKLMNPQR", "k7mp-y3hf") == null;
+        // Some of the shared vectors (shared/hmac-vectors.json), kept in sync by the unit tests.
+        var ok = ChallengeCodes.LockCode("12345678", 1) == "179578"
+                 && ChallengeCodes.UnlockCode("12345678", 1) == "880387"
+                 && ChallengeCodes.LockCode("31415926", 1000) == "060899"
+                 && ChallengeCodes.UnlockCode("31415926", 1000) == "026260"
+                 && ChallengeCodes.VerifyLockCode("12345678", "179 578", 0) == 1
+                 && ChallengeCodes.VerifyLockCode("12345678", "١٧٩٥٧٨", 0) == 1
+                 && ChallengeCodes.VerifyLockCode("12345678", "179579", 0) == null
+                 && ChallengeCodes.NextCounter("12345678", 769) == 771;
         Console.WriteLine(ok ? "selftest OK" : "selftest FAILED");
         return ok ? 0 : 1;
     }
 
     private static int PrintCodes(string[] args)
     {
-        if (args.Length < 3) { Console.WriteLine("usage: --codes <secret> <challengeId>"); return 2; }
-        Console.WriteLine("lock:   " + ChallengeCodes.Format(ChallengeCodes.LockCode(args[1], args[2])));
-        Console.WriteLine("unlock: " + ChallengeCodes.Format(ChallengeCodes.UnlockCode(args[1], args[2])));
+        if (args.Length < 3 || !long.TryParse(args[2], out var counter)) { Console.WriteLine("usage: --codes <secret> <counter>"); return 2; }
+        Console.WriteLine("lock:   " + ChallengeCodes.Format(ChallengeCodes.LockCode(args[1], counter)));
+        Console.WriteLine("unlock: " + ChallengeCodes.Format(ChallengeCodes.UnlockCode(args[1], counter)));
         return 0;
     }
 

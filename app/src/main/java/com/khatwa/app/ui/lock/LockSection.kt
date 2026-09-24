@@ -50,7 +50,7 @@ fun LockSection(container: AppContainer, today: Today, onOpenSettings: () -> Uni
     var pairing by remember { mutableStateOf(false) }
     val settings by container.settings.flow.collectAsStateWithLifecycle(initialValue = null)
     val challenge by container.lock.challenge.collectAsStateWithLifecycle()
-    val laptopSecret = settings?.laptopSecret
+    val laptopSecret = settings?.laptopPairing
     OnResume { container.lock.refreshHealth() }
 
     if (!health.ok) {

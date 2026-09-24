@@ -118,16 +118,20 @@ internal sealed class LockForm : Form
 
         var codeRow = new FlowLayoutPanel { AutoSize = true, Anchor = AnchorStyles.None, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Margin = new Padding(0, 30, 0, 10) };
         _code.Font = new Font("Consolas", 36f, FontStyle.Bold);
-        _code.MaxLength = 9;
-        _code.Width = 380;
+        _code.MaxLength = 7;
+        _code.Width = 300;
         _code.TextAlign = HorizontalAlignment.Center;
         _code.BackColor = Color.FromArgb(31, 35, 44);
         _code.ForeColor = ForeColor;
         _code.BorderStyle = BorderStyle.FixedSingle;
         _code.RightToLeft = RightToLeft.No;
-        _code.CharacterCasing = CharacterCasing.Upper;
-        _code.PlaceholderText = "XXXX-XXXX";
+        _code.PlaceholderText = "000 000";
         _code.KeyDown += (_, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; TryUnlock(); } };
+        // Checked as soon as the sixth digit is typed (not while the retry delay is running).
+        _code.TextChanged += (_, _) =>
+        {
+            if (_unlock.Enabled && ChallengeCodes.Normalize(_code.Text).Length == ChallengeCodes.CodeLength) TryUnlock();
+        };
         _code.Name = "code";
         _unlock.Text = _t.UnlockButton;
         _unlock.Font = new Font("Segoe UI", 18f, FontStyle.Bold);
@@ -263,11 +267,11 @@ internal sealed class LockForm : Form
 
     private void TryUnlock()
     {
-        var challengeId = _state.ChallengeId ?? string.Empty;
-        if (ChallengeCodes.VerifyUnlockCode(_config.NormalizedSecret, challengeId, _code.Text))
+        var counter = _state.Counter;
+        if (ChallengeCodes.VerifyUnlockCode(_config.NormalizedSecret, counter, _code.Text))
         {
             _state.MarkUnlocked("code");
-            Log.Write($"unlock code accepted for challenge {challengeId}");
+            Log.Write($"unlock code accepted for challenge {counter}");
             _status.ForeColor = Color.FromArgb(123, 211, 137);
             _status.Text = _t.UnlockOk;
             ForceClose();
@@ -276,9 +280,10 @@ internal sealed class LockForm : Form
         _wrongAttempts++;
         _status.ForeColor = Color.FromArgb(255, 122, 122);
         _status.Text = _wrongAttempts < 3 ? _t.UnlockBad : string.Format(_t.UnlockBadMany, _wrongAttempts);
-        _code.SelectAll();
-        // Slow down guessing a little.
+        // Clear it (rather than select it) so the same wrong code is not submitted again automatically.
         _unlock.Enabled = false;
+        _code.Text = string.Empty;
+        // Slow down guessing a little.
         var t = new System.Windows.Forms.Timer { Interval = Math.Min(5000, 800 * _wrongAttempts) };
         t.Tick += (_, _) => { t.Stop(); t.Dispose(); _unlock.Enabled = true; _code.Focus(); };
         t.Start();
@@ -340,9 +345,9 @@ internal sealed class LockForm : Form
 
     private void RunSmokeChecks()
     {
-        var id = _state.ChallengeId ?? "K7MP";
-        var right = ChallengeCodes.UnlockCode(_config.NormalizedSecret, id);
-        var wrong = right[0] == 'A' ? "B" + right[1..] : "A" + right[1..];
+        var counter = _state.Counter > 0 ? _state.Counter : 1;
+        var right = ChallengeCodes.UnlockCode(_config.NormalizedSecret, counter);
+        var wrong = (right[0] == '0' ? "1" : "0") + right[1..];
         _code.Text = wrong;
         TryUnlock();
         SmokeWrongRejected = _state.IsLocked && !_allowClose;

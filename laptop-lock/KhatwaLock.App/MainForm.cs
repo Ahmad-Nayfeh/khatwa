@@ -4,7 +4,8 @@ using KhatwaLock.Core;
 namespace KhatwaLock.App;
 
 /// <summary>
-/// The friendly window: pair once, then paste the phone's lock code to lock the laptop.
+/// The friendly window: pair once, then type the phone's 6-digit lock code to lock the laptop.
+/// The code is checked as soon as the last digit is typed (no button needed).
 /// (Unlocking happens on the full-screen LockForm.)
 /// </summary>
 internal sealed class MainForm : Form
@@ -99,8 +100,13 @@ internal sealed class MainForm : Form
         _input.RightToLeft = RightToLeft.No;
         _input.Dock = DockStyle.Top;
         _input.Margin = new Padding(0, 0, 0, 12);
-        _input.CharacterCasing = CharacterCasing.Upper;
         _input.KeyDown += (_, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; DoAction(); } };
+        _input.TextChanged += (_, _) =>
+        {
+            // Act as soon as the code is complete: 8 digits to pair, 6 to lock.
+            var digits = ChallengeCodes.Normalize(_input.Text).Length;
+            if (_input.Visible && digits == (_config.HasSecret ? ChallengeCodes.CodeLength : ChallengeCodes.SecretLength)) DoAction();
+        };
         _action.Font = new Font("Segoe UI", 14f, FontStyle.Bold);
         _action.Height = 56;
         _action.Dock = DockStyle.Top;
@@ -176,7 +182,7 @@ internal sealed class MainForm : Form
         {
             _heading.Text = _t.PairTitle;
             _hint.Text = _t.PairHint;
-            _input.MaxLength = 19;
+            _input.MaxLength = 9;
             _input.PlaceholderText = _t.PairPlaceholder;
             _input.Visible = true;
             _action.Text = _t.PairButton;
@@ -200,7 +206,7 @@ internal sealed class MainForm : Form
         {
             _heading.Text = _t.PairedTitle;
             _hint.Text = _t.LockHint;
-            _input.MaxLength = 9;
+            _input.MaxLength = 7;
             _input.PlaceholderText = _t.LockPlaceholder;
             _input.Visible = true;
             _action.Text = _t.LockButton;
@@ -219,15 +225,15 @@ internal sealed class MainForm : Form
 
     private void Pair()
     {
-        var code = ChallengeCodes.Normalize(_input.Text);
-        if (!ChallengeCodes.IsSecret(code))
+        if (!ChallengeCodes.IsSecret(_input.Text))
         {
             _status.ForeColor = Red;
             _status.Text = _t.PairBad;
             return;
         }
-        _config.Secret = code;
+        _config.Secret = ChallengeCodes.Normalize(_input.Text);
         _config.Save(KhatwaPaths.ConfigPath);
+        _state.Clear(); // a new pairing restarts the phone's challenge counter
         Startup.Enable();
         Log.Write("paired");
         Render();
@@ -235,16 +241,16 @@ internal sealed class MainForm : Form
 
     private void Lock()
     {
-        var id = ChallengeCodes.VerifyLockCode(_config.NormalizedSecret, _input.Text);
-        if (id == null)
+        var counter = ChallengeCodes.VerifyLockCode(_config.NormalizedSecret, _input.Text, _state.LastCounter);
+        if (counter == null)
         {
             _status.ForeColor = Red;
             _status.Text = _t.LockBad;
-            _input.SelectAll();
+            _input.Text = string.Empty;
             return;
         }
-        _state.MarkLocked(id);
-        Log.Write($"locked by lock code; challenge {id}");
+        _state.MarkLocked(counter.Value);
+        Log.Write($"locked by lock code; challenge {counter}");
         _status.ForeColor = Green;
         _status.Text = _t.LockOk;
         Startup.StartWatchdogNow();

@@ -11,32 +11,44 @@ public class StateAndConfigTests : IDisposable
     public void Dispose() { try { Directory.Delete(_dir, true); } catch { } }
 
     [Fact]
-    public void LockStatePersistsUntilUnlocked()
+    public void LockStatePersistsUntilUnlockedAndRemembersTheLastCounter()
     {
         var state = new LockStateStore(Path.Combine(_dir, "state.json"));
         Assert.False(state.IsLocked);
-        Assert.Null(state.ChallengeId);
-        state.MarkLocked("k7mp");
+        Assert.Equal(0, state.Counter);
+        Assert.Equal(0, state.LastCounter);
+        state.MarkLocked(7);
         Assert.True(state.IsLocked);
-        Assert.Equal("K7MP", state.ChallengeId);
+        Assert.Equal(7, state.Counter);
+        Assert.Equal(7, state.LastCounter);
         Assert.NotNull(state.LockedAt);
         // A fresh instance reads the same file: the lock survives restarts.
         Assert.True(new LockStateStore(Path.Combine(_dir, "state.json")).IsLocked);
         state.MarkUnlocked("code");
         Assert.False(state.IsLocked);
-        Assert.Equal("K7MP", state.ChallengeId); // kept for the log; not locked any more
+        Assert.Equal(7, state.LastCounter); // lock codes are looked for after it
+        state.MarkLocked(9);
+        Assert.Equal(9, state.LastCounter);
         state.Clear();
         Assert.False(state.IsLocked);
-        Assert.Null(state.ChallengeId);
+        Assert.Equal(0, state.LastCounter);
+    }
+
+    [Fact]
+    public void AnOldFormatStateFileReadsAsUnlocked()
+    {
+        var path = Path.Combine(_dir, "state.json");
+        File.WriteAllText(path, "{ \"locked\": true, \"challengeId\": \"K7MP\" }");
+        Assert.False(new LockStateStore(path).IsLocked); // no usable code would exist for it
     }
 
     [Fact]
     public void ShouldLockNeedsASecretAndALockedState()
     {
         var state = new LockStateStore(Path.Combine(_dir, "state.json"));
-        state.MarkLocked("K7MP");
+        state.MarkLocked(1);
         Assert.False(LockDecision.ShouldLock(new LockConfig(), state)); // no secret: never brick
-        var cfg = new LockConfig { Secret = "ABCDEFGHJKLMNPQR" };
+        var cfg = new LockConfig { Secret = "12345678" };
         Assert.True(LockDecision.ShouldLock(cfg, state));
         state.MarkUnlocked("code");
         Assert.False(LockDecision.ShouldLock(cfg, state));
@@ -47,10 +59,10 @@ public class StateAndConfigTests : IDisposable
     {
         var path = Path.Combine(_dir, "config.json");
         Assert.False(LockConfig.Load(path).HasSecret);
-        var cfg = new LockConfig { Secret = " abcd-efgh-jklm-npqr ", Language = "en" };
+        var cfg = new LockConfig { Secret = " 1234 5678 ", Language = "en" };
         cfg.Save(path);
         var loaded = LockConfig.Load(path);
-        Assert.Equal("ABCDEFGHJKLMNPQR", loaded.Secret);
+        Assert.Equal("12345678", loaded.Secret);
         Assert.True(loaded.HasSecret);
         Assert.False(loaded.IsArabic);
         Assert.Equal(LockConfig.DefaultEmergencyPhraseEn, loaded.EmergencyPhrase);
@@ -62,10 +74,13 @@ public class StateAndConfigTests : IDisposable
     }
 
     [Fact]
-    public void OldTwentyFourCharSecretIsNotAcceptedAsPairing()
+    public void OldFormatPairingsAreNotAccepted()
     {
-        var cfg = new LockConfig { Secret = "K7mP2qR9sT4vW6xZ3bN8cD5f" };
-        Assert.False(cfg.HasSecret);
+        var path = Path.Combine(_dir, "config.json");
+        // 16-character code of the previous version, with 8 digits in it: must not become a pairing.
+        File.WriteAllText(path, "{ \"secret\": \"K7M2P3Q4R5S6T7U8\" }");
+        Assert.False(LockConfig.Load(path).HasSecret);
+        Assert.False(new LockConfig { Secret = "K7mP2qR9sT4vW6xZ3bN8cD5f" }.HasSecret);
     }
 
     [Fact]

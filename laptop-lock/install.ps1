@@ -5,7 +5,7 @@
   highest privileges. Run in an elevated PowerShell (Run as administrator).
 
 .EXAMPLE
-  powershell -ExecutionPolicy Bypass -File .\install.ps1 -Secret "K7mP2qR9sT4vW6xZ3bN8cD5f"
+  powershell -ExecutionPolicy Bypass -File .\install.ps1 -Secret "12345678"
   powershell -ExecutionPolicy Bypass -File .\install.ps1            # prompts for the secret
 #>
 [CmdletBinding()]
@@ -48,11 +48,11 @@ if (-not $Secret) {
     $Secret = $existing
     Write-Host "استُخدم السر الموجود في config.json."
   } else {
-    $Secret = Read-Host "الصق كود الاقتران (16 حرفاً) من تطبيق خطوة ← الإعدادات ← قفل اللابتوب"
+    $Secret = Read-Host "اكتب كود الاقتران (8 أرقام) من تطبيق خطوة ← الإعدادات ← قفل اللابتوب"
   }
 }
-$Secret = ($Secret.ToUpperInvariant() -replace '[^A-Z0-9]', '')
-if ($Secret.Length -ne 16) { Write-Host "كود الاقتران يجب أن يكون 16 حرفاً ورقماً." -ForegroundColor Red; exit 1 }
+$Secret = ($Secret -replace '[^0-9]', '')
+if ($Secret.Length -ne 8) { Write-Host "كود الاقتران يجب أن يكون 8 أرقام." -ForegroundColor Red; exit 1 }
 
 $config = @{ secret = $Secret; language = 'ar'; emergencyWaitSeconds = 60 }
 if (Test-Path $configPath) {
