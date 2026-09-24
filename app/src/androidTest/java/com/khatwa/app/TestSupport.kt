@@ -152,14 +152,20 @@ object TestSupport {
      * injected touch swipe. Touch swipes are unreliable on the software-rendered CI emulator
      * (frames take hundreds of ms), while ACTION_SCROLL_FORWARD is handled by Compose directly.
      */
-    fun scrollForward(resId: String): Boolean {
+    fun scrollForward(resId: String): Boolean = scrollPage(resId, forward = true)
+
+    fun scrollBackward(resId: String): Boolean = scrollPage(resId, forward = false)
+
+    private fun scrollPage(resId: String, forward: Boolean): Boolean {
         val automation = InstrumentationRegistry.getInstrumentation()
             .getUiAutomation(androidx.test.uiautomator.Configurator.getInstance().uiAutomationFlags)
-        val root = automation.rootInActiveWindow ?: return false.also { Log.w(TAG, "scrollForward: no root window") }
+        val root = automation.rootInActiveWindow ?: return false.also { Log.w(TAG, "scrollPage: no root window") }
         val node = findNode(root) { it.viewIdResourceName == resId }
-            ?: return false.also { Log.w(TAG, "scrollForward: no node with id $resId") }
-        val ok = node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
-        Log.i(TAG, "scrollForward($resId) -> $ok")
+            ?: return false.also { Log.w(TAG, "scrollPage: no node with id $resId") }
+        val action = if (forward) android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
+        else android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
+        val ok = node.performAction(action)
+        Log.i(TAG, "scrollPage($resId, forward=$forward) -> $ok")
         return ok
     }
 

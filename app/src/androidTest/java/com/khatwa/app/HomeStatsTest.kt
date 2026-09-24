@@ -19,6 +19,9 @@ class HomeStatsTest {
     @Before
     fun setUp() {
         TestSupport.grantBasics()
+        // With the accessibility service enabled the "lock does not work" warning card is not
+        // shown, so the home screen has its normal layout (quote card near the top).
+        TestSupport.enableAccessibility()
         TestSupport.onboardWithFakeSteps()
     }
 
@@ -55,10 +58,13 @@ class HomeStatsTest {
         assertNotNull(steps)
         // The quote card sits below the fold once the lock section is on screen. Scroll to it with
         // the accessibility scroll action (touch swipes are not reliable on the slow CI emulator).
+        // A page scroll can jump past the card (seen in CI evidence), so sweep down, then back up.
         var quote = device.findObject(By.res("home_quote"))
         var scrolls = 0
-        while (quote == null && scrolls < 4) {
-            TestSupport.scrollForward("home_scroll")
+        val sweep = listOf(true, true, true, false, false, false)
+        for (forward in sweep) {
+            if (quote != null) break
+            if (forward) TestSupport.scrollForward("home_scroll") else TestSupport.scrollBackward("home_scroll")
             scrolls++
             quote = device.wait(Until.findObject(By.res("home_quote")), 3_000)
         }
