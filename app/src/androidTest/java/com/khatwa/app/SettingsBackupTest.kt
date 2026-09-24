@@ -49,7 +49,8 @@ class SettingsBackupTest {
             val secret = device.wait(Until.findObject(By.res("laptop_secret")), 5_000)
             assertNotNull(secret)
             assertEquals("1234 5678".length, secret.text.length)
-            assertTrue(com.khatwa.core.laptop.LaptopCode.isSecret(secret.text))
+            // The laptop accepts it: 6 digits + 2 check digits.
+            assertTrue(com.khatwa.core.laptop.LaptopCode.isValidPairingCode(secret.text))
             TestSupport.evidence("laptop pairing code generated: ${secret.text}")
         }
         TestSupport.screenshot("41-laptop-lock-settings")

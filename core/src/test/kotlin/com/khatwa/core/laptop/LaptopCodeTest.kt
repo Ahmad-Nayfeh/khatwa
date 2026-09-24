@@ -18,7 +18,10 @@ class LaptopCodeTest {
     private data class Skip(val secret: String, val last: Long, val next: Long)
 
     @Serializable
-    private data class Doc(val description: String, val window: Int, val vectors: List<Vector>, val nextCounterSkip: Skip)
+    private data class Pairing(val valid: List<String>, val invalid: List<String>)
+
+    @Serializable
+    private data class Doc(val description: String, val window: Int, val vectors: List<Vector>, val nextCounterSkip: Skip, val pairing: Pairing)
 
     private fun shared(): Doc {
         val candidates = listOf(File("../shared/hmac-vectors.json"), File("shared/hmac-vectors.json"))
@@ -96,11 +99,35 @@ class LaptopCodeTest {
     }
 
     @Test
+    fun `pairing codes carry check digits that catch typos`() {
+        val p = shared().pairing
+        for (c in p.valid) assertTrue(LaptopCode.isValidPairingCode(c), c)
+        for (c in p.invalid) assertFalse(LaptopCode.isValidPairingCode(c), c)
+        assertTrue(LaptopCode.isValidPairingCode("1234 5676"))
+        assertTrue(LaptopCode.isValidPairingCode("١٢٣٤٥٦٧٦"))
+        assertFalse(LaptopCode.isValidPairingCode("1234567"))
+        assertFalse(LaptopCode.isValidPairingCode(null))
+        // Every single wrong digit and every swap of neighbours is rejected.
+        for (good in p.valid) for (i in 0 until 8) {
+            for (d in '0'..'9') if (d != good[i]) {
+                assertFalse(LaptopCode.isValidPairingCode(good.substring(0, i) + d + good.substring(i + 1)), "$good digit $i -> $d")
+            }
+            if (i < 7 && good[i] != good[i + 1]) {
+                val swapped = good.substring(0, i) + good[i + 1] + good[i] + good.substring(i + 2)
+                assertFalse(LaptopCode.isValidPairingCode(swapped), "$good swap $i")
+            }
+        }
+        repeat(200) { assertTrue(LaptopCode.isValidPairingCode(LaptopCode.generateSecret())) }
+    }
+
+    @Test
     fun `secrets are eight digits`() {
         val s = LaptopCode.generateSecret()
         assertEquals(8, s.length)
         assertTrue(s.all { it in '0'..'9' })
         assertTrue(LaptopCode.isSecret(s))
+        // A secret saved before check digits existed still works for codes.
+        assertTrue(LaptopCode.isSecret("12345678"))
         assertTrue(LaptopCode.isSecret("1234 5678"))
         assertFalse(LaptopCode.isSecret("1234567"))
         assertFalse(LaptopCode.isSecret("ABCDEFGHJKLMNPQR")) // the old 16-character format needs re-pairing

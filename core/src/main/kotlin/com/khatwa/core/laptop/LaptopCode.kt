@@ -23,6 +23,10 @@ import javax.crypto.spec.SecretKeySpec
  * code of one of the [WINDOW] counters before it, so the laptop always finds the right one and
  * the unlock code shown on the phone always matches. Both implementations are checked against
  * shared/hmac-vectors.json in CI.
+ *
+ * A new pairing code is 6 random digits + 2 check digits (ISO 7064 MOD 97-10, as in IBAN), so the
+ * laptop can reject a mistyped or made-up code on the spot, without any network. Secrets saved
+ * before the check digits existed stay usable; only a typed pairing code is checked.
  */
 object LaptopCode {
     const val SECRET_LENGTH = 8
@@ -30,8 +34,17 @@ object LaptopCode {
     /** How many counters ahead of its last accepted one the laptop looks. */
     const val WINDOW = 1000
 
-    fun generateSecret(random: SecureRandom = SecureRandom()): String =
-        buildString { repeat(SECRET_LENGTH) { append('0' + random.nextInt(10)) } }
+    fun generateSecret(random: SecureRandom = SecureRandom()): String {
+        val body = buildString { repeat(SECRET_LENGTH - 2) { append('0' + random.nextInt(10)) } }
+        return body + checkDigits(body)
+    }
+
+    /** Two check digits for a 6-digit body: 98 - (body * 100 mod 97), zero-padded. */
+    fun checkDigits(body: String): String = (98 - (body.toLong() * 100) % 97).toString().padStart(2, '0')
+
+    /** True for a pairing code typed correctly: 8 digits whose value mod 97 is 1. */
+    fun isValidPairingCode(input: String?): Boolean =
+        isSecret(input) && normalize(input!!).toLong() % 97 == 1L
 
     fun lockCode(secret: String, counter: Long): String = code6(secret, "lock:$counter")
 

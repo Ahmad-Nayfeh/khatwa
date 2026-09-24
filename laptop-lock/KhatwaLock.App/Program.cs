@@ -110,7 +110,9 @@ internal static class Program
                  && ChallengeCodes.VerifyLockCode("12345678", "179 578", 0) == 1
                  && ChallengeCodes.VerifyLockCode("12345678", "١٧٩٥٧٨", 0) == 1
                  && ChallengeCodes.VerifyLockCode("12345678", "179579", 0) == null
-                 && ChallengeCodes.NextCounter("12345678", 769) == 771;
+                 && ChallengeCodes.NextCounter("12345678", 769) == 771
+                 && ChallengeCodes.IsValidPairingCode("1234 5676")
+                 && !ChallengeCodes.IsValidPairingCode("12345678");
         Console.WriteLine(ok ? "selftest OK" : "selftest FAILED");
         return ok ? 0 : 1;
     }

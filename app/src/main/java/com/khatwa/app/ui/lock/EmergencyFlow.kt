@@ -17,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.khatwa.app.i18n.strings
@@ -59,7 +60,7 @@ fun EmergencyFlow(phrase: String, remaining: Long, onCancel: () -> Unit, onConfi
             } else {
                 Text(s.typePhrase, style = MaterialTheme.typography.titleMedium)
                 VSpace(6.dp)
-                Text("«$phrase»", style = MaterialTheme.typography.bodyLarge)
+                Text(phrase, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 VSpace(10.dp)
                 OutlinedTextField(
                     value = text,

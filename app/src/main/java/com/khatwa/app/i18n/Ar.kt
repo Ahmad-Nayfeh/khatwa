@@ -101,7 +101,7 @@ object Ar : Strings {
     override fun emergencyWarning(remaining: String) = "سيُسجَّل هذا الإلغاء باسم «استسلام» مع التاريخ والخطوات المتبقية ($remaining)."
     override fun waitSeconds(n: Int) = "انتظر $n ثانية"
     override val breathe = "خذ نفساً. ربما تفضّل المشي."
-    override val typePhrase = "اكتب الجملة التالية حرفياً:"
+    override val typePhrase = "اكتب هذه الجملة (التشكيل والهمزات لا تهم):"
     override val continue_ = "متابعة"
     override val sureSurrender = "هل أنت متأكد؟ سيُحسب استسلاماً."
     override val confirmSurrender = "تأكيد الاستسلام"

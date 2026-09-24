@@ -63,5 +63,10 @@
     "secret": "12345678",
     "last": 769,
     "next": 771
+  },
+  "pairing": {
+    "description": "New pairing codes are 6 random digits + 2 check digits (ISO 7064 MOD 97-10, as in IBAN): check = 98 - (first6 * 100 mod 97), and a code is valid iff its 8-digit value mod 97 == 1. This catches every single wrong digit and every swap of two neighbouring digits; a random 8-digit number passes about 1 time in 97. Secrets saved before check digits existed stay usable; only typed pairing codes are checked.",
+    "valid": ["00000098", "12345676", "99999920", "31415973", "27182893", "10000022", "00000195"],
+    "invalid": ["12345678", "00000000", "11111111", "87654321", "12345677", "21345676"]
   }
 }
