@@ -100,7 +100,8 @@ jobs:
           sudo rm -rf /usr/share/dotnet /usr/local/lib/node_modules /opt/ghc /usr/local/.ghcup \
             /usr/share/swift /usr/local/share/powershell /opt/hostedtoolcache/CodeQL \
             /usr/local/share/chromium /usr/local/lib/android/sdk/ndk /usr/lib/jvm/temurin-8-jdk-amd64 \
-            /usr/lib/jvm/temurin-11-jdk-amd64 /usr/lib/jvm/temurin-21-jdk-amd64 || true
+            /usr/lib/jvm/temurin-11-jdk-amd64 || true
+          # (temurin-21 is kept: the Firebase emulators need Java 21 and the tool cache links to it.)
           sudo docker image prune -af >/dev/null 2>&1 || true
           sudo apt-get clean >/dev/null 2>&1 || true
           df -h / | tail -1
@@ -108,8 +109,10 @@ jobs:
       - name: Start the Firebase emulators (auth + firestore) for the groups test
         run: |
           cd firebase
-          export JAVA_HOME="$JAVA_HOME_21_X64" PATH="$JAVA_HOME_21_X64/bin:$PATH"
-          java -version
+          export JAVA_HOME="$JAVA_HOME_21_X64"
+          export PATH="$JAVA_HOME_21_X64/bin:$PATH"
+          java -version 2>&1 | tee /tmp/javaver.txt
+          grep -q 'version "21' /tmp/javaver.txt || { echo "Java 21 not found at $JAVA_HOME_21_X64"; ls -la "$JAVA_HOME_21_X64" || true; exit 1; }
           npx --yes firebase-tools@15 emulators:start --only auth,firestore --project khatwa-de941 > ../ci/firebase-emulator.log 2>&1 &
           for i in $(seq 1 60); do
             if curl -sf http://127.0.0.1:8080 >/dev/null && curl -sf http://127.0.0.1:9099 >/dev/null; then echo "firebase emulators up"; break; fi
