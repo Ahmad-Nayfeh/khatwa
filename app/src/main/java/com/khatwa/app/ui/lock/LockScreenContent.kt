@@ -40,8 +40,9 @@ import kotlinx.coroutines.launch
 fun LockScreenContent(c: AppContainer, onOpenAllowed: () -> Unit) {
     val today by c.tracker.today.collectAsState()
     val lock by c.lock.state.collectAsState()
-    val quotes by c.features.quotes.observeAll().collectAsState(initial = emptyList())
     val settings by c.settings.flow.collectAsState(initial = null)
+    val lang = settings?.language ?: com.khatwa.app.settings.AppLanguage.AR
+    val quotes by remember(lang) { c.features.quotes.observeByLang(lang) }.collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
     var emergency by remember { mutableStateOf(false) }
 

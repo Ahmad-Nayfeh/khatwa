@@ -43,7 +43,9 @@ import kotlinx.coroutines.withContext
 fun QuotesScreen(container: AppContainer, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val quotes by container.features.quotes.observeAll().collectAsStateWithLifecycle(initialValue = emptyList())
+    val settings by container.settings.flow.collectAsStateWithLifecycle(initialValue = null)
+    val lang = settings?.language ?: com.khatwa.app.settings.AppLanguage.AR
+    val quotes by remember(lang) { container.features.quotes.observeByLang(lang) }.collectAsStateWithLifecycle(initialValue = emptyList())
     var query by remember { mutableStateOf("") }
     var editing by remember { mutableStateOf<QuoteEntity?>(null) }
     var adding by remember { mutableStateOf(false) }
@@ -71,7 +73,7 @@ fun QuotesScreen(container: AppContainer, onBack: () -> Unit) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "رجوع") }
             Text("الحكم", style = MaterialTheme.typography.headlineMedium)
         }
-        Muted("${quotes.size} حكمة. حكمة اليوم تُختار من هذه القائمة. لا تُنسب أي حكمة لأحد.")
+        Muted("${quotes.size} حكمة بلغة التطبيق الحالية. حكمة اليوم تُختار من هذه القائمة، وكل حكمة منسوبة إلى مصدرها.")
         VSpace(6.dp)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             SecondaryButton("إضافة", Modifier.weight(1f)) { adding = true }
@@ -85,7 +87,10 @@ fun QuotesScreen(container: AppContainer, onBack: () -> Unit) {
         LazyColumn(Modifier.fillMaxSize()) {
             items(quotes.filter { query.isBlank() || it.text.contains(query) }, key = { it.id }) { q ->
                 Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(q.text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                    Column(Modifier.weight(1f)) {
+                        Text(q.text, style = MaterialTheme.typography.bodyLarge)
+                        q.source?.let { Muted("— $it") }
+                    }
                     TextButton(onClick = { editing = q }) { Text("تعديل") }
                 }
             }
@@ -101,7 +106,7 @@ fun QuotesScreen(container: AppContainer, onBack: () -> Unit) {
             confirmButton = {
                 TextButton(enabled = text.isNotBlank(), onClick = {
                     scope.launch {
-                        if (adding) container.features.quotes.add(text) else container.features.quotes.update(editing!!, text)
+                        if (adding) container.features.quotes.add(text, lang) else container.features.quotes.update(editing!!, text)
                         adding = false; editing = null
                     }
                 }) { Text("حفظ") }

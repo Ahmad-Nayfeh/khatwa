@@ -117,6 +117,9 @@ interface QuoteDao {
     @Query("SELECT * FROM quotes ORDER BY sortOrder ASC, id ASC")
     fun observeAll(): Flow<List<QuoteEntity>>
 
+    @Query("SELECT * FROM quotes WHERE lang = :lang ORDER BY sortOrder ASC, id ASC")
+    fun observeByLang(lang: String): Flow<List<QuoteEntity>>
+
     @Query("SELECT * FROM quotes ORDER BY sortOrder ASC, id ASC")
     suspend fun all(): List<QuoteEntity>
 

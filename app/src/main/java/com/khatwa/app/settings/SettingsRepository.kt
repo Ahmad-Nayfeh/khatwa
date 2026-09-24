@@ -39,11 +39,17 @@ data class Settings(
     val morningMinute: Int = 7 * 60,
     /** "system" (follow the device), "light" or "dark". See [ThemeMode]. */
     val themeMode: String = ThemeMode.SYSTEM,
+    /** App language: "ar" or "en". Also selects which quotes are shown. */
+    val language: String = AppLanguage.AR,
     val lockStateJson: String? = null,
     /** Current / last laptop challenge (id + lifecycle) as JSON; see LockController. */
     val laptopChallengeJson: String? = null,
     val quoteOverrideDate: String? = null,
     val quoteOverrideIndex: Int = -1,
+    /** Show the "quote of the day" card on Home. */
+    val showQuote: Boolean = true,
+    /** Bundled quote set version last seeded into the database (0 = never). */
+    val quotesSeedVersion: Int = 0,
     val emergencyPhrase: String = DEFAULT_EMERGENCY_PHRASE,
     /** Date (ISO) on which a scheduled lock was surrendered; it is not re-armed that day. */
     val scheduleSkipDate: String? = null,
@@ -59,6 +65,13 @@ data class Settings(
     companion object {
         const val DEFAULT_EMERGENCY_PHRASE = "أختار الاستسلام اليوم وأعلم أن هذا يُسجَّل"
     }
+}
+
+/** App language stored in settings. */
+object AppLanguage {
+    const val AR = "ar"
+    const val EN = "en"
+    fun normalize(v: String?): String = if (v == EN) EN else AR
 }
 
 /** Theme choice stored in settings. */
@@ -130,6 +143,12 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setThemeMode(v: String) = edit { it[K.themeMode] = ThemeMode.normalize(v) }
 
+    suspend fun setLanguage(v: String) = edit { it[K.language] = AppLanguage.normalize(v) }
+
+    suspend fun setShowQuote(v: Boolean) = edit { it[K.showQuote] = v }
+
+    suspend fun setQuotesSeedVersion(v: Int) = edit { it[K.quotesSeedVersion] = v }
+
     suspend fun setLockStateJson(json: String?) = edit {
         if (json == null) it.remove(K.lockState) else it[K.lockState] = json
     }
@@ -166,12 +185,13 @@ class SettingsRepository(private val context: Context) {
         for ((name, value) in map) {
             when (name) {
                 K.onboardingDone.name, K.scheduleEnabled.name, K.blockSettings.name, K.allowlistInitialized.name,
-                K.weightReminderEnabled.name, K.morningEnabled.name ->
+                K.weightReminderEnabled.name, K.morningEnabled.name, K.showQuote.name ->
                     p[booleanPreferencesKey(name)] = value.toBooleanStrictOrNull() ?: false
                 K.themeMode.name -> p[K.themeMode] = ThemeMode.normalize(value)
+                K.language.name -> p[K.language] = AppLanguage.normalize(value)
                 K.tempGoal.name, K.finalGoal.name, K.weeklyIncrement.name, K.manualGoal.name, K.scheduleStart.name,
                 K.scheduleEnd.name, K.weightReminderDay.name, K.weightReminderMinute.name, K.morningMinute.name,
-                K.quoteOverrideIndex.name ->
+                K.quoteOverrideIndex.name, K.quotesSeedVersion.name ->
                     value.toIntOrNull()?.let { p[intPreferencesKey(name)] = it }
                 K.allowlist.name, K.scheduleDays.name ->
                     p[stringSetPreferencesKey(name)] = value.split(",").filter { it.isNotBlank() }.toSet()
@@ -203,10 +223,13 @@ class SettingsRepository(private val context: Context) {
         val morningEnabled = booleanPreferencesKey("morning_enabled")
         val morningMinute = intPreferencesKey("morning_minute")
         val themeMode = stringPreferencesKey("theme_mode")
+        val language = stringPreferencesKey("language")
         val lockState = stringPreferencesKey("lock_state")
         val laptopChallenge = stringPreferencesKey("laptop_challenge")
         val quoteOverrideDate = stringPreferencesKey("quote_override_date")
         val quoteOverrideIndex = intPreferencesKey("quote_override_index")
+        val showQuote = booleanPreferencesKey("show_quote")
+        val quotesSeedVersion = intPreferencesKey("quotes_seed_version")
         val emergencyPhrase = stringPreferencesKey("emergency_phrase")
         val scheduleSkipDate = stringPreferencesKey("schedule_skip_date")
     }
@@ -236,10 +259,13 @@ class SettingsRepository(private val context: Context) {
             morningEnabled = this[K.morningEnabled] ?: false,
             morningMinute = this[K.morningMinute] ?: defaults.morningMinute,
             themeMode = ThemeMode.normalize(this[K.themeMode]),
+            language = AppLanguage.normalize(this[K.language]),
             lockStateJson = this[K.lockState],
             laptopChallengeJson = this[K.laptopChallenge],
             quoteOverrideDate = this[K.quoteOverrideDate],
             quoteOverrideIndex = this[K.quoteOverrideIndex] ?: -1,
+            showQuote = this[K.showQuote] ?: true,
+            quotesSeedVersion = this[K.quotesSeedVersion] ?: 0,
             emergencyPhrase = this[K.emergencyPhrase] ?: Settings.DEFAULT_EMERGENCY_PHRASE,
             scheduleSkipDate = this[K.scheduleSkipDate],
         )

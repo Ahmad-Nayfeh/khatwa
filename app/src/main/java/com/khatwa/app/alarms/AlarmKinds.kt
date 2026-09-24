@@ -46,7 +46,7 @@ object AlarmKinds {
 
     private suspend fun morning(container: AppContainer) {
         val today = LocalDate.now()
-        val quotes = container.features.quotes.observeAll().first()
+        val quotes = container.features.quotes.observeByLang(container.settings.current().language).first()
         val quote = quotes.getOrNull(QuotePicker.indexFor(today, quotes.size))?.text ?: return
         val yesterday = container.db.days().get(today.minusDays(1).toString())?.steps ?: 0L
         container.notifications.event(

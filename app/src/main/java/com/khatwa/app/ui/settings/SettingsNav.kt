@@ -64,6 +64,9 @@ private fun SettingsRoot(container: AppContainer, open: (String) -> Unit) {
         settings?.let { s ->
             KCard {
                 SectionTitle("الإشعارات والمظهر")
+                SwitchRow("إظهار حكمة اليوم في الصفحة الرئيسية", s.showQuote) { on ->
+                    scope.launch { container.settings.setShowQuote(on) }
+                }
                 SwitchRow("إشعار صباحي بحكمة اليوم وخطوات الأمس", s.morningEnabled) { on ->
                     scope.launch { container.settings.setMorning(on, s.morningMinute); container.alarms.scheduleAll(container.settings.current()) }
                 }
