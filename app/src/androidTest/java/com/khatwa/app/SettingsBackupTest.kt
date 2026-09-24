@@ -48,7 +48,8 @@ class SettingsBackupTest {
             assertTrue(TestSupport.clickRes("laptop_generate"))
             val secret = device.wait(Until.findObject(By.res("laptop_secret")), 5_000)
             assertNotNull(secret)
-            assertEquals("XXXX-XXXX-XXXX-XXXX".length, secret.text.length)
+            assertEquals("1234 5678".length, secret.text.length)
+            assertTrue(com.khatwa.core.laptop.LaptopCode.isSecret(secret.text))
             TestSupport.evidence("laptop pairing code generated: ${secret.text}")
         }
         TestSupport.screenshot("41-laptop-lock-settings")
@@ -103,7 +104,8 @@ class SettingsBackupTest {
         runBlocking {
             c.db.weights().deleteAll()
             c.db.weights().insert(com.khatwa.app.data.WeightEntity(date = "2026-01-05", kg = 77.7, createdMs = 1L))
-            c.settings.setLaptopSecret("abcdefghijklmnopqrstuvwx")
+            c.settings.setLaptopSecret("24681357")
+            c.settings.setLaptopCounter(5)
         }
         val json = runBlocking { backup.export() }
         assertTrue(json.contains("\"app\": \"khatwa\""))
@@ -121,7 +123,8 @@ class SettingsBackupTest {
         val weights = runBlocking { c.db.weights().all() }
         assertEquals(1, weights.size)
         assertEquals(77.7, weights[0].kg, 0.001)
-        assertEquals("abcdefghijklmnopqrstuvwx", runBlocking { c.settings.current().laptopSecret })
+        assertEquals("24681357", runBlocking { c.settings.current().laptopSecret })
+        assertEquals(5L, runBlocking { c.settings.current().laptopCounter })
         assertTrue(runBlocking { c.settings.current().onboardingDone })
         assertTrue(runBlocking { c.db.quotes().count() } >= 100)
     }

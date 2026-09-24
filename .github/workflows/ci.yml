@@ -215,10 +215,10 @@ jobs:
           $p = Start-Process -FilePath $exe -ArgumentList '--selftest' -Wait -PassThru -NoNewWindow -RedirectStandardOutput selftest.txt
           Get-Content selftest.txt
           if ($p.ExitCode -ne 0) { throw "selftest failed (exit $($p.ExitCode))" }
-          $p = Start-Process -FilePath $exe -ArgumentList '--codes','ABCDEFGHJKLMNPQR','K7MP' -Wait -PassThru -NoNewWindow -RedirectStandardOutput code.txt
+          $p = Start-Process -FilePath $exe -ArgumentList '--codes','12345678','1' -Wait -PassThru -NoNewWindow -RedirectStandardOutput code.txt
           $codes = (Get-Content code.txt -Raw)
           Write-Host "codes for shared vector:`n$codes"
-          if ($codes -notmatch 'K7MP-Y3HE' -or $codes -notmatch 'MTL5-N2MS') { throw "code mismatch: '$codes'" }
+          if ($codes -notmatch '179 578' -or $codes -notmatch '880 387') { throw "code mismatch: '$codes'" }
 
       - name: UI smoke (lock form on the runner desktop, 3 s)
         continue-on-error: true

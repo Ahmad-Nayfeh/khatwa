@@ -9,7 +9,7 @@ public sealed class LockConfig
     public const string DefaultEmergencyPhraseAr = "أختار الاستسلام اليوم وأعلم أن هذا يُسجَّل";
     public const string DefaultEmergencyPhraseEn = "I choose to give up today and I know this is recorded";
 
-    /// <summary>16-character pairing code from the phone (Settings ← laptop lock, or the lock card).</summary>
+    /// <summary>8-digit pairing code from the phone (Settings ← laptop lock, or the lock card).</summary>
     [JsonPropertyName("secret")] public string Secret { get; set; } = string.Empty;
 
     /// <summary>"ar" or "en".</summary>
@@ -36,7 +36,8 @@ public sealed class LockConfig
         try
         {
             var cfg = JsonSerializer.Deserialize<LockConfig>(File.ReadAllText(path), Options) ?? new LockConfig();
-            cfg.Secret = ChallengeCodes.Normalize(cfg.Secret ?? string.Empty);
+            // An old-format pairing (16 letters/digits) is not valid any more: pair again.
+            cfg.Secret = ChallengeCodes.IsSecret(cfg.Secret) ? ChallengeCodes.Normalize(cfg.Secret!) : string.Empty;
             if (string.IsNullOrWhiteSpace(cfg.EmergencyPhraseAr)) cfg.EmergencyPhraseAr = DefaultEmergencyPhraseAr;
             if (string.IsNullOrWhiteSpace(cfg.EmergencyPhraseEn)) cfg.EmergencyPhraseEn = DefaultEmergencyPhraseEn;
             if (cfg.EmergencyWaitSeconds < 0) cfg.EmergencyWaitSeconds = 60;

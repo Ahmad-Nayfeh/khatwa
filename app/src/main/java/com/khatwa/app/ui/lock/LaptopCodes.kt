@@ -16,7 +16,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
@@ -32,27 +34,25 @@ import com.khatwa.app.ui.components.PrimaryButton
 import com.khatwa.app.ui.components.SecondaryButton
 import com.khatwa.app.ui.components.SectionTitle
 import com.khatwa.app.ui.components.VSpace
-import com.khatwa.app.util.Clip
 import com.khatwa.core.laptop.LaptopCode
 import kotlinx.coroutines.launch
 
-/** A code shown large, monospace, with a copy button. */
+/**
+ * A code shown large for typing on the laptop ("123 456", or "1234 5678" for pairing). No copy
+ * button: the code is read off the phone and typed on the laptop. Always left-to-right digits.
+ */
 @Composable
-fun CodeBox(label: String, code: String, tag: String, copyLabel: String = strings.copy) {
-    val s = strings
-    val context = LocalContext.current
+fun CodeBox(label: String, code: String, tag: String) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         VSpace(4.dp)
-        Text(
-            LaptopCode.format(code),
-            style = MaterialTheme.typography.displayLarge.copy(fontFamily = FontFamily.Monospace, fontSize = 34.sp, letterSpacing = 3.sp),
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth().testTag(tag),
-        )
-        VSpace(6.dp)
-        SecondaryButton(copyLabel, Modifier.fillMaxWidth().testTag("${tag}_copy")) {
-            Clip.copy(context, "khatwa code", LaptopCode.format(code), s.copied)
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+            Text(
+                LaptopCode.format(code),
+                style = MaterialTheme.typography.displayLarge.copy(fontFamily = FontFamily.Monospace, fontSize = 44.sp, letterSpacing = 4.sp),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().testTag(tag),
+            )
         }
     }
 }
@@ -71,7 +71,8 @@ fun LaptopLockCodeRow(container: AppContainer, secret: String?, challenge: Lapto
         VSpace(6.dp)
         SecondaryButton(s.pairLaptop, Modifier.fillMaxWidth().testTag("laptop_pair")) { onPair() }
     } else {
-        CodeBox(s.laptopLockCodeLabel, LaptopCode.lockCode(secret, challenge.id), "home_lock_code")
+        val counter = challenge.counter ?: return
+        CodeBox(s.laptopLockCodeLabel, LaptopCode.lockCode(secret, counter), "home_lock_code")
     }
 }
 
@@ -79,12 +80,13 @@ fun LaptopLockCodeRow(container: AppContainer, secret: String?, challenge: Lapto
 @Composable
 fun LaptopUnlockCard(container: AppContainer, secret: String?, challenge: LaptopChallenge?) {
     if (challenge == null || !challenge.finished || secret == null) return
+    val counter = challenge.counter ?: return
     val s = strings
     val scope = rememberCoroutineScope()
     KCard(tone = CardTone.Accent) {
         SectionTitle(if (challenge.finishReason == "surrender") s.challengeEndedSurrender else s.challengeDone)
         VSpace(6.dp)
-        CodeBox(s.laptopUnlockCodeLabel, LaptopCode.unlockCode(secret, challenge.id), "home_unlock_code")
+        CodeBox(s.laptopUnlockCodeLabel, LaptopCode.unlockCode(secret, counter), "home_unlock_code")
         VSpace(6.dp)
         TextButton(onClick = { scope.launch { container.lock.dismissLaptopChallenge() } }, modifier = Modifier.testTag("home_unlock_dismiss")) {
             Text(s.hideCode)
@@ -102,7 +104,7 @@ fun PairingDialog(container: AppContainer, secret: String?, onDismiss: () -> Uni
     if (current == null) {
         val s = LaptopCode.generateSecret()
         current = s
-        scope.launch { container.settings.setLaptopSecret(s) }
+        scope.launch { container.settings.setLaptopSecret(s); container.lock.onLaptopPaired() }
     }
     AlertDialog(
         onDismissRequest = onDismiss,

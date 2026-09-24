@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -32,6 +33,8 @@ data class Settings(
     val allowlist: Set<String> = emptySet(),
     val allowlistInitialized: Boolean = false,
     val laptopSecret: String? = null,
+    /** Counter of the last laptop challenge handed out with the current pairing (0 = none yet). */
+    val laptopCounter: Long = 0,
     val weightReminderEnabled: Boolean = false,
     val weightReminderDay: Int = 6, // ISO day of week, Saturday
     val weightReminderMinute: Int = 9 * 60,
@@ -60,6 +63,10 @@ data class Settings(
     /** Last Firebase anonymous uid seen (informational: shown in settings and kept in backups). */
     val groupsUid: String? = null,
 ) {
+    /** The laptop pairing code in the current format (8 digits), or null (unpaired, or an old 16-character pairing). */
+    val laptopPairing: String?
+        get() = laptopSecret?.takeIf { com.khatwa.core.laptop.LaptopCode.isSecret(it) }?.let { com.khatwa.core.laptop.LaptopCode.normalize(it) }
+
     fun goalConfig(today: LocalDate): GoalConfig = GoalConfig(
         startDate = goalStartDate ?: today,
         tempGoal = tempGoal,
@@ -141,7 +148,11 @@ class SettingsRepository(private val context: Context) {
         it[K.allowlistInitialized] = true
     }
 
+    suspend fun setLaptopCounter(v: Long) = edit { it[K.laptopCounter] = v }
+
     suspend fun setLaptopSecret(secret: String?) = edit {
+        // A new pairing restarts the challenge counter (the laptop starts from 0 too).
+        it[K.laptopCounter] = 0L
         if (secret == null) it.remove(K.laptopSecret) else it[K.laptopSecret] = secret
     }
 
@@ -216,6 +227,7 @@ class SettingsRepository(private val context: Context) {
                     value.toIntOrNull()?.let { p[intPreferencesKey(name)] = it }
                 K.allowlist.name, K.scheduleDays.name ->
                     p[stringSetPreferencesKey(name)] = value.split(",").filter { it.isNotBlank() }.toSet()
+                K.laptopCounter.name -> value.toLongOrNull()?.let { p[K.laptopCounter] = it }
                 K.goalStartDate.name, K.laptopSecret.name, K.lockState.name, K.laptopChallenge.name, K.quoteOverrideDate.name,
                 K.emergencyPhrase.name, K.scheduleSkipDate.name, K.groupsNickname.name, K.groupsUid.name ->
                     p[stringPreferencesKey(name)] = value
@@ -238,6 +250,7 @@ class SettingsRepository(private val context: Context) {
         val allowlist = stringSetPreferencesKey("allowlist")
         val allowlistInitialized = booleanPreferencesKey("allowlist_initialized")
         val laptopSecret = stringPreferencesKey("laptop_secret")
+        val laptopCounter = longPreferencesKey("laptop_counter")
         val weightReminderEnabled = booleanPreferencesKey("weight_reminder_enabled")
         val weightReminderDay = intPreferencesKey("weight_reminder_day")
         val weightReminderMinute = intPreferencesKey("weight_reminder_minute")
@@ -277,6 +290,7 @@ class SettingsRepository(private val context: Context) {
             allowlist = this[K.allowlist] ?: emptySet(),
             allowlistInitialized = this[K.allowlistInitialized] ?: false,
             laptopSecret = this[K.laptopSecret],
+            laptopCounter = this[K.laptopCounter] ?: 0L,
             weightReminderEnabled = this[K.weightReminderEnabled] ?: false,
             weightReminderDay = this[K.weightReminderDay] ?: defaults.weightReminderDay,
             weightReminderMinute = this[K.weightReminderMinute] ?: defaults.weightReminderMinute,

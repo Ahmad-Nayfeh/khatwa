@@ -7,76 +7,89 @@ import javax.crypto.spec.SecretKeySpec
 /**
  * Laptop lock codes, shared with the Windows program (laptop-lock/KhatwaLock.Core/ChallengeCodes.cs).
  *
- * The phone and the laptop are paired once with a 16-character secret. Every phone lock
- * ("challenge") gets a random 4-character id, from which two codes are derived:
+ * The phone and the laptop are paired once with an 8-digit secret. Every phone lock ("challenge")
+ * takes the next number of a counter that starts at 1 after pairing. Two 6-digit codes are derived
+ * from it, the same way authenticator apps derive their codes (HMAC + RFC 4226 truncation):
  *
- *  - lock code   = id + first 4 chars of MAC("lock:" + id)     -> 8 chars, shown as XXXX-XXXX
- *  - unlock code = first 8 chars of MAC("unlock:" + id)         -> 8 chars, shown as XXXX-XXXX
+ *  - lock code   = code6(secret, "lock:"   + counter)   typed into the laptop to lock it
+ *  - unlock code = code6(secret, "unlock:" + counter)   typed into the laptop to unlock it
  *
- * MAC = HMAC-SHA256(key = secret as UTF-8, message as UTF-8); each byte maps to ALPHABET[b % 32].
- * The alphabet has 32 symbols without look-alike glyphs (no 0/O, no 1/I). Input is normalised
- * (upper-cased, separators removed) before comparison. Both implementations are checked against
+ * code6 = HMAC-SHA256(key = secret UTF-8, message UTF-8), offset = h[31] & 0x0F,
+ *         value = ((h[off] & 0x7F) << 24 | h[off+1] << 16 | h[off+2] << 8 | h[off+3]) mod 1 000 000,
+ *         zero-padded to 6 digits.
+ *
+ * The laptop does not know the phone's counter: it remembers the last counter it accepted and
+ * tries the next [WINDOW] counters. The phone skips any counter whose lock code equals the lock
+ * code of one of the [WINDOW] counters before it, so the laptop always finds the right one and
+ * the unlock code shown on the phone always matches. Both implementations are checked against
  * shared/hmac-vectors.json in CI.
  */
 object LaptopCode {
-    const val ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-    const val SECRET_LENGTH = 16
-    const val ID_LENGTH = 4
-    const val CODE_LENGTH = 8
+    const val SECRET_LENGTH = 8
+    const val CODE_LENGTH = 6
+    /** How many counters ahead of its last accepted one the laptop looks. */
+    const val WINDOW = 1000
 
-    fun generateSecret(random: SecureRandom = SecureRandom()): String = randomChars(SECRET_LENGTH, random)
+    fun generateSecret(random: SecureRandom = SecureRandom()): String =
+        buildString { repeat(SECRET_LENGTH) { append('0' + random.nextInt(10)) } }
 
-    fun newChallengeId(random: SecureRandom = SecureRandom()): String = randomChars(ID_LENGTH, random)
+    fun lockCode(secret: String, counter: Long): String = code6(secret, "lock:$counter")
 
-    fun lockCode(secret: String, challengeId: String): String {
-        val id = normalize(challengeId)
-        require(id.length == ID_LENGTH) { "challenge id must be $ID_LENGTH chars" }
-        return id + macChars(secret, "lock:$id", CODE_LENGTH - ID_LENGTH)
+    fun unlockCode(secret: String, counter: Long): String = code6(secret, "unlock:$counter")
+
+    /**
+     * The counter for the next challenge after [last]: the first one whose lock code is not also
+     * the lock code of any of the [WINDOW] counters before it.
+     */
+    fun nextCounter(secret: String, last: Long): Long {
+        var n = last + 1
+        while (true) {
+            val code = lockCode(secret, n)
+            val clash = (maxOf(1L, n - WINDOW) until n).any { lockCode(secret, it) == code }
+            if (!clash) return n
+            n++
+        }
     }
 
-    fun unlockCode(secret: String, challengeId: String): String {
-        val id = normalize(challengeId)
-        require(id.length == ID_LENGTH) { "challenge id must be $ID_LENGTH chars" }
-        return macChars(secret, "unlock:$id", CODE_LENGTH)
-    }
-
-    /** Returns the challenge id when [input] is a valid lock code for [secret], else null. */
-    fun verifyLockCode(secret: String, input: String): String? {
+    /** The counter when [input] is the lock code of one of the [WINDOW] counters after [last], else null. */
+    fun verifyLockCode(secret: String, input: String, last: Long): Long? {
         val code = normalize(input)
         if (code.length != CODE_LENGTH) return null
-        val id = code.substring(0, ID_LENGTH)
-        return if (constantTimeEquals(code, lockCode(secret, id))) id else null
+        for (n in last + 1..last + WINDOW) if (constantTimeEquals(code, lockCode(secret, n))) return n
+        return null
     }
 
-    fun verifyUnlockCode(secret: String, challengeId: String, input: String): Boolean {
+    fun verifyUnlockCode(secret: String, counter: Long, input: String): Boolean {
         val code = normalize(input)
-        if (code.length != CODE_LENGTH) return false
-        return constantTimeEquals(code, unlockCode(secret, challengeId))
+        return code.length == CODE_LENGTH && constantTimeEquals(code, unlockCode(secret, counter))
     }
 
-    /** "ABCDEFGH" -> "ABCD-EFGH"; secrets become 4 groups of 4. */
-    fun format(code: String): String = normalize(code).chunked(4).joinToString("-")
+    /** "123456" -> "123 456"; "12345678" -> "1234 5678". */
+    fun format(code: String): String {
+        val n = normalize(code)
+        return if (n.length == SECRET_LENGTH) n.chunked(4).joinToString(" ") else n.chunked(3).joinToString(" ")
+    }
 
-    /** Upper-cases and drops anything that is not a letter or digit (spaces, dashes, dots). */
-    fun normalize(input: String): String =
-        input.uppercase().filter { it in 'A'..'Z' || it in '0'..'9' }
+    /** Keeps digits only; Arabic-Indic and Eastern Arabic-Indic digits become ASCII digits. */
+    fun normalize(input: String): String = buildString {
+        for (c in input) when (c) {
+            in '0'..'9' -> append(c)
+            in '٠'..'٩' -> append('0' + (c - '٠'))
+            in '۰'..'۹' -> append('0' + (c - '۰'))
+        }
+    }
 
-    fun isSecret(input: String): Boolean =
-        normalize(input).let { it.length == SECRET_LENGTH && it.all { c -> c in ALPHABET } }
+    fun isSecret(input: String?): Boolean = input != null && normalize(input).length == SECRET_LENGTH &&
+        input.all { it.isDigit() || it == ' ' || it == '-' }
 
-    private fun macChars(secret: String, message: String, count: Int): String {
+    private fun code6(secret: String, message: String): String {
         val mac = Mac.getInstance("HmacSHA256")
-        mac.init(SecretKeySpec(secret.toByteArray(Charsets.UTF_8), "HmacSHA256"))
+        mac.init(SecretKeySpec(normalize(secret).toByteArray(Charsets.UTF_8), "HmacSHA256"))
         val h = mac.doFinal(message.toByteArray(Charsets.UTF_8))
-        val sb = StringBuilder(count)
-        for (i in 0 until count) sb.append(ALPHABET[(h[i].toInt() and 0xff) % ALPHABET.length])
-        return sb.toString()
-    }
-
-    private fun randomChars(n: Int, random: SecureRandom): String {
-        val sb = StringBuilder(n)
-        repeat(n) { sb.append(ALPHABET[random.nextInt(ALPHABET.length)]) }
-        return sb.toString()
+        val off = h[31].toInt() and 0x0f
+        val value = ((h[off].toInt() and 0x7f) shl 24) or ((h[off + 1].toInt() and 0xff) shl 16) or
+            ((h[off + 2].toInt() and 0xff) shl 8) or (h[off + 3].toInt() and 0xff)
+        return (value % 1_000_000).toString().padStart(CODE_LENGTH, '0')
     }
 
     private fun constantTimeEquals(a: String, b: String): Boolean {

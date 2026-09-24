@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.khatwa.app.AppContainer
+import com.khatwa.core.laptop.LaptopCode
 import com.khatwa.app.i18n.I18n
 import com.khatwa.app.data.SurrenderEntity
 import com.khatwa.app.notifications.Notifications
@@ -58,9 +59,10 @@ private data class LockStateJson(
 }
 
 /**
- * One phone lock = one laptop "challenge": a random id from which the laptop lock code and the
- * unlock code are derived (see core LaptopCode). Kept after the lock ends so the unlock code
- * stays visible until the user dismisses it or starts a new lock.
+ * One phone lock = one laptop "challenge": a counter (1, 2, 3, ... per pairing) from which the
+ * 6-digit laptop lock and unlock codes are derived (see core LaptopCode). [id] holds the counter
+ * as text ("0" = started before pairing; it gets a counter when the laptop is paired). Kept after
+ * the lock ends so the unlock code stays visible until dismissed or a new lock starts.
  */
 @Serializable
 data class LaptopChallenge(
@@ -70,6 +72,8 @@ data class LaptopChallenge(
     val finishReason: String? = null,
 ) {
     val finished: Boolean get() = finishedAtMs != null
+    /** The challenge counter, or null for a challenge of the old format / not yet paired. */
+    val counter: Long? get() = id.toLongOrNull()?.takeIf { it > 0 }
 }
 
 /**
@@ -191,9 +195,26 @@ class LockController(private val c: AppContainer) {
 
     // ---- laptop challenge (codes are derived from the pairing secret in the UI) ----
 
-    private suspend fun newChallenge() = setChallenge(
-        LaptopChallenge(id = com.khatwa.core.laptop.LaptopCode.newChallengeId(), startedAtMs = System.currentTimeMillis())
-    )
+    private suspend fun newChallenge() {
+        val s = c.settings.current()
+        val secret = s.laptopPairing
+        val counter = if (secret == null) 0L else LaptopCode.nextCounter(secret, s.laptopCounter).also { c.settings.setLaptopCounter(it) }
+        setChallenge(LaptopChallenge(id = counter.toString(), startedAtMs = System.currentTimeMillis()))
+    }
+
+    /**
+     * Called after a (new) pairing code was generated: the counter restarted at 0. An active lock
+     * that started before pairing gets its counter now, so its laptop codes appear at once; a
+     * finished challenge from the previous pairing is dropped (its codes no longer match).
+     */
+    suspend fun onLaptopPaired() {
+        val secret = c.settings.current().laptopPairing ?: return
+        val ch = _challenge.value ?: return
+        if (ch.finished) { setChallenge(null); return }
+        val n = LaptopCode.nextCounter(secret, 0)
+        c.settings.setLaptopCounter(n)
+        setChallenge(ch.copy(id = n.toString()))
+    }
 
     private suspend fun finishChallenge(reason: String) {
         val ch = _challenge.value ?: return

@@ -32,7 +32,7 @@ fun LaptopLockScreen(container: AppContainer, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val settings by container.settings.flow.collectAsStateWithLifecycle(initialValue = null)
     var confirmRegenerate by remember { mutableStateOf(false) }
-    val secret = settings?.laptopSecret
+    val secret = settings?.laptopPairing
 
     SubScreen(title = s.laptopLock, onBack = onBack) {
         KCard(tone = CardTone.Soft) {
@@ -46,7 +46,7 @@ fun LaptopLockScreen(container: AppContainer, onBack: () -> Unit) {
             if (secret == null) {
                 VSpace(8.dp)
                 PrimaryButton(s.generatePairingCode, Modifier.testTag("laptop_generate")) {
-                    scope.launch { container.settings.setLaptopSecret(LaptopCode.generateSecret()) }
+                    scope.launch { container.settings.setLaptopSecret(LaptopCode.generateSecret()); container.lock.onLaptopPaired() }
                 }
             }
             VSpace(8.dp)
@@ -61,7 +61,7 @@ fun LaptopLockScreen(container: AppContainer, onBack: () -> Unit) {
             text = { Text(s.regeneratePairingWarning) },
             confirmButton = {
                 TextButton(onClick = {
-                    scope.launch { container.settings.setLaptopSecret(LaptopCode.generateSecret()) }
+                    scope.launch { container.settings.setLaptopSecret(LaptopCode.generateSecret()); container.lock.onLaptopPaired() }
                     confirmRegenerate = false
                 }) { Text(s.regenerate) }
             },
