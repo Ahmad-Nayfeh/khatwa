@@ -3,11 +3,11 @@ namespace KhatwaLock.Core;
 /// <summary>Pure decision helpers so the UI stays thin and the rules are unit-tested.</summary>
 public static class LockDecision
 {
-    /// <summary>Should the lock screen be shown right now?</summary>
-    public static bool ShouldLock(LockConfig config, LockStateStore state, DateOnly today)
+    /// <summary>Should the lock screen be shown right now? Never without a pairing secret.</summary>
+    public static bool ShouldLock(LockConfig config, LockStateStore state)
     {
         if (!config.HasSecret) return false; // nothing to check against: do not brick the laptop
-        return !state.IsUnlockedOn(today);
+        return state.IsLocked;
     }
 
     /// <summary>The emergency phrase must match exactly after trimming; whitespace runs are normalised.</summary>

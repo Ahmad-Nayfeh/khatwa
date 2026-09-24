@@ -1,6 +1,7 @@
 package com.khatwa.app.alarms
 
 import com.khatwa.app.AppContainer
+import com.khatwa.app.i18n.I18n
 import com.khatwa.app.notifications.Notifications
 import com.khatwa.app.settings.Settings
 import com.khatwa.app.util.Fmt
@@ -29,7 +30,7 @@ object AlarmKinds {
         when (action) {
             AlarmReceiver.ACTION_MORNING -> morning(container)
             AlarmReceiver.ACTION_WEIGHT -> container.notifications.event(
-                Notifications.ID_WEIGHT, "تذكير الوزن الأسبوعي", "سجّل وزنك هذا الأسبوع من الإعدادات ← سجل الوزن.",
+                Notifications.ID_WEIGHT, I18n.current.weightReminderTitle, I18n.current.weightReminderText,
             )
             else -> ScheduledLock.handle(container, action)
         }
@@ -46,11 +47,11 @@ object AlarmKinds {
 
     private suspend fun morning(container: AppContainer) {
         val today = LocalDate.now()
-        val quotes = container.features.quotes.observeAll().first()
+        val quotes = container.features.quotes.observeByLang(container.settings.current().language).first()
         val quote = quotes.getOrNull(QuotePicker.indexFor(today, quotes.size))?.text ?: return
         val yesterday = container.db.days().get(today.minusDays(1).toString())?.steps ?: 0L
         container.notifications.event(
-            Notifications.ID_MORNING, "صباح الخير · خطوات الأمس ${Fmt.n(yesterday)}", quote, silent = true,
+            Notifications.ID_MORNING, I18n.current.morningTitle(Fmt.n(yesterday)), quote, silent = true,
         )
     }
 }

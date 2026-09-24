@@ -61,9 +61,20 @@ class LockFlowTest {
     fun manualLockBlocksAllowsAndUnlocks() {
         val blocked = blockedApp()
         val allowed = allowedApp()
-        runBlocking { c.lock.startManual(1000) }
+        val pairSecret = "ABCDEFGHJKLMNPQR"
+        runBlocking { c.settings.setLaptopSecret(pairSecret); c.lock.startManual(1000) }
         assertTrue(c.lock.state.value is LockState.Manual)
         TestSupport.evidence("lock started; blocked=$blocked allowed=$allowed policy=${c.lock.currentPolicy().decide(blocked)}")
+
+        // 0. The laptop lock code for this challenge is shown on Home (the phone is paired).
+        val ch = c.lock.challenge.value
+        assertNotNull("challenge id created with the lock", ch)
+        TestSupport.launchApp()
+        val lockCodeShown = TestSupport.waitFor(By.res("home_lock_code"), 10_000, "home_lock_code")
+        assertNotNull("laptop lock code missing on Home", lockCodeShown)
+        assertEquals(com.khatwa.core.laptop.LaptopCode.format(com.khatwa.core.laptop.LaptopCode.lockCode(pairSecret, ch!!.id)), lockCodeShown!!.text)
+        TestSupport.evidence("laptop lock code shown: ${lockCodeShown.text}")
+        TestSupport.screenshot("19-home-laptop-lock-code")
 
         // 1. A blocked app gets covered by the lock screen.
         TestSupport.launchPackage(blocked)
@@ -97,6 +108,16 @@ class LockFlowTest {
         val nm = TestSupport.context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         waitUntil(5_000, "well-done notification") { nm.activeNotifications.any { it.id == Notifications.ID_UNLOCKED } }
         TestSupport.evidence("unlocked automatically; 'أحسنت' notification posted")
+
+        // 4. Home now shows the laptop unlock code for the finished challenge.
+        TestSupport.launchApp()
+        val unlockShown = TestSupport.waitFor(By.res("home_unlock_code"), 10_000, "home_unlock_code")
+        assertNotNull("laptop unlock code missing on Home", unlockShown)
+        assertEquals(com.khatwa.core.laptop.LaptopCode.format(com.khatwa.core.laptop.LaptopCode.unlockCode(pairSecret, ch.id)), unlockShown!!.text)
+        TestSupport.evidence("laptop unlock code shown: ${unlockShown.text}")
+        TestSupport.screenshot("28-home-laptop-unlock-code")
+        assertTrue(TestSupport.clickRes("home_unlock_dismiss"))
+        waitUntil(5_000, "unlock card dismissed") { c.lock.challenge.value == null }
     }
 
     @Test

@@ -97,7 +97,7 @@ class LockOverlay(private val c: AppContainer) {
     @androidx.compose.runtime.Composable
     private fun OverlayContent() {
         val settings by c.settings.flow.collectAsState(initial = null)
-        KhatwaTheme(dark = com.khatwa.app.ui.theme.isDarkFor(settings?.themeMode)) {
+        KhatwaTheme(dark = com.khatwa.app.ui.theme.isDarkFor(settings?.themeMode), language = settings?.language) {
             Surface(
                 modifier = Modifier.fillMaxSize().semantics { testTagsAsResourceId = true },
                 color = MaterialTheme.colorScheme.background,

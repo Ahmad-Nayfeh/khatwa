@@ -63,4 +63,6 @@ data class QuoteEntity(
     val text: String,
     val source: String?,
     val sortOrder: Int,
+    /** "ar" or "en": the card shows quotes in the app language. */
+    @androidx.room.ColumnInfo(defaultValue = "ar") val lang: String = "ar",
 )

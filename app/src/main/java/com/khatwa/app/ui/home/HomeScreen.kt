@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.khatwa.app.AppContainer
+import com.khatwa.app.i18n.strings
 import com.khatwa.app.permissions.PermissionChecks
 import com.khatwa.app.steps.StepService
 import com.khatwa.app.ui.charts.BarChart
@@ -43,6 +44,7 @@ import com.khatwa.app.util.Fmt
 
 @Composable
 private fun ComparePill(pct: Int?, modifier: Modifier = Modifier) {
+    val s = strings
     Column(
         modifier = modifier
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp))
@@ -60,12 +62,13 @@ private fun ComparePill(pct: Int?, modifier: Modifier = Modifier) {
             fontWeight = FontWeight.Bold,
             modifier = Modifier.testTag("home_compare"),
         )
-        Text("مقارنة بالأسبوع الماضي", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+        Text(s.vsLastWeek, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
     }
 }
 
 @Composable
 fun HomeScreen(container: AppContainer, onOpenSettings: () -> Unit) {
+    val s = strings
     val vm = containerViewModel { HomeViewModel(it) }
     val ui by vm.state.collectAsStateWithLifecycle()
     val today = ui.today
@@ -79,13 +82,13 @@ fun HomeScreen(container: AppContainer, onOpenSettings: () -> Unit) {
     ) {
         if (!PermissionChecks.activityRecognition(context)) {
             KCard(tone = CardTone.Warning) {
-                Text("العدّ متوقف: صلاحية النشاط البدني غير ممنوحة", style = MaterialTheme.typography.titleMedium)
+                Text(s.countingStoppedNoPermission, style = MaterialTheme.typography.titleMedium)
                 VSpace(8.dp)
-                PrimaryButton("فتح إعدادات التطبيق", Modifier.fillMaxWidth()) { context.startActivity(PermissionChecks.appInfoIntent(context)) }
+                PrimaryButton(s.openAppSettings, Modifier.fillMaxWidth()) { context.startActivity(PermissionChecks.appInfoIntent(context)) }
             }
             VSpace()
         } else if (!PermissionChecks.stepSensor(context) && !com.khatwa.app.debug.DebugHooks.ENABLED) {
-            KCard(tone = CardTone.Warning) { Text("لا يوجد حساس خطوات في هذا الجهاز") }
+            KCard(tone = CardTone.Warning) { Text(s.noSensor) }
             VSpace()
         }
 
@@ -96,12 +99,12 @@ fun HomeScreen(container: AppContainer, onOpenSettings: () -> Unit) {
         ProgressRing(progress = progress) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(Fmt.n(today.steps), style = MaterialTheme.typography.displayLarge, modifier = Modifier.testTag("home_steps"))
-                Muted("من ${Fmt.n(today.goal)} خطوة")
+                Muted(s.ofGoal(Fmt.n(today.goal)))
             }
         }
         VSpace(10.dp)
         Text(
-            if (remaining == 0L) "أكملت هدف اليوم" else "المتبقي ${Fmt.n(remaining)} خطوة",
+            if (remaining == 0L) s.goalDoneToday else s.remainingSteps(Fmt.n(remaining)),
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.testTag("home_remaining"),
         )
@@ -110,12 +113,12 @@ fun HomeScreen(container: AppContainer, onOpenSettings: () -> Unit) {
         // Quote of the day
         ui.quote?.let { q ->
             KCard(tone = CardTone.Soft) {
-                Text("حكمة اليوم", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(s.quoteOfTheDay, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 VSpace(6.dp)
                 Text(q.text, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, lineHeight = 28.sp), modifier = Modifier.testTag("home_quote"))
                 q.source?.let { Muted("— $it") }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = { vm.anotherQuote() }) { Text("حكمة أخرى") }
+                    TextButton(onClick = { vm.anotherQuote() }) { Text(s.anotherQuote) }
                 }
             }
             VSpace()
@@ -123,40 +126,40 @@ fun HomeScreen(container: AppContainer, onOpenSettings: () -> Unit) {
 
         // This week
         KCard {
-            SectionTitle("هذا الأسبوع")
+            SectionTitle(s.thisWeek)
             BarChart(
                 values = ui.week.map { it.steps },
-                labels = ui.week.map { Fmt.arabicDaysShort[it.date.dayOfWeek.value] ?: "?" },
+                labels = ui.week.map { Fmt.dayShort(it.date.dayOfWeek.value).ifEmpty { "?" } },
                 goal = today.goal.toLong(),
                 thicknessDp = 22,
                 height = 170,
             )
             VSpace(10.dp)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StatPill("جلسات هذا الأسبوع", Fmt.n(ui.sessionsThisWeek), Modifier.weight(1f))
+                StatPill(s.sessionsThisWeek, Fmt.n(ui.sessionsThisWeek), Modifier.weight(1f))
                 val pct = ui.compare.percent
                 ComparePill(pct, Modifier.weight(1f))
             }
             VSpace(6.dp)
-            Muted("المقارنة مع نفس الأيام المنقضية من الأسبوع الماضي. الأسبوع يبدأ الأحد.")
+            Muted(s.weekCompareHint)
         }
         VSpace()
 
         // Streaks + goal
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            StatPill("السلسلة الحالية", "${Fmt.n(ui.streaks.current)} يوم", Modifier.weight(1f))
-            StatPill("أطول سلسلة", "${Fmt.n(ui.streaks.longest)} يوم", Modifier.weight(1f))
+            StatPill(s.currentStreak, s.daysCount(Fmt.n(ui.streaks.current)), Modifier.weight(1f))
+            StatPill(s.longestStreak, s.daysCount(Fmt.n(ui.streaks.longest)), Modifier.weight(1f))
         }
         VSpace(10.dp)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             val gi = today.goalInfo
-            StatPill("الهدف الفعلي", Fmt.n(today.goal), Modifier.weight(1f))
+            StatPill(s.effectiveGoal, Fmt.n(today.goal), Modifier.weight(1f))
             StatPill(
-                if (gi?.isManual == true) "الهدف" else "الأسبوع",
+                if (gi?.isManual == true) s.goal else s.week,
                 when {
-                    gi?.isManual == true -> "يدوي ثابت"
-                    gi?.isMeasurementWeek == true -> "أسبوع القياس"
-                    gi?.reachedFinal == true -> "الهدف النهائي"
+                    gi?.isManual == true -> s.manualFixed
+                    gi?.isMeasurementWeek == true -> s.measurementWeek
+                    gi?.reachedFinal == true -> s.finalGoal
                     else -> Fmt.n((gi?.weekIndex ?: 0) + 1)
                 },
                 Modifier.weight(1f),
@@ -164,26 +167,12 @@ fun HomeScreen(container: AppContainer, onOpenSettings: () -> Unit) {
         }
         VSpace()
 
-        // Laptop code
-        KCard(tone = if (ui.laptopCode != null) CardTone.Accent else CardTone.Normal) {
-            SectionTitle("كود اللابتوب لليوم")
-            when {
-                !ui.laptopSecretSet -> Muted("لم يُفعَّل قفل اللابتوب بعد. فعّله من الإعدادات ← قفل اللابتوب.")
-                ui.laptopCode != null -> Text(
-                    ui.laptopCode!!, style = MaterialTheme.typography.displayLarge.copy(fontSize = 44.sp, letterSpacing = 6.sp),
-                    modifier = Modifier.fillMaxWidth().testTag("home_laptop_code"), textAlign = TextAlign.Center,
-                )
-                else -> Text("الكود يظهر بعد إكمال هدف اليوم. المتبقي ${Fmt.n(remaining)} خطوة.", modifier = Modifier.testTag("home_laptop_pending"))
-            }
-        }
-        VSpace()
-
         KCard(tone = CardTone.Soft) {
-            Text("العدّاد يعمل في الخلفية", style = MaterialTheme.typography.titleMedium)
+            Text(s.counterRunning, style = MaterialTheme.typography.titleMedium)
             VSpace(6.dp)
-            Muted(if (today.sensorSeen) "آخر قراءة من الحساس وصلت." else "بانتظار أول قراءة من الحساس. إن لم تصل، راجع الإعدادات ← حالة الصلاحيات.")
+            Muted(if (today.sensorSeen) s.sensorReadingArrived else s.sensorWaiting)
             VSpace(8.dp)
-            PrimaryButton("إعادة تشغيل العدّاد", Modifier.fillMaxWidth()) { StepService.start(context) }
+            PrimaryButton(s.restartCounter, Modifier.fillMaxWidth()) { StepService.start(context) }
         }
         Box(Modifier.padding(bottom = 24.dp))
     }

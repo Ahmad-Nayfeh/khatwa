@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.khatwa.app.AppContainer
 import com.khatwa.app.data.QuoteEntity
+import com.khatwa.app.i18n.strings
 import com.khatwa.app.ui.components.Muted
 import com.khatwa.app.ui.components.SecondaryButton
 import com.khatwa.app.ui.components.VSpace
@@ -41,9 +42,12 @@ import kotlinx.coroutines.withContext
 
 @Composable
 fun QuotesScreen(container: AppContainer, onBack: () -> Unit) {
+    val s = strings
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val quotes by container.features.quotes.observeAll().collectAsStateWithLifecycle(initialValue = emptyList())
+    val settings by container.settings.flow.collectAsStateWithLifecycle(initialValue = null)
+    val lang = settings?.language ?: com.khatwa.app.settings.AppLanguage.AR
+    val quotes by remember(lang) { container.features.quotes.observeByLang(lang) }.collectAsStateWithLifecycle(initialValue = emptyList())
     var query by remember { mutableStateOf("") }
     var editing by remember { mutableStateOf<QuoteEntity?>(null) }
     var adding by remember { mutableStateOf(false) }
@@ -54,39 +58,42 @@ fun QuotesScreen(container: AppContainer, onBack: () -> Unit) {
         scope.launch {
             val json = container.features.quotes.exportJson()
             withContext(Dispatchers.IO) { context.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) } }
-            message = "تم تصدير ${quotes.size} حكمة."
+            message = s.exportedQuotes(quotes.size)
         }
     }
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
             val text = withContext(Dispatchers.IO) { context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } }
-            message = runCatching { "تم استيراد ${container.features.quotes.importJson(text ?: "")} حكمة." }
-                .getOrElse { "تعذّر الاستيراد: الملف ليس بالصيغة المتوقعة." }
+            message = runCatching { s.importedQuotes(container.features.quotes.importJson(text ?: "")) }
+                .getOrElse { s.quotesImportFailed }
         }
     }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "رجوع") }
-            Text("الحكم", style = MaterialTheme.typography.headlineMedium)
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = s.back) }
+            Text(s.quotes, style = MaterialTheme.typography.headlineMedium)
         }
-        Muted("${quotes.size} حكمة. حكمة اليوم تُختار من هذه القائمة. لا تُنسب أي حكمة لأحد.")
+        Muted(s.quotesHint(quotes.size))
         VSpace(6.dp)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SecondaryButton("إضافة", Modifier.weight(1f)) { adding = true }
-            SecondaryButton("تصدير", Modifier.weight(1f)) { exportLauncher.launch("khatwa-quotes.json") }
-            SecondaryButton("استيراد", Modifier.weight(1f)) { importLauncher.launch(arrayOf("application/json", "text/*", "*/*")) }
+            SecondaryButton(s.add, Modifier.weight(1f)) { adding = true }
+            SecondaryButton(s.export, Modifier.weight(1f)) { exportLauncher.launch("khatwa-quotes.json") }
+            SecondaryButton(s.import_, Modifier.weight(1f)) { importLauncher.launch(arrayOf("application/json", "text/*", "*/*")) }
         }
-        TextButton(onClick = { scope.launch { message = "تمت استعادة ${container.features.quotes.restoreBundled()} حكمة." } }) { Text("استعادة القائمة الأصلية") }
+        TextButton(onClick = { scope.launch { message = s.restoredQuotes(container.features.quotes.restoreBundled()) } }) { Text(s.restoreBundled) }
         message?.let { Muted(it) }
-        OutlinedTextField(value = query, onValueChange = { query = it }, label = { Text("بحث") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = query, onValueChange = { query = it }, label = { Text(s.search) }, singleLine = true, modifier = Modifier.fillMaxWidth())
         VSpace(6.dp)
         LazyColumn(Modifier.fillMaxSize()) {
             items(quotes.filter { query.isBlank() || it.text.contains(query) }, key = { it.id }) { q ->
                 Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(q.text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { editing = q }) { Text("تعديل") }
+                    Column(Modifier.weight(1f)) {
+                        Text(q.text, style = MaterialTheme.typography.bodyLarge)
+                        q.source?.let { Muted("— $it") }
+                    }
+                    TextButton(onClick = { editing = q }) { Text(s.edit) }
                 }
             }
         }
@@ -96,20 +103,20 @@ fun QuotesScreen(container: AppContainer, onBack: () -> Unit) {
         var text by remember(editing) { mutableStateOf(editing?.text ?: "") }
         AlertDialog(
             onDismissRequest = { adding = false; editing = null },
-            title = { Text(if (adding) "حكمة جديدة" else "تعديل الحكمة") },
+            title = { Text(if (adding) s.newQuote else s.editQuote) },
             text = { OutlinedTextField(value = text, onValueChange = { text = it }, minLines = 2, modifier = Modifier.fillMaxWidth()) },
             confirmButton = {
                 TextButton(enabled = text.isNotBlank(), onClick = {
                     scope.launch {
-                        if (adding) container.features.quotes.add(text) else container.features.quotes.update(editing!!, text)
+                        if (adding) container.features.quotes.add(text, lang) else container.features.quotes.update(editing!!, text)
                         adding = false; editing = null
                     }
-                }) { Text("حفظ") }
+                }) { Text(s.save) }
             },
             dismissButton = {
                 Row {
-                    if (editing != null) TextButton(onClick = { scope.launch { container.features.quotes.delete(editing!!.id); editing = null } }) { Text("حذف") }
-                    TextButton(onClick = { adding = false; editing = null }) { Text("إلغاء") }
+                    if (editing != null) TextButton(onClick = { scope.launch { container.features.quotes.delete(editing!!.id); editing = null } }) { Text(s.delete) }
+                    TextButton(onClick = { adding = false; editing = null }) { Text(s.cancel) }
                 }
             },
         )

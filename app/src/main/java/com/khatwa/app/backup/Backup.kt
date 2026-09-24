@@ -1,6 +1,7 @@
 package com.khatwa.app.backup
 
 import com.khatwa.app.AppContainer
+import com.khatwa.app.i18n.I18n
 import com.khatwa.app.steps.SnapshotWorker
 import com.khatwa.app.steps.StepService
 import kotlinx.serialization.Serializable
@@ -11,7 +12,7 @@ import kotlinx.serialization.json.Json
 @Serializable data class SessionJson(val date: String, val startMs: Long, val endMs: Long, val steps: Long)
 @Serializable data class WeightJson(val date: String, val kg: Double, val createdMs: Long)
 @Serializable data class SurrenderJson(val epochMs: Long, val date: String, val remainingSteps: Long, val lockType: String)
-@Serializable data class QuoteBackupJson(val text: String, val source: String? = null)
+@Serializable data class QuoteBackupJson(val text: String, val source: String? = null, val lang: String = "ar")
 
 /** Full backup: settings (including the laptop secret and, later, the groups identity) + every table. */
 @Serializable
@@ -42,7 +43,7 @@ class Backup(private val c: AppContainer) {
             sessions = db.sessions().all().map { SessionJson(it.date, it.startMs, it.endMs, it.steps) },
             weights = db.weights().all().map { WeightJson(it.date, it.kg, it.createdMs) },
             surrenders = db.surrenders().all().map { SurrenderJson(it.epochMs, it.date, it.remainingSteps, it.lockType) },
-            quotes = db.quotes().all().map { QuoteBackupJson(it.text, it.source) },
+            quotes = db.quotes().all().map { QuoteBackupJson(it.text, it.source, it.lang) },
         )
         return json.encodeToString(BackupFile.serializer(), file)
     }
@@ -60,8 +61,8 @@ class Backup(private val c: AppContainer) {
         file.sessions.forEach { db.sessions().insert(com.khatwa.app.data.SessionEntity(date = it.date, startMs = it.startMs, endMs = it.endMs, steps = it.steps)) }
         file.weights.forEach { db.weights().insert(com.khatwa.app.data.WeightEntity(date = it.date, kg = it.kg, createdMs = it.createdMs)) }
         file.surrenders.forEach { db.surrenders().insert(com.khatwa.app.data.SurrenderEntity(epochMs = it.epochMs, date = it.date, remainingSteps = it.remainingSteps, lockType = it.lockType)) }
-        if (file.quotes.isNotEmpty()) db.quotes().insertAll(file.quotes.mapIndexed { i, q -> com.khatwa.app.data.QuoteEntity(text = q.text, source = q.source, sortOrder = i) })
-        else c.features.quotes.seedIfEmpty()
+        if (file.quotes.isNotEmpty()) db.quotes().insertAll(file.quotes.mapIndexed { i, q -> com.khatwa.app.data.QuoteEntity(text = q.text, source = q.source, sortOrder = i, lang = q.lang) })
+        else c.features.quotes.seedIfNeeded()
         c.settings.importMap(file.settings.filterKeys { it != "lock_state" })
         c.tracker.reload()
         c.lock.refreshPolicy()
@@ -71,7 +72,7 @@ class Backup(private val c: AppContainer) {
             c.alarms.scheduleAll(s)
             SnapshotWorker.schedule(c.app)
         }
-        return "تمت الاستعادة: ${file.days.size} يوم، ${file.sessions.size} جلسة، ${file.weights.size} وزن، ${file.quotes.size} حكمة."
+        return I18n.current.restoreSummary(file.days.size, file.sessions.size, file.weights.size, file.quotes.size)
     }
 
     /** Wipes everything and returns to onboarding. */
@@ -80,7 +81,7 @@ class Backup(private val c: AppContainer) {
         c.lock.unlock(com.khatwa.app.lock.UnlockReason.CANCELLED)
         clearTables()
         c.settings.clear()
-        c.features.quotes.seedIfEmpty()
+        c.features.quotes.seedIfNeeded()
         c.tracker.reload()
         c.alarms.scheduleAll(c.settings.current())
     }

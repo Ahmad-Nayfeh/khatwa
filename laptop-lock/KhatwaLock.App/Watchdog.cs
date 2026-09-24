@@ -1,12 +1,11 @@
-using System.Diagnostics;
 using KhatwaLock.Core;
 
 namespace KhatwaLock.App;
 
 /// <summary>
-/// Runs at logon next to the lock screen. Every few seconds: if today is still locked and no
-/// lock screen is running (closed via Task Manager, crashed, or the date rolled over), start one.
-/// Reasonable resistance only: Safe Mode, Task Scheduler, or deleting the folder still win.
+/// Runs at sign-in (HKCU Run entry). Every few seconds: if the laptop is locked and no lock
+/// screen is showing (closed via Task Manager, crashed, or just signed in), show it.
+/// Reasonable resistance only: Safe Mode or deleting the folder still win.
 /// </summary>
 internal static class Watchdog
 {
@@ -17,18 +16,17 @@ internal static class Watchdog
         using var mutex = new Mutex(true, WatchdogMutexName, out var createdNew);
         if (!createdNew) return 0; // one watchdog is enough
         Log.Write("watchdog started");
+        ApplicationConfiguration.Initialize();
         while (true)
         {
             try
             {
                 var config = LockConfig.Load(KhatwaPaths.ConfigPath);
                 var state = new LockStateStore(KhatwaPaths.StatePath);
-                var today = DateOnly.FromDateTime(DateTime.Now);
-                if (LockDecision.ShouldLock(config, state, today) && !Program.IsLockScreenRunning())
+                if (LockDecision.ShouldLock(config, state) && !Program.IsLockScreenRunning())
                 {
-                    Log.Write("watchdog: lock screen missing while locked; starting it");
-                    Process.Start(new ProcessStartInfo(Program.ExePath) { UseShellExecute = false });
-                    Thread.Sleep(5000);
+                    Log.Write("watchdog: laptop locked and no lock screen; showing it");
+                    Program.ShowLockScreen(config, state, new SurrenderLog(KhatwaPaths.SurrendersPath));
                 }
             }
             catch (Exception e)

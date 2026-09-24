@@ -18,6 +18,7 @@ import com.khatwa.core.time.Days
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -35,8 +36,6 @@ data class HomeUiState(
     val compare: WeekCompare = WeekCompare(0, 0, null),
     val streaks: Streaks = Streaks(0, 0),
     val quote: QuoteEntity? = null,
-    val laptopSecretSet: Boolean = false,
-    val laptopCode: String? = null,
     val settings: Settings = Settings(),
 )
 
@@ -57,8 +56,11 @@ class HomeViewModel(private val c: AppContainer) : ViewModel() {
 
     private val allDays = c.db.days().observeAll()
 
+    private val quotes = c.settings.flow.map { it.language }.distinctUntilChanged()
+        .flatMapLatest { c.features.quotes.observeByLang(it) }
+
     val state: StateFlow<HomeUiState> = combine(
-        c.tracker.today, weekRange, sessionsThisWeek, allDays, c.settings.flow, c.features.quotes.observeAll(),
+        c.tracker.today, weekRange, sessionsThisWeek, allDays, c.settings.flow, quotes,
     ) { arr ->
         @Suppress("UNCHECKED_CAST")
         build(
@@ -88,8 +90,7 @@ class HomeViewModel(private val c: AppContainer) : ViewModel() {
             val d = weekStart.plusDays(i.toLong())
             WeekDay(d, stepsByDate[d] ?: 0L, d == today.date)
         }
-        val quote = pickQuote(quotes, today.date, settings)
-        val code = settings.laptopSecret?.takeIf { today.steps >= today.goal }?.let { LaptopCode.code(it, today.date) }
+        val quote = if (settings.showQuote) pickQuote(quotes, today.date, settings) else null
         return HomeUiState(
             today = today,
             week = week,
@@ -97,8 +98,6 @@ class HomeViewModel(private val c: AppContainer) : ViewModel() {
             compare = Stats.weekCompare(stepsByDate, today.date),
             streaks = Stats.streaks(stats, today.date),
             quote = quote,
-            laptopSecretSet = settings.laptopSecret != null,
-            laptopCode = code,
             settings = settings,
         )
     }
@@ -113,7 +112,7 @@ class HomeViewModel(private val c: AppContainer) : ViewModel() {
     fun anotherQuote() {
         viewModelScope.launch {
             val s = state.value
-            val list = c.features.quotes.observeAll().first()
+            val list = quotes.first()
             if (list.isEmpty()) return@launch
             val current = list.indexOfFirst { it.id == s.quote?.id }.coerceAtLeast(0)
             val next = QuotePicker.another(current, list.size)

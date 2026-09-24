@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Khatwa</string>
+    <string name="accessibility_label">Khatwa: lock until you walk</string>
+    <string name="accessibility_description">Khatwa uses the accessibility service only to learn the name of the app currently open, so it can show the lock screen over apps that are not allowed while the lock is active. It does not read screen content, does not record what you type and sends nothing off the device.</string>
+    <string name="notification_channel_service">Step counter</string>
+    <string name="notification_channel_events">Khatwa alerts</string>
+</resources>

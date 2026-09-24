@@ -1,47 +1,61 @@
 {
-  "description": "Shared test vectors for the khatwa daily laptop code. code = HMAC-SHA256(secret, date) -> first 4 bytes big-endian, top bit cleared -> mod 1000000 -> 6 digits zero-padded. Both the Kotlin (core/) and C# (laptop-lock/) tests must pass every vector.",
+  "description": "Shared test vectors for the khatwa laptop lock codes. MAC = HMAC-SHA256(secret UTF-8, message UTF-8); each byte maps to ALPHABET[b % 32] with ALPHABET = ABCDEFGHJKLMNPQRSTUVWXYZ23456789. lockCode = challengeId + first 4 chars of MAC('lock:'+id); unlockCode = first 8 chars of MAC('unlock:'+id). Both the Kotlin (core/) and C# (laptop-lock/) tests must pass every vector.",
   "vectors": [
     {
-      "secret": "abcdefghijklmnopqrstuvwx",
-      "date": "2026-01-01",
-      "code": "358895",
-      "hmacHex": "f6656e6fd63f6f8223efba907d911befe0ef9868f5f365bdd899ed478a8eb0e6"
+      "secret": "ABCDEFGHJKLMNPQR",
+      "challengeId": "K7MP",
+      "lockCode": "K7MPY3HE",
+      "unlockCode": "MTL5N2MS",
+      "hmacLockHex": "d6f987c42ed27501ae9d23822cedc2d3f0052b072d99869f757c1852a63d5588",
+      "hmacUnlockHex": "6bb10a7b4c580b70d6b18a72ca4a7a013749e9dcd0770787ab988621dc3a3ac6"
     },
     {
-      "secret": "abcdefghijklmnopqrstuvwx",
-      "date": "2026-01-02",
-      "code": "155173",
-      "hmacHex": "5979cf65b04065619b115b06f63a883a664b9c525318f2f49c63034901a53fd0"
+      "secret": "ABCDEFGHJKLMNPQR",
+      "challengeId": "2345",
+      "lockCode": "2345R8VK",
+      "unlockCode": "42TFAFWB",
+      "hmacLockHex": "6f9eb3c92572454a93a12735882d34324cae045db5e03a9863a9023bc180957c",
+      "hmacUnlockHex": "fab871a580655461076207b60eac6d0a8c4c7355a7ef384bf0464588901bc06b"
     },
     {
-      "secret": "K7mP2qR9sT4vW6xZ3bN8cD5f",
-      "date": "2026-09-23",
-      "code": "178291",
-      "hmacHex": "89f6f0335da7cb1c0742b8446faf1c7deed253ab0e1dfbfa77bfdb9c388f68f3"
+      "secret": "ZZZZZZZZZZZZZZZZ",
+      "challengeId": "AAAA",
+      "lockCode": "AAAAFPJM",
+      "unlockCode": "KMTQNGF8",
+      "hmacLockHex": "c50d28cb98382ce8c5b53ba2c21995a92d7a8f3f105b1ac8307e55022286ce00",
+      "hmacUnlockHex": "69ebf1ce6c46659e2f7fec366f982aa014ad93e27ff31944f18d9bd21a48b562"
     },
     {
-      "secret": "K7mP2qR9sT4vW6xZ3bN8cD5f",
-      "date": "2026-09-22",
-      "code": "531511",
-      "hmacHex": "1bceb4b778fb0f3d8db0e74d257972f7ecbc3f4aa8051682d97e66a999bd0614"
+      "secret": "Q2W3E4R5T6Y7U8A9",
+      "challengeId": "XYZ9",
+      "lockCode": "XYZ9PJV4",
+      "unlockCode": "QQ5WHY59",
+      "hmacLockHex": "ed28133ac29e8de695fef1720f3b6ca7dc17e0ea3aa1b5e0695584fca68d7429",
+      "hmacUnlockHex": "eeae9b94c7761b9fca4c89a56afa909cf18ee691dbc90241c909185310473f42"
     },
     {
       "secret": "secret",
-      "date": "2000-02-29",
-      "code": "290136",
-      "hmacHex": "f9224958ff6957c35304eb2363134bfc0df54e9d439b7e1f7c02ebfda02c6913"
+      "challengeId": "TEST",
+      "lockCode": "TESTFTBD",
+      "unlockCode": "99UNHD57",
+      "hmacLockHex": "45b16123113c658fd4faae67ba8281041b70fb079c1ed027418e40fd98f03e8e",
+      "hmacUnlockHex": "5fdf72cc47a3bbfd19e73775425b26e4491352a28128961f9486543725f1e935"
     },
     {
-      "secret": "ZZZZZZZZZZZZZZZZZZZZZZZZ",
-      "date": "2031-12-31",
-      "code": "195157",
-      "hmacHex": "b3de1fd5d25dfe49ebade2b98cc2734b7ea9fe8b8500fee31a2621a47fde7c6f"
+      "secret": "K7MP2QR9ST4VW6XZ",
+      "challengeId": "B3DE",
+      "lockCode": "B3DEWNXF",
+      "unlockCode": "PYV32WLU",
+      "hmacLockHex": "34ec9585b42e68f8fe241125e09f76b180d4e915caa519500e4061edba0faa89",
+      "hmacUnlockHex": "cd96d399f814eab237e2ccdf14b3511abe46e84186586d16d2f89efd47e9143e"
     },
     {
-      "secret": "aB3dE5fG7hJ9kL2mN4pQ6rS8",
-      "date": "2027-06-15",
-      "code": "871597",
-      "hmacHex": "74943b6d8494e6c7244dc35c7339d757bb4b9b07b5b38c232628c894fee5b487"
+      "secret": "9999999999999999",
+      "challengeId": "ZZZZ",
+      "lockCode": "ZZZZKHDB",
+      "unlockCode": "FQAJH6ES",
+      "hmacLockHex": "498723a17deb90c1b735a5477dc9f1d1251ecdd71774f559b425042e2a76d52b",
+      "hmacUnlockHex": "05ae2088c79c04b07a26c65a7de8860b20f5c8acb6eb1d6a4e4f90e57e079a34"
     }
   ]
 }

@@ -23,6 +23,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.khatwa.app.AppContainer
+import com.khatwa.app.i18n.strings
 import com.khatwa.app.permissions.PermissionChecks
 import com.khatwa.app.steps.Today
 import com.khatwa.app.ui.components.CardTone
@@ -39,53 +40,59 @@ import kotlinx.coroutines.launch
 /** Home-screen lock controls: health warning, manual lock buttons, active-lock card with emergency exit. */
 @Composable
 fun LockSection(container: AppContainer, today: Today, onOpenSettings: () -> Unit) {
+    val s = strings
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val lock by container.lock.state.collectAsStateWithLifecycle()
     val health by container.lock.health.collectAsStateWithLifecycle()
     var custom by remember { mutableStateOf(false) }
     var emergency by remember { mutableStateOf(false) }
+    var pairing by remember { mutableStateOf(false) }
     val settings by container.settings.flow.collectAsStateWithLifecycle(initialValue = null)
+    val challenge by container.lock.challenge.collectAsStateWithLifecycle()
+    val laptopSecret = settings?.laptopSecret
     OnResume { container.lock.refreshHealth() }
 
     if (!health.ok) {
         KCard(tone = CardTone.Warning) {
-            Text("القفل لا يعمل", style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("lock_warning"))
+            Text(s.lockNotWorking, style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("lock_warning"))
             VSpace(6.dp)
-            if (!health.accessibility) Text("خدمة الإتاحة غير مفعّلة.")
-            if (!health.overlay) Text("صلاحية العرض فوق التطبيقات غير ممنوحة.")
+            if (!health.accessibility) Text(s.accessibilityOff)
+            if (!health.overlay) Text(s.overlayOff)
             VSpace(8.dp)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (!health.accessibility) PrimaryButton("فتح إعدادات الإتاحة", Modifier.weight(1f)) { context.startActivity(PermissionChecks.accessibilityIntent()) }
-                if (!health.overlay) PrimaryButton("منح العرض فوق التطبيقات", Modifier.weight(1f)) { context.startActivity(PermissionChecks.overlayIntent(context)) }
+                if (!health.accessibility) PrimaryButton(s.openAccessibilitySettings, Modifier.weight(1f)) { context.startActivity(PermissionChecks.accessibilityIntent()) }
+                if (!health.overlay) PrimaryButton(s.grantOverlay, Modifier.weight(1f)) { context.startActivity(PermissionChecks.overlayIntent(context)) }
             }
             VSpace(6.dp)
-            Muted("الخطوات الكاملة (بما فيها «الإعدادات المقيّدة» على أندرويد 13+) في الإعدادات ← حالة الصلاحيات.")
+            Muted(s.fullStepsHint)
         }
         VSpace()
     }
 
     if (lock.isActive) {
         KCard(tone = CardTone.Accent) {
-            Text("القفل نشط", style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("lock_active"))
+            Text(s.lockActive, style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("lock_active"))
             VSpace(4.dp)
-            Text("المتبقي ${Fmt.n(lock.remaining(today.steps))} خطوة", style = MaterialTheme.typography.headlineMedium)
+            Text(s.remainingSteps(Fmt.n(lock.remaining(today.steps))), style = MaterialTheme.typography.headlineMedium)
             Muted(
                 when (val l = lock) {
-                    is LockState.Manual -> "يدوي: ${Fmt.n(l.targetSteps)} خطوة من لحظة التفعيل"
-                    is LockState.Scheduled -> "مجدول حتى إكمال الهدف أو انتهاء الوقت"
+                    is LockState.Manual -> s.manualLockShort(Fmt.n(l.targetSteps))
+                    is LockState.Scheduled -> s.scheduledLockShort
                     else -> ""
                 }
             )
+            LaptopLockCodeRow(container, laptopSecret, challenge) { pairing = true }
             VSpace(8.dp)
-            TextButton(onClick = { emergency = true }, modifier = Modifier.testTag("home_emergency")) { Text("طوارئ / إلغاء القفل") }
+            TextButton(onClick = { emergency = true }, modifier = Modifier.testTag("home_emergency")) { Text(s.emergencyTitle) }
         }
         VSpace()
     } else {
+        LaptopUnlockCard(container, laptopSecret, challenge)
         KCard {
-            Text("اقفلني حتى أمشي", style = MaterialTheme.typography.titleMedium)
+            Text(s.lockMeUntilIWalk, style = MaterialTheme.typography.titleMedium)
             VSpace(4.dp)
-            Muted("يُقفل الجوال (عدا التطبيقات المسموحة) حتى تمشي العدد المحدد من لحظة الضغط.")
+            Muted(s.lockMeHint)
             VSpace(10.dp)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(1000, 2000, 3000).forEach { n ->
@@ -99,16 +106,18 @@ fun LockSection(container: AppContainer, today: Today, onOpenSettings: () -> Uni
                 }
             }
             VSpace(8.dp)
-            SecondaryButton("عدد مخصص", Modifier.fillMaxWidth().testTag("lock_start_custom"), enabled = health.ok) { custom = true }
+            SecondaryButton(s.customCount, Modifier.fillMaxWidth().testTag("lock_start_custom"), enabled = health.ok) { custom = true }
         }
         VSpace()
     }
+
+    if (pairing) PairingDialog(container, laptopSecret) { pairing = false }
 
     if (custom) {
         var value by remember { mutableStateOf("1500") }
         AlertDialog(
             onDismissRequest = { custom = false },
-            title = { Text("عدد الخطوات") },
+            title = { Text(s.stepCount) },
             text = {
                 OutlinedTextField(
                     value = value,
@@ -121,9 +130,9 @@ fun LockSection(container: AppContainer, today: Today, onOpenSettings: () -> Uni
                 TextButton(onClick = {
                     value.toIntOrNull()?.takeIf { it in 100..100_000 }?.let { n -> scope.launch { container.lock.startManual(n) } }
                     custom = false
-                }) { Text("اقفل") }
+                }) { Text(s.lock) }
             },
-            dismissButton = { TextButton(onClick = { custom = false }) { Text("إلغاء") } },
+            dismissButton = { TextButton(onClick = { custom = false }) { Text(s.cancel) } },
         )
     }
 
@@ -134,7 +143,7 @@ fun LockSection(container: AppContainer, today: Today, onOpenSettings: () -> Uni
             text = {
                 Column {
                     EmergencyFlow(
-                        phrase = settings?.emergencyPhrase ?: com.khatwa.app.settings.Settings.DEFAULT_EMERGENCY_PHRASE,
+                        phrase = settings?.effectiveEmergencyPhrase ?: s.defaultEmergencyPhrase,
                         remaining = lock.remaining(today.steps),
                         onCancel = { emergency = false },
                         onConfirm = { scope.launch { container.lock.surrender(); emergency = false } },

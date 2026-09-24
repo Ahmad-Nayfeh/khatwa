@@ -4,15 +4,16 @@ using KhatwaLock.Core;
 namespace KhatwaLock.App;
 
 /// <summary>
-/// Full-screen, topmost lock window: "finish the walking challenge, then enter the code from the
-/// khatwa app". Accepts today's or yesterday's code. Emergency exit = 60 s wait + phrase + confirm,
-/// logged as a surrender. Extra monitors are covered by blank topmost forms.
+/// Full-screen, topmost lock window: "walk to unlock this laptop". Accepts the unlock code of the
+/// challenge that locked it. Emergency exit = wait + phrase + confirm, logged as a surrender.
+/// Extra monitors are covered by blank topmost forms.
 /// </summary>
 internal sealed class LockForm : Form
 {
     private readonly LockConfig _config;
     private readonly LockStateStore _state;
     private readonly SurrenderLog _surrenders;
+    private readonly Strings _t;
     private readonly bool _smokeTest;
     private readonly KeyboardHook? _hook;
     private readonly System.Windows.Forms.Timer _guard = new() { Interval = 700 };
@@ -45,6 +46,7 @@ internal sealed class LockForm : Form
         _state = state;
         _surrenders = surrenders;
         _smokeTest = smokeTest;
+        _t = Strings.For(config.IsArabic);
 
         Text = "khatwa";
         FormBorderStyle = FormBorderStyle.None;
@@ -57,8 +59,8 @@ internal sealed class LockForm : Form
         KeyPreview = true;
         BackColor = Color.FromArgb(15, 17, 21);
         ForeColor = Color.FromArgb(233, 236, 241);
-        RightToLeft = RightToLeft.Yes;
-        RightToLeftLayout = true;
+        RightToLeft = _t.Arabic ? RightToLeft.Yes : RightToLeft.No;
+        RightToLeftLayout = _t.Arabic;
         Font = new Font("Segoe UI", 14f);
 
         BuildLayout();
@@ -100,13 +102,13 @@ internal sealed class LockForm : Form
         for (var i = 0; i < 6; i++) panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-        _title.Text = "أكمل تحدي المشي ثم أدخل الكود من تطبيق خطوة";
+        _title.Text = _t.LockScreenTitle;
         _title.Font = new Font("Segoe UI", 30f, FontStyle.Bold);
         _title.AutoSize = true;
         _title.Anchor = AnchorStyles.None;
         _title.TextAlign = ContentAlignment.MiddleCenter;
 
-        _subtitle.Text = "يظهر الكود في الشاشة الرئيسية للتطبيق بعد إكمال هدف اليوم. يُقبل كود اليوم أو كود الأمس.";
+        _subtitle.Text = _t.LockScreenSubtitle;
         _subtitle.Font = new Font("Segoe UI", 14f);
         _subtitle.ForeColor = Color.FromArgb(167, 174, 187);
         _subtitle.AutoSize = true;
@@ -115,20 +117,21 @@ internal sealed class LockForm : Form
         _subtitle.TextAlign = ContentAlignment.MiddleCenter;
 
         var codeRow = new FlowLayoutPanel { AutoSize = true, Anchor = AnchorStyles.None, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Margin = new Padding(0, 30, 0, 10) };
-        _code.Font = new Font("Consolas", 40f, FontStyle.Bold);
-        _code.MaxLength = 6;
-        _code.Width = 320;
+        _code.Font = new Font("Consolas", 36f, FontStyle.Bold);
+        _code.MaxLength = 9;
+        _code.Width = 380;
         _code.TextAlign = HorizontalAlignment.Center;
         _code.BackColor = Color.FromArgb(31, 35, 44);
         _code.ForeColor = ForeColor;
         _code.BorderStyle = BorderStyle.FixedSingle;
         _code.RightToLeft = RightToLeft.No;
-        _code.KeyPress += (_, e) => { if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar)) e.Handled = true; };
+        _code.CharacterCasing = CharacterCasing.Upper;
+        _code.PlaceholderText = "XXXX-XXXX";
         _code.KeyDown += (_, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; TryUnlock(); } };
         _code.Name = "code";
-        _unlock.Text = "فتح";
+        _unlock.Text = _t.UnlockButton;
         _unlock.Font = new Font("Segoe UI", 18f, FontStyle.Bold);
-        _unlock.Size = new Size(160, 70);
+        _unlock.Size = new Size(170, 72);
         _unlock.BackColor = Color.FromArgb(123, 211, 137);
         _unlock.ForeColor = Color.FromArgb(11, 26, 16);
         _unlock.FlatStyle = FlatStyle.Flat;
@@ -146,7 +149,7 @@ internal sealed class LockForm : Form
         _status.Anchor = AnchorStyles.None;
         _status.Name = "status";
 
-        _emergency.Text = "طوارئ / إلغاء القفل";
+        _emergency.Text = _t.Emergency;
         _emergency.Font = new Font("Segoe UI", 12f);
         _emergency.AutoSize = true;
         _emergency.FlatStyle = FlatStyle.Flat;
@@ -174,7 +177,7 @@ internal sealed class LockForm : Form
         _phrase.Visible = false;
         _phrase.Name = "phrase";
         _phrase.TextChanged += (_, _) => _continue.Enabled = LockDecision.PhraseMatches(_config.EmergencyPhrase, _phrase.Text);
-        _continue.Text = "متابعة";
+        _continue.Text = _t.Continue;
         _continue.Enabled = false;
         _continue.Visible = false;
         _continue.AutoSize = true;
@@ -183,7 +186,7 @@ internal sealed class LockForm : Form
         _continue.ForeColor = Color.White;
         _continue.FlatStyle = FlatStyle.Flat;
         _continue.Click += (_, _) => { _continue.Visible = false; _confirm.Visible = true; };
-        _confirm.Text = "تأكيد الاستسلام (يُسجَّل)";
+        _confirm.Text = _t.ConfirmSurrender;
         _confirm.Visible = false;
         _confirm.AutoSize = true;
         _confirm.Font = new Font("Segoe UI", 13f, FontStyle.Bold);
@@ -191,7 +194,7 @@ internal sealed class LockForm : Form
         _confirm.ForeColor = Color.White;
         _confirm.FlatStyle = FlatStyle.Flat;
         _confirm.Click += (_, _) => Surrender();
-        _cancelEmergency.Text = "رجوع، سأمشي";
+        _cancelEmergency.Text = _t.BackToWalk;
         _cancelEmergency.AutoSize = true;
         _cancelEmergency.Font = new Font("Segoe UI", 12f);
         _cancelEmergency.FlatStyle = FlatStyle.Flat;
@@ -204,7 +207,7 @@ internal sealed class LockForm : Form
         ep.Controls.Add(_cancelEmergency);
         _emergencyPanel.Controls.Add(ep);
 
-        _footer.Text = "khatwa · قفل اللابتوب حتى تمشي · لا شبكة، لا سيرفر";
+        _footer.Text = _t.LockFooter;
         _footer.Font = new Font("Segoe UI", 10f);
         _footer.ForeColor = Color.FromArgb(90, 98, 112);
         _footer.AutoSize = true;
@@ -260,22 +263,21 @@ internal sealed class LockForm : Form
 
     private void TryUnlock()
     {
-        var input = _code.Text;
-        var today = DateOnly.FromDateTime(DateTime.Now);
-        if (DailyCode.IsAcceptable(_config.Secret, input, today))
+        var challengeId = _state.ChallengeId ?? string.Empty;
+        if (ChallengeCodes.VerifyUnlockCode(_config.NormalizedSecret, challengeId, _code.Text))
         {
-            _state.MarkUnlocked(today, "code");
-            Log.Write("code accepted; unlocked until the end of the day");
+            _state.MarkUnlocked("code");
+            Log.Write($"unlock code accepted for challenge {challengeId}");
             _status.ForeColor = Color.FromArgb(123, 211, 137);
-            _status.Text = "أحسنت. اللابتوب مفتوح حتى نهاية اليوم.";
+            _status.Text = _t.UnlockOk;
             ForceClose();
             return;
         }
         _wrongAttempts++;
         _status.ForeColor = Color.FromArgb(255, 122, 122);
-        _status.Text = _wrongAttempts < 3 ? "الكود غير صحيح." : $"الكود غير صحيح ({_wrongAttempts}). تأكد من أن هدف اليوم مكتمل في التطبيق.";
+        _status.Text = _wrongAttempts < 3 ? _t.UnlockBad : string.Format(_t.UnlockBadMany, _wrongAttempts);
         _code.SelectAll();
-        // Slow down guessing a little; 1,000,000 possibilities, 2 valid.
+        // Slow down guessing a little.
         _unlock.Enabled = false;
         var t = new System.Windows.Forms.Timer { Interval = Math.Min(5000, 800 * _wrongAttempts) };
         t.Tick += (_, _) => { t.Stop(); t.Dispose(); _unlock.Enabled = true; _code.Focus(); };
@@ -300,12 +302,11 @@ internal sealed class LockForm : Form
         else UpdateCountdownText();
     }
 
-    private void UpdateCountdownText() =>
-        _emergencyInfo.Text = $"انتظر {_secondsLeft} ثانية. سيُسجَّل هذا الإلغاء باسم «استسلام» بالتاريخ والوقت.\nخذ نفساً. ربما تفضّل المشي.";
+    private void UpdateCountdownText() => _emergencyInfo.Text = string.Format(_t.EmergencyWait, _secondsLeft);
 
     private void ShowPhrase()
     {
-        _emergencyInfo.Text = "اكتب الجملة التالية حرفياً:\n«" + _config.EmergencyPhrase + "»";
+        _emergencyInfo.Text = string.Format(_t.EmergencyType, _config.EmergencyPhrase);
         _phrase.Visible = true;
         _continue.Visible = true;
         _phrase.Focus();
@@ -322,8 +323,8 @@ internal sealed class LockForm : Form
     private void Surrender()
     {
         _surrenders.Append(DateTime.Now, "emergency unlock from the lock screen");
-        _state.MarkUnlocked(DateOnly.FromDateTime(DateTime.Now), "surrender");
-        Log.Write("SURRENDER recorded; unlocked until the end of the day");
+        _state.MarkUnlocked("surrender");
+        Log.Write("SURRENDER recorded; unlocked");
         ForceClose();
     }
 
@@ -339,16 +340,16 @@ internal sealed class LockForm : Form
 
     private void RunSmokeChecks()
     {
-        var today = DateOnly.FromDateTime(DateTime.Now);
-        _code.Text = "000000";
-        var wrong = DailyCode.Compute(_config.Secret, today) == "000000" ? "000001" : "000000";
+        var id = _state.ChallengeId ?? "K7MP";
+        var right = ChallengeCodes.UnlockCode(_config.NormalizedSecret, id);
+        var wrong = right[0] == 'A' ? "B" + right[1..] : "A" + right[1..];
         _code.Text = wrong;
         TryUnlock();
-        SmokeWrongRejected = !_state.IsUnlockedOn(today) && !_allowClose;
+        SmokeWrongRejected = _state.IsLocked && !_allowClose;
         _unlock.Enabled = true;
-        _code.Text = DailyCode.Compute(_config.Secret, today);
+        _code.Text = right;
         TryUnlock();
-        SmokeRightAccepted = _state.IsUnlockedOn(today);
+        SmokeRightAccepted = !_state.IsLocked;
     }
 
     protected override void OnKeyDown(KeyEventArgs e)

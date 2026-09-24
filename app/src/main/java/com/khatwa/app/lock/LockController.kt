@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.khatwa.app.AppContainer
+import com.khatwa.app.i18n.I18n
 import com.khatwa.app.data.SurrenderEntity
 import com.khatwa.app.notifications.Notifications
 import com.khatwa.app.permissions.PermissionChecks
@@ -57,6 +58,21 @@ private data class LockStateJson(
 }
 
 /**
+ * One phone lock = one laptop "challenge": a random id from which the laptop lock code and the
+ * unlock code are derived (see core LaptopCode). Kept after the lock ends so the unlock code
+ * stays visible until the user dismisses it or starts a new lock.
+ */
+@Serializable
+data class LaptopChallenge(
+    val id: String,
+    val startedAtMs: Long,
+    val finishedAtMs: Long? = null,
+    val finishReason: String? = null,
+) {
+    val finished: Boolean get() = finishedAtMs != null
+}
+
+/**
  * Single source of truth for the phone lock. Decides, per foreground package, whether the
  * overlay must be shown; unlocks automatically when the required steps are reached.
  */
@@ -72,6 +88,10 @@ class LockController(private val c: AppContainer) {
     private val _health = MutableStateFlow(LockHealth(accessibility = false, overlay = false))
     val health: StateFlow<LockHealth> = _health.asStateFlow()
 
+    private val _challenge = MutableStateFlow<LaptopChallenge?>(null)
+    /** Current (or last, until dismissed) laptop challenge. */
+    val challenge: StateFlow<LaptopChallenge?> = _challenge.asStateFlow()
+
     val overlay = LockOverlay(c)
 
     @Volatile private var policy: LockPolicy = LockPolicy(context.packageName, emptySet(), emptySet(), emptySet(), true)
@@ -81,6 +101,7 @@ class LockController(private val c: AppContainer) {
         c.scope.launch {
             val s = c.settings.current()
             _state.value = s.lockStateJson?.let { runCatching { json.decodeFromString<LockStateJson>(it).toState() }.getOrNull() } ?: LockState.None
+            _challenge.value = s.laptopChallengeJson?.let { runCatching { json.decodeFromString<LaptopChallenge>(it) }.getOrNull() }
             refreshPolicy()
             refreshHealth()
         }
@@ -117,14 +138,16 @@ class LockController(private val c: AppContainer) {
     suspend fun startManual(targetSteps: Int) {
         val today = c.tracker.today.value
         set(LockState.Manual(stepsAtStart = today.steps, targetSteps = targetSteps, startedAtMs = System.currentTimeMillis()))
+        newChallenge()
         Log.i(TAG, "manual lock started: $targetSteps steps from ${today.steps}")
         reapply()
     }
 
     suspend fun startScheduled(goal: Int, endAtMs: Long) {
         set(LockState.Scheduled(goal = goal, startedAtMs = System.currentTimeMillis(), endAtMs = endAtMs))
+        newChallenge()
         Log.i(TAG, "scheduled lock started until ${java.time.Instant.ofEpochMilli(endAtMs)}")
-        c.notifications.event(Notifications.ID_LOCK_STARTED, "بدأ القفل المجدول", "أكمل هدف اليوم لفتح الجوال. التطبيقات المسموحة تبقى متاحة.", silent = true)
+        c.notifications.event(Notifications.ID_LOCK_STARTED, I18n.current.scheduledLockStartedTitle, I18n.current.scheduledLockStartedText, silent = true)
         reapply()
     }
 
@@ -132,9 +155,10 @@ class LockController(private val c: AppContainer) {
         val prev = _state.value
         if (!prev.isActive) return
         set(LockState.None)
+        finishChallenge(reason.name.lowercase())
         main.post { overlay.hide() }
         when (reason) {
-            UnlockReason.COMPLETED -> c.notifications.event(Notifications.ID_UNLOCKED, "أحسنت", "أكملت الخطوات المطلوبة وفُتح القفل.", silent = true)
+            UnlockReason.COMPLETED -> c.notifications.event(Notifications.ID_UNLOCKED, I18n.current.unlockedTitle, I18n.current.unlockedText, silent = true)
             UnlockReason.TIME_UP -> Log.i(TAG, "scheduled lock ended by time")
             else -> Unit
         }
@@ -163,6 +187,28 @@ class LockController(private val c: AppContainer) {
     private suspend fun set(state: LockState) = mutex.withLock {
         _state.value = state
         c.settings.setLockStateJson(if (state.isActive) json.encodeToString(LockStateJson.serializer(), LockStateJson.from(state)) else null)
+    }
+
+    // ---- laptop challenge (codes are derived from the pairing secret in the UI) ----
+
+    private suspend fun newChallenge() = setChallenge(
+        LaptopChallenge(id = com.khatwa.core.laptop.LaptopCode.newChallengeId(), startedAtMs = System.currentTimeMillis())
+    )
+
+    private suspend fun finishChallenge(reason: String) {
+        val ch = _challenge.value ?: return
+        if (ch.finished) return
+        setChallenge(ch.copy(finishedAtMs = System.currentTimeMillis(), finishReason = reason))
+    }
+
+    /** Hides the unlock code card once the user is done with it. */
+    suspend fun dismissLaptopChallenge() {
+        if (_challenge.value?.finished == true) setChallenge(null)
+    }
+
+    private suspend fun setChallenge(ch: LaptopChallenge?) {
+        _challenge.value = ch
+        c.settings.setLaptopChallengeJson(ch?.let { json.encodeToString(LaptopChallenge.serializer(), it) })
     }
 
     private fun onStepsChanged(today: Today) {

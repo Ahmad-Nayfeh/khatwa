@@ -12,10 +12,10 @@ import kotlinx.coroutines.launch
  * container stays a plain list of singletons.
  */
 class Features(private val c: AppContainer) {
-    val quotes = QuoteRepository(c.app, c.db.quotes())
+    val quotes = QuoteRepository(c.app, c.db.quotes(), c.settings)
 
     fun start() {
-        c.scope.launch { quotes.seedIfEmpty() }
+        c.scope.launch { quotes.seedIfNeeded() }
         // Recompute the goal whenever the goal settings change.
         c.scope.launch {
             c.settings.flow

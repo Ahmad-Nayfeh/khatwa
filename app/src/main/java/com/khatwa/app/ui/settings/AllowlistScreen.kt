@@ -39,6 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.khatwa.app.AppContainer
+import com.khatwa.app.i18n.strings
 import com.khatwa.app.lock.AllowlistDefaults
 import com.khatwa.app.ui.components.Muted
 import com.khatwa.app.ui.components.VSpace
@@ -50,6 +51,7 @@ data class InstalledApp(val pkg: String, val label: String, val icon: Bitmap?)
 
 @Composable
 fun AllowlistScreen(container: AppContainer, onBack: () -> Unit) {
+    val s = strings
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val settings by container.settings.flow.collectAsStateWithLifecycle(initialValue = null)
@@ -64,16 +66,16 @@ fun AllowlistScreen(container: AppContainer, onBack: () -> Unit) {
 
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "رجوع") }
-            Text("قائمة المسموح", style = MaterialTheme.typography.headlineMedium)
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = s.back) }
+            Text(s.allowlist, style = MaterialTheme.typography.headlineMedium)
         }
-        Muted("التطبيقات المفعّلة هنا تبقى متاحة أثناء القفل. المكالمات وواجهة النظام والمشغّل وهذا التطبيق مسموحة دائماً.")
+        Muted(s.allowlistHint)
         VSpace(8.dp)
-        settings?.let { s ->
-            SwitchRow("حظر تطبيق الإعدادات أثناء القفل", s.blockSettings) { on -> scope.launch { container.settings.setBlockSettings(on) } }
+        settings?.let { st ->
+            SwitchRow(s.blockSettingsDuringLock, st.blockSettings) { on -> scope.launch { container.settings.setBlockSettings(on) } }
         }
         OutlinedTextField(
-            value = query, onValueChange = { query = it }, label = { Text("بحث") }, singleLine = true,
+            value = query, onValueChange = { query = it }, label = { Text(s.search) }, singleLine = true,
             modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
         )
         val allowed = settings?.allowlist ?: emptySet()
@@ -91,8 +93,8 @@ fun AllowlistScreen(container: AppContainer, onBack: () -> Unit) {
                         Text(app.label, style = MaterialTheme.typography.bodyLarge)
                         Muted(
                             when {
-                                isAlways -> "مسموح دائماً"
-                                isSettings -> "يتبع خيار «حظر الإعدادات»"
+                                isAlways -> s.alwaysAllowed
+                                isSettings -> s.followsBlockSettings
                                 else -> app.pkg
                             }
                         )

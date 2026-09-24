@@ -3,18 +3,26 @@ using System.Text.Json.Serialization;
 
 namespace KhatwaLock.Core;
 
-/// <summary>config.json: the shared secret plus a few knobs. Kept deliberately small.</summary>
+/// <summary>config.json: the pairing secret, the UI language and the emergency settings.</summary>
 public sealed class LockConfig
 {
-    public const string DefaultEmergencyPhrase = "أختار الاستسلام اليوم وأعلم أن هذا يُسجَّل";
+    public const string DefaultEmergencyPhraseAr = "أختار الاستسلام اليوم وأعلم أن هذا يُسجَّل";
+    public const string DefaultEmergencyPhraseEn = "I choose to give up today and I know this is recorded";
 
+    /// <summary>16-character pairing code from the phone (Settings ← laptop lock, or the lock card).</summary>
     [JsonPropertyName("secret")] public string Secret { get; set; } = string.Empty;
-    [JsonPropertyName("emergencyPhrase")] public string EmergencyPhrase { get; set; } = DefaultEmergencyPhrase;
-    [JsonPropertyName("emergencyWaitSeconds")] public int EmergencyWaitSeconds { get; set; } = 60;
-    /// <summary>Reserved for a future evening end time ("HH:mm"); unused today.</summary>
-    [JsonPropertyName("eveningEnd")] public string? EveningEnd { get; set; }
 
-    public bool HasSecret => !string.IsNullOrWhiteSpace(Secret) && Secret.Trim().Length >= 8;
+    /// <summary>"ar" or "en".</summary>
+    [JsonPropertyName("language")] public string Language { get; set; } = "ar";
+
+    [JsonPropertyName("emergencyPhraseAr")] public string EmergencyPhraseAr { get; set; } = DefaultEmergencyPhraseAr;
+    [JsonPropertyName("emergencyPhraseEn")] public string EmergencyPhraseEn { get; set; } = DefaultEmergencyPhraseEn;
+    [JsonPropertyName("emergencyWaitSeconds")] public int EmergencyWaitSeconds { get; set; } = 60;
+
+    [JsonIgnore] public bool HasSecret => ChallengeCodes.IsSecret(Secret);
+    [JsonIgnore] public string NormalizedSecret => ChallengeCodes.Normalize(Secret);
+    [JsonIgnore] public bool IsArabic => !string.Equals(Language, "en", StringComparison.OrdinalIgnoreCase);
+    [JsonIgnore] public string EmergencyPhrase => IsArabic ? EmergencyPhraseAr : EmergencyPhraseEn;
 
     private static readonly JsonSerializerOptions Options = new()
     {
@@ -28,9 +36,11 @@ public sealed class LockConfig
         try
         {
             var cfg = JsonSerializer.Deserialize<LockConfig>(File.ReadAllText(path), Options) ?? new LockConfig();
-            cfg.Secret = cfg.Secret.Trim();
-            if (string.IsNullOrWhiteSpace(cfg.EmergencyPhrase)) cfg.EmergencyPhrase = DefaultEmergencyPhrase;
+            cfg.Secret = ChallengeCodes.Normalize(cfg.Secret ?? string.Empty);
+            if (string.IsNullOrWhiteSpace(cfg.EmergencyPhraseAr)) cfg.EmergencyPhraseAr = DefaultEmergencyPhraseAr;
+            if (string.IsNullOrWhiteSpace(cfg.EmergencyPhraseEn)) cfg.EmergencyPhraseEn = DefaultEmergencyPhraseEn;
             if (cfg.EmergencyWaitSeconds < 0) cfg.EmergencyWaitSeconds = 60;
+            if (string.IsNullOrWhiteSpace(cfg.Language)) cfg.Language = "ar";
             return cfg;
         }
         catch (JsonException)
