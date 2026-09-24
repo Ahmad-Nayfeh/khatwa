@@ -40,6 +40,8 @@ data class Settings(
     /** "system" (follow the device), "light" or "dark". See [ThemeMode]. */
     val themeMode: String = ThemeMode.SYSTEM,
     val lockStateJson: String? = null,
+    /** Current / last laptop challenge (id + lifecycle) as JSON; see LockController. */
+    val laptopChallengeJson: String? = null,
     val quoteOverrideDate: String? = null,
     val quoteOverrideIndex: Int = -1,
     val emergencyPhrase: String = DEFAULT_EMERGENCY_PHRASE,
@@ -132,6 +134,10 @@ class SettingsRepository(private val context: Context) {
         if (json == null) it.remove(K.lockState) else it[K.lockState] = json
     }
 
+    suspend fun setLaptopChallengeJson(json: String?) = edit {
+        if (json == null) it.remove(K.laptopChallenge) else it[K.laptopChallenge] = json
+    }
+
     suspend fun setScheduleSkipDate(date: String?) = edit {
         if (date == null) it.remove(K.scheduleSkipDate) else it[K.scheduleSkipDate] = date
     }
@@ -169,8 +175,8 @@ class SettingsRepository(private val context: Context) {
                     value.toIntOrNull()?.let { p[intPreferencesKey(name)] = it }
                 K.allowlist.name, K.scheduleDays.name ->
                     p[stringSetPreferencesKey(name)] = value.split(",").filter { it.isNotBlank() }.toSet()
-                K.goalStartDate.name, K.laptopSecret.name, K.lockState.name, K.quoteOverrideDate.name, K.emergencyPhrase.name,
-                K.scheduleSkipDate.name ->
+                K.goalStartDate.name, K.laptopSecret.name, K.lockState.name, K.laptopChallenge.name, K.quoteOverrideDate.name,
+                K.emergencyPhrase.name, K.scheduleSkipDate.name ->
                     p[stringPreferencesKey(name)] = value
             }
         }
@@ -198,6 +204,7 @@ class SettingsRepository(private val context: Context) {
         val morningMinute = intPreferencesKey("morning_minute")
         val themeMode = stringPreferencesKey("theme_mode")
         val lockState = stringPreferencesKey("lock_state")
+        val laptopChallenge = stringPreferencesKey("laptop_challenge")
         val quoteOverrideDate = stringPreferencesKey("quote_override_date")
         val quoteOverrideIndex = intPreferencesKey("quote_override_index")
         val emergencyPhrase = stringPreferencesKey("emergency_phrase")
@@ -230,6 +237,7 @@ class SettingsRepository(private val context: Context) {
             morningMinute = this[K.morningMinute] ?: defaults.morningMinute,
             themeMode = ThemeMode.normalize(this[K.themeMode]),
             lockStateJson = this[K.lockState],
+            laptopChallengeJson = this[K.laptopChallenge],
             quoteOverrideDate = this[K.quoteOverrideDate],
             quoteOverrideIndex = this[K.quoteOverrideIndex] ?: -1,
             emergencyPhrase = this[K.emergencyPhrase] ?: Settings.DEFAULT_EMERGENCY_PHRASE,

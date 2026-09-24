@@ -164,20 +164,6 @@ fun HomeScreen(container: AppContainer, onOpenSettings: () -> Unit) {
         }
         VSpace()
 
-        // Laptop code
-        KCard(tone = if (ui.laptopCode != null) CardTone.Accent else CardTone.Normal) {
-            SectionTitle("كود اللابتوب لليوم")
-            when {
-                !ui.laptopSecretSet -> Muted("لم يُفعَّل قفل اللابتوب بعد. فعّله من الإعدادات ← قفل اللابتوب.")
-                ui.laptopCode != null -> Text(
-                    ui.laptopCode!!, style = MaterialTheme.typography.displayLarge.copy(fontSize = 44.sp, letterSpacing = 6.sp),
-                    modifier = Modifier.fillMaxWidth().testTag("home_laptop_code"), textAlign = TextAlign.Center,
-                )
-                else -> Text("الكود يظهر بعد إكمال هدف اليوم. المتبقي ${Fmt.n(remaining)} خطوة.", modifier = Modifier.testTag("home_laptop_pending"))
-            }
-        }
-        VSpace()
-
         KCard(tone = CardTone.Soft) {
             Text("العدّاد يعمل في الخلفية", style = MaterialTheme.typography.titleMedium)
             VSpace(6.dp)

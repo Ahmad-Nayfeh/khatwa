@@ -35,8 +35,6 @@ data class HomeUiState(
     val compare: WeekCompare = WeekCompare(0, 0, null),
     val streaks: Streaks = Streaks(0, 0),
     val quote: QuoteEntity? = null,
-    val laptopSecretSet: Boolean = false,
-    val laptopCode: String? = null,
     val settings: Settings = Settings(),
 )
 
@@ -89,7 +87,6 @@ class HomeViewModel(private val c: AppContainer) : ViewModel() {
             WeekDay(d, stepsByDate[d] ?: 0L, d == today.date)
         }
         val quote = pickQuote(quotes, today.date, settings)
-        val code = settings.laptopSecret?.takeIf { today.steps >= today.goal }?.let { LaptopCode.code(it, today.date) }
         return HomeUiState(
             today = today,
             week = week,
@@ -97,8 +94,6 @@ class HomeViewModel(private val c: AppContainer) : ViewModel() {
             compare = Stats.weekCompare(stepsByDate, today.date),
             streaks = Stats.streaks(stats, today.date),
             quote = quote,
-            laptopSecretSet = settings.laptopSecret != null,
-            laptopCode = code,
             settings = settings,
         )
     }

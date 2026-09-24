@@ -42,8 +42,8 @@ class SettingsBackupTest {
             gen.click()
             val secret = device.wait(Until.findObject(By.res("laptop_secret")), 5_000)
             assertNotNull(secret)
-            assertEquals(24, secret.text.length)
-            TestSupport.evidence("laptop secret generated (24 chars)")
+            assertEquals("XXXX-XXXX-XXXX-XXXX".length, secret.text.length)
+            TestSupport.evidence("laptop pairing code generated: ${secret.text}")
         }
         TestSupport.screenshot("41-laptop-lock-settings")
         device.pressBack()

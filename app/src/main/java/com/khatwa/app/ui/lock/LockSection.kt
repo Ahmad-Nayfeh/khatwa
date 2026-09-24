@@ -45,7 +45,10 @@ fun LockSection(container: AppContainer, today: Today, onOpenSettings: () -> Uni
     val health by container.lock.health.collectAsStateWithLifecycle()
     var custom by remember { mutableStateOf(false) }
     var emergency by remember { mutableStateOf(false) }
+    var pairing by remember { mutableStateOf(false) }
     val settings by container.settings.flow.collectAsStateWithLifecycle(initialValue = null)
+    val challenge by container.lock.challenge.collectAsStateWithLifecycle()
+    val laptopSecret = settings?.laptopSecret
     OnResume { container.lock.refreshHealth() }
 
     if (!health.ok) {
@@ -77,11 +80,13 @@ fun LockSection(container: AppContainer, today: Today, onOpenSettings: () -> Uni
                     else -> ""
                 }
             )
+            LaptopLockCodeRow(container, laptopSecret, challenge) { pairing = true }
             VSpace(8.dp)
             TextButton(onClick = { emergency = true }, modifier = Modifier.testTag("home_emergency")) { Text("طوارئ / إلغاء القفل") }
         }
         VSpace()
     } else {
+        LaptopUnlockCard(container, laptopSecret, challenge)
         KCard {
             Text("اقفلني حتى أمشي", style = MaterialTheme.typography.titleMedium)
             VSpace(4.dp)
@@ -103,6 +108,8 @@ fun LockSection(container: AppContainer, today: Today, onOpenSettings: () -> Uni
         }
         VSpace()
     }
+
+    if (pairing) PairingDialog(container, laptopSecret) { pairing = false }
 
     if (custom) {
         var value by remember { mutableStateOf("1500") }

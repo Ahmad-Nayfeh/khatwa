@@ -1,43 +1,88 @@
 package com.khatwa.core.laptop
 
 import java.security.SecureRandom
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
 /**
- * Daily laptop unlock code, shared with the Windows program.
+ * Laptop lock codes, shared with the Windows program (laptop-lock/KhatwaLock.Core/ChallengeCodes.cs).
  *
- * code = HMAC-SHA256(key = secret as UTF-8, message = "YYYY-MM-DD" as UTF-8)
- *        -> first 4 bytes as a big-endian unsigned 31-bit integer -> mod 1_000_000
- *        -> zero-padded to 6 digits.
+ * The phone and the laptop are paired once with a 16-character secret. Every phone lock
+ * ("challenge") gets a random 4-character id, from which two codes are derived:
  *
- * The C# implementation in laptop-lock/ must produce exactly the same digits; both are
- * checked against shared/hmac-vectors.json in CI.
+ *  - lock code   = id + first 4 chars of MAC("lock:" + id)     -> 8 chars, shown as XXXX-XXXX
+ *  - unlock code = first 8 chars of MAC("unlock:" + id)         -> 8 chars, shown as XXXX-XXXX
+ *
+ * MAC = HMAC-SHA256(key = secret as UTF-8, message as UTF-8); each byte maps to ALPHABET[b % 32].
+ * The alphabet has 32 symbols without look-alike glyphs (no 0/O, no 1/I). Input is normalised
+ * (upper-cased, separators removed) before comparison. Both implementations are checked against
+ * shared/hmac-vectors.json in CI.
  */
 object LaptopCode {
-    private val DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE
-    private const val SECRET_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789"
-    const val SECRET_LENGTH = 24
+    const val ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    const val SECRET_LENGTH = 16
+    const val ID_LENGTH = 4
+    const val CODE_LENGTH = 8
 
-    fun code(secret: String, date: LocalDate): String = code(secret, date.format(DATE_FORMAT))
+    fun generateSecret(random: SecureRandom = SecureRandom()): String = randomChars(SECRET_LENGTH, random)
 
-    fun code(secret: String, isoDate: String): String {
-        val mac = Mac.getInstance("HmacSHA256")
-        mac.init(SecretKeySpec(secret.toByteArray(Charsets.UTF_8), "HmacSHA256"))
-        val h = mac.doFinal(isoDate.toByteArray(Charsets.UTF_8))
-        val n = ((h[0].toLong() and 0x7f) shl 24) or
-            ((h[1].toLong() and 0xff) shl 16) or
-            ((h[2].toLong() and 0xff) shl 8) or
-            (h[3].toLong() and 0xff)
-        return String.format("%06d", n % 1_000_000)
+    fun newChallengeId(random: SecureRandom = SecureRandom()): String = randomChars(ID_LENGTH, random)
+
+    fun lockCode(secret: String, challengeId: String): String {
+        val id = normalize(challengeId)
+        require(id.length == ID_LENGTH) { "challenge id must be $ID_LENGTH chars" }
+        return id + macChars(secret, "lock:$id", CODE_LENGTH - ID_LENGTH)
     }
 
-    /** 24 characters from an alphabet without look-alike glyphs (no 0/O, 1/l/I). */
-    fun generateSecret(random: SecureRandom = SecureRandom()): String {
-        val sb = StringBuilder(SECRET_LENGTH)
-        repeat(SECRET_LENGTH) { sb.append(SECRET_ALPHABET[random.nextInt(SECRET_ALPHABET.length)]) }
+    fun unlockCode(secret: String, challengeId: String): String {
+        val id = normalize(challengeId)
+        require(id.length == ID_LENGTH) { "challenge id must be $ID_LENGTH chars" }
+        return macChars(secret, "unlock:$id", CODE_LENGTH)
+    }
+
+    /** Returns the challenge id when [input] is a valid lock code for [secret], else null. */
+    fun verifyLockCode(secret: String, input: String): String? {
+        val code = normalize(input)
+        if (code.length != CODE_LENGTH) return null
+        val id = code.substring(0, ID_LENGTH)
+        return if (constantTimeEquals(code, lockCode(secret, id))) id else null
+    }
+
+    fun verifyUnlockCode(secret: String, challengeId: String, input: String): Boolean {
+        val code = normalize(input)
+        if (code.length != CODE_LENGTH) return false
+        return constantTimeEquals(code, unlockCode(secret, challengeId))
+    }
+
+    /** "ABCDEFGH" -> "ABCD-EFGH"; secrets become 4 groups of 4. */
+    fun format(code: String): String = normalize(code).chunked(4).joinToString("-")
+
+    /** Upper-cases and drops anything that is not a letter or digit (spaces, dashes, dots). */
+    fun normalize(input: String): String =
+        input.uppercase().filter { it in 'A'..'Z' || it in '0'..'9' }
+
+    fun isSecret(input: String): Boolean =
+        normalize(input).let { it.length == SECRET_LENGTH && it.all { c -> c in ALPHABET } }
+
+    private fun macChars(secret: String, message: String, count: Int): String {
+        val mac = Mac.getInstance("HmacSHA256")
+        mac.init(SecretKeySpec(secret.toByteArray(Charsets.UTF_8), "HmacSHA256"))
+        val h = mac.doFinal(message.toByteArray(Charsets.UTF_8))
+        val sb = StringBuilder(count)
+        for (i in 0 until count) sb.append(ALPHABET[(h[i].toInt() and 0xff) % ALPHABET.length])
         return sb.toString()
+    }
+
+    private fun randomChars(n: Int, random: SecureRandom): String {
+        val sb = StringBuilder(n)
+        repeat(n) { sb.append(ALPHABET[random.nextInt(ALPHABET.length)]) }
+        return sb.toString()
+    }
+
+    private fun constantTimeEquals(a: String, b: String): Boolean {
+        if (a.length != b.length) return false
+        var diff = 0
+        for (i in a.indices) diff = diff or (a[i].code xor b[i].code)
+        return diff == 0
     }
 }

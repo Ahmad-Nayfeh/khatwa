@@ -5,11 +5,11 @@ namespace KhatwaLock.App;
 
 /// <summary>
 /// One exe, several modes:
-///   (no args)     lock mode: shows the full-screen lock unless today is already unlocked
-///   --watchdog    keeps the lock alive: restarts it if it is closed while still locked
+///   (no args)     the main window (pair once; paste the lock code) — or the lock screen when locked
+///   --watchdog    keeps the lock alive: shows the lock screen whenever the laptop is locked
 ///   --log         shows the surrender log window
-///   --selftest    checks the HMAC against built-in vectors and exits 0/1 (used by CI)
-///   --code S D    prints the code for secret S and ISO date D (debugging)
+///   --selftest    checks the codes against built-in vectors and exits 0/1 (used by CI)
+///   --codes S ID  prints lock and unlock codes for secret S and challenge id ID (debugging)
 ///   --ui-smoke N  shows the lock form for N seconds and exits (CI smoke)
 /// </summary>
 internal static class Program
@@ -30,7 +30,7 @@ internal static class Program
             switch (args[0])
             {
                 case "--selftest": return SelfTest();
-                case "--code": return PrintCode(args);
+                case "--codes": return PrintCodes(args);
                 case "--watchdog": return Watchdog.Run();
                 case "--log": return ShowLog();
                 case "--ui-smoke": return UiSmoke(args);
@@ -39,46 +39,56 @@ internal static class Program
                     return 0;
             }
         }
-        return LockMode();
+        return Gui();
     }
 
-    private static int LockMode()
+    private static int Gui()
     {
         var config = LockConfig.Load(KhatwaPaths.ConfigPath);
         var state = new LockStateStore(KhatwaPaths.StatePath);
-        var today = DateOnly.FromDateTime(DateTime.Now);
-        if (!LockDecision.ShouldLock(config, state, today))
+        var surrenders = new SurrenderLog(KhatwaPaths.SurrendersPath);
+        ApplicationConfiguration.Initialize();
+        if (LockDecision.ShouldLock(config, state))
         {
-            Log.Write(config.HasSecret ? "already unlocked today; exiting" : "no secret configured; exiting");
-            return 0;
+            // Locked: go straight to the lock screen (a watchdog may already be showing it).
+            if (!ShowLockScreen(config, state, surrenders)) return 0;
+            config = LockConfig.Load(KhatwaPaths.ConfigPath);
         }
+        Application.Run(new MainForm(config, state, surrenders));
+        return 0;
+    }
+
+    /// <summary>Shows the lock screen modally; false when another instance already shows it.</summary>
+    public static bool ShowLockScreen(LockConfig config, LockStateStore state, SurrenderLog surrenders)
+    {
         using var mutex = new Mutex(true, LockMutexName, out var createdNew);
         if (!createdNew)
         {
-            Log.Write("lock screen already running; exiting");
-            return 0;
+            Log.Write("lock screen already running");
+            return false;
         }
         Log.Write("showing lock screen");
-        ApplicationConfiguration.Initialize();
-        Application.Run(new LockForm(config, state, new SurrenderLog(KhatwaPaths.SurrendersPath)));
-        return 0;
+        using var form = new LockForm(config, state, surrenders);
+        form.ShowDialog();
+        return true;
     }
 
     private static int ShowLog()
     {
+        var config = LockConfig.Load(KhatwaPaths.ConfigPath);
         ApplicationConfiguration.Initialize();
-        Application.Run(new LogForm(new SurrenderLog(KhatwaPaths.SurrendersPath)));
+        Application.Run(new LogForm(new SurrenderLog(KhatwaPaths.SurrendersPath), Strings.For(config.IsArabic)));
         return 0;
     }
 
     private static int UiSmoke(string[] args)
     {
         var seconds = args.Length > 1 && int.TryParse(args[1], out var s) ? s : 3;
-        var config = new LockConfig { Secret = "abcdefghijklmnopqrstuvwx" };
+        var config = new LockConfig { Secret = "ABCDEFGHJKLMNPQR" };
         var tmp = Path.Combine(Path.GetTempPath(), "khatwa-ui-smoke");
         Directory.CreateDirectory(tmp);
         var state = new LockStateStore(Path.Combine(tmp, "state.json"));
-        state.Clear();
+        state.MarkLocked("K7MP");
         ApplicationConfiguration.Initialize();
         var form = new LockForm(config, state, new SurrenderLog(Path.Combine(tmp, "surrenders.json")), smokeTest: true);
         var timer = new System.Windows.Forms.Timer { Interval = seconds * 1000 };
@@ -91,17 +101,22 @@ internal static class Program
 
     private static int SelfTest()
     {
-        var ok = DailyCode.Compute("abcdefghijklmnopqrstuvwx", "2026-01-01") == "358895"
-                 && DailyCode.Compute("K7mP2qR9sT4vW6xZ3bN8cD5f", "2026-09-23") == "178291"
-                 && DailyCode.Compute("secret", "2000-02-29") == "290136";
+        // Two of the shared vectors (shared/hmac-vectors.json), kept in sync by the unit tests.
+        var ok = ChallengeCodes.LockCode("ABCDEFGHJKLMNPQR", "K7MP") == "K7MPY3HE"
+                 && ChallengeCodes.UnlockCode("ABCDEFGHJKLMNPQR", "K7MP") == "MTL5N2MS"
+                 && ChallengeCodes.LockCode("secret", "TEST") == "TESTFTBD"
+                 && ChallengeCodes.UnlockCode("secret", "TEST") == "99UNHD57"
+                 && ChallengeCodes.VerifyLockCode("ABCDEFGHJKLMNPQR", "k7mp-y3he") == "K7MP"
+                 && ChallengeCodes.VerifyLockCode("ABCDEFGHJKLMNPQR", "k7mp-y3hf") == null;
         Console.WriteLine(ok ? "selftest OK" : "selftest FAILED");
         return ok ? 0 : 1;
     }
 
-    private static int PrintCode(string[] args)
+    private static int PrintCodes(string[] args)
     {
-        if (args.Length < 3) { Console.WriteLine("usage: --code <secret> <yyyy-MM-dd>"); return 2; }
-        Console.WriteLine(DailyCode.Compute(args[1], args[2]));
+        if (args.Length < 3) { Console.WriteLine("usage: --codes <secret> <challengeId>"); return 2; }
+        Console.WriteLine("lock:   " + ChallengeCodes.Format(ChallengeCodes.LockCode(args[1], args[2])));
+        Console.WriteLine("unlock: " + ChallengeCodes.Format(ChallengeCodes.UnlockCode(args[1], args[2])));
         return 0;
     }
 
@@ -134,6 +149,6 @@ internal static class Log
                 File.AppendAllText(KhatwaPaths.LogPath, $"{DateTime.Now:s} {message}{Environment.NewLine}");
             }
         }
-        catch { /* logging must never crash the lock */ }
+        catch { /* logging must never break the lock */ }
     }
 }

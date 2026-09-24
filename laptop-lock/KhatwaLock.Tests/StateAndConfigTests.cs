@@ -11,29 +11,35 @@ public class StateAndConfigTests : IDisposable
     public void Dispose() { try { Directory.Delete(_dir, true); } catch { } }
 
     [Fact]
-    public void UnlockLastsUntilTheEndOfTheDayOnly()
+    public void LockStatePersistsUntilUnlocked()
     {
         var state = new LockStateStore(Path.Combine(_dir, "state.json"));
-        var today = new DateOnly(2026, 9, 23);
-        Assert.False(state.IsUnlockedOn(today));
-        state.MarkUnlocked(today, "code");
-        Assert.True(state.IsUnlockedOn(today));
-        Assert.False(state.IsUnlockedOn(today.AddDays(1)));
+        Assert.False(state.IsLocked);
+        Assert.Null(state.ChallengeId);
+        state.MarkLocked("k7mp");
+        Assert.True(state.IsLocked);
+        Assert.Equal("K7MP", state.ChallengeId);
+        Assert.NotNull(state.LockedAt);
+        // A fresh instance reads the same file: the lock survives restarts.
+        Assert.True(new LockStateStore(Path.Combine(_dir, "state.json")).IsLocked);
+        state.MarkUnlocked("code");
+        Assert.False(state.IsLocked);
+        Assert.Equal("K7MP", state.ChallengeId); // kept for the log; not locked any more
         state.Clear();
-        Assert.False(state.IsUnlockedOn(today));
+        Assert.False(state.IsLocked);
+        Assert.Null(state.ChallengeId);
     }
 
     [Fact]
-    public void ShouldLockFollowsSecretAndState()
+    public void ShouldLockNeedsASecretAndALockedState()
     {
         var state = new LockStateStore(Path.Combine(_dir, "state.json"));
-        var today = new DateOnly(2026, 9, 23);
-        Assert.False(LockDecision.ShouldLock(new LockConfig(), state, today)); // no secret: never brick
-        var cfg = new LockConfig { Secret = "abcdefghijklmnopqrstuvwx" };
-        Assert.True(LockDecision.ShouldLock(cfg, state, today));
-        state.MarkUnlocked(today, "code");
-        Assert.False(LockDecision.ShouldLock(cfg, state, today));
-        Assert.True(LockDecision.ShouldLock(cfg, state, today.AddDays(1)));
+        state.MarkLocked("K7MP");
+        Assert.False(LockDecision.ShouldLock(new LockConfig(), state)); // no secret: never brick
+        var cfg = new LockConfig { Secret = "ABCDEFGHJKLMNPQR" };
+        Assert.True(LockDecision.ShouldLock(cfg, state));
+        state.MarkUnlocked("code");
+        Assert.False(LockDecision.ShouldLock(cfg, state));
     }
 
     [Fact]
@@ -41,14 +47,25 @@ public class StateAndConfigTests : IDisposable
     {
         var path = Path.Combine(_dir, "config.json");
         Assert.False(LockConfig.Load(path).HasSecret);
-        var cfg = new LockConfig { Secret = "  K7mP2qR9sT4vW6xZ3bN8cD5f  " };
+        var cfg = new LockConfig { Secret = " abcd-efgh-jklm-npqr ", Language = "en" };
         cfg.Save(path);
         var loaded = LockConfig.Load(path);
-        Assert.Equal("K7mP2qR9sT4vW6xZ3bN8cD5f", loaded.Secret);
-        Assert.Equal(LockConfig.DefaultEmergencyPhrase, loaded.EmergencyPhrase);
+        Assert.Equal("ABCDEFGHJKLMNPQR", loaded.Secret);
+        Assert.True(loaded.HasSecret);
+        Assert.False(loaded.IsArabic);
+        Assert.Equal(LockConfig.DefaultEmergencyPhraseEn, loaded.EmergencyPhrase);
+        Assert.Equal(LockConfig.DefaultEmergencyPhraseAr, loaded.EmergencyPhraseAr);
         Assert.Equal(60, loaded.EmergencyWaitSeconds);
         File.WriteAllText(path, "{ not json");
         Assert.False(LockConfig.Load(path).HasSecret);
+        Assert.True(LockConfig.Load(path).IsArabic);
+    }
+
+    [Fact]
+    public void OldTwentyFourCharSecretIsNotAcceptedAsPairing()
+    {
+        var cfg = new LockConfig { Secret = "K7mP2qR9sT4vW6xZ3bN8cD5f" };
+        Assert.False(cfg.HasSecret);
     }
 
     [Fact]
@@ -66,7 +83,7 @@ public class StateAndConfigTests : IDisposable
     [Fact]
     public void PhraseMatchingIgnoresSurroundingAndDoubledSpaces()
     {
-        Assert.True(LockDecision.PhraseMatches(LockConfig.DefaultEmergencyPhrase, "  " + LockConfig.DefaultEmergencyPhrase + "  "));
+        Assert.True(LockDecision.PhraseMatches(LockConfig.DefaultEmergencyPhraseAr, "  " + LockConfig.DefaultEmergencyPhraseAr + "  "));
         Assert.True(LockDecision.PhraseMatches("a b c", "a  b   c"));
         Assert.False(LockDecision.PhraseMatches("a b c", "a b"));
     }

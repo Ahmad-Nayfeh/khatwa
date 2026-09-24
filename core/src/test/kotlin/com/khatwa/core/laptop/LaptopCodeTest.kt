@@ -3,22 +3,22 @@ package com.khatwa.core.laptop
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File
-import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class LaptopCodeTest {
 
     @Serializable
-    private data class Vector(val secret: String, val date: String, val code: String, val hmacHex: String)
+    private data class Vector(val secret: String, val challengeId: String, val lockCode: String, val unlockCode: String)
 
     @Serializable
     private data class Doc(val description: String, val vectors: List<Vector>)
 
     private fun sharedVectors(): List<Vector> {
-        // Gradle runs tests with the module directory as the working directory.
         val candidates = listOf(File("../shared/hmac-vectors.json"), File("shared/hmac-vectors.json"))
         val file = candidates.firstOrNull { it.exists() }
             ?: error("shared/hmac-vectors.json not found from ${File(".").absolutePath}")
@@ -30,26 +30,49 @@ class LaptopCodeTest {
         val vectors = sharedVectors()
         assertTrue(vectors.size >= 5)
         for (v in vectors) {
-            assertEquals(v.code, LaptopCode.code(v.secret, v.date), "secret=${v.secret} date=${v.date}")
-            assertEquals(v.code, LaptopCode.code(v.secret, LocalDate.parse(v.date)))
+            assertEquals(v.lockCode, LaptopCode.lockCode(v.secret, v.challengeId), "lock ${v.secret}/${v.challengeId}")
+            assertEquals(v.unlockCode, LaptopCode.unlockCode(v.secret, v.challengeId), "unlock ${v.secret}/${v.challengeId}")
+            assertEquals(v.challengeId, LaptopCode.verifyLockCode(v.secret, v.lockCode))
+            assertTrue(LaptopCode.verifyUnlockCode(v.secret, v.challengeId, v.unlockCode))
         }
     }
 
     @Test
-    fun `codes are six digits and change with the date`() {
-        val a = LaptopCode.code("K7mP2qR9sT4vW6xZ3bN8cD5f", LocalDate.of(2026, 9, 23))
-        val b = LaptopCode.code("K7mP2qR9sT4vW6xZ3bN8cD5f", LocalDate.of(2026, 9, 24))
-        assertTrue(a.matches(Regex("\\d{6}")))
+    fun `codes are 8 chars from the alphabet and differ per challenge`() {
+        val a = LaptopCode.lockCode("K7MP2QR9ST4VW6XZ", "AAAA")
+        val b = LaptopCode.lockCode("K7MP2QR9ST4VW6XZ", "AAAB")
+        assertEquals(8, a.length)
+        assertTrue(a.all { it in LaptopCode.ALPHABET }, a)
         assertNotEquals(a, b)
+        assertNotEquals(LaptopCode.unlockCode("K7MP2QR9ST4VW6XZ", "AAAA"), LaptopCode.unlockCode("K7MP2QR9ST4VW6XZ", "AAAB"))
+        assertNotEquals(LaptopCode.unlockCode("K7MP2QR9ST4VW6XZ", "AAAA"), LaptopCode.unlockCode("ZZZZZZZZZZZZZZZZ", "AAAA"))
     }
 
     @Test
-    fun `generated secrets are 24 chars from the safe alphabet`() {
+    fun `input is normalised, wrong codes are rejected`() {
+        val secret = "ABCDEFGHJKLMNPQR"
+        val lock = LaptopCode.lockCode(secret, "K7MP") // K7MPY3HE
+        assertEquals("K7MP", LaptopCode.verifyLockCode(secret, " k7mp-y3he "))
+        assertEquals("K7MP-Y3HE", LaptopCode.format(lock))
+        assertNull(LaptopCode.verifyLockCode(secret, "K7MP-Y3HF"))
+        assertNull(LaptopCode.verifyLockCode(secret, "K7MPY3H"))
+        assertNull(LaptopCode.verifyLockCode("OTHERSECRET12345", lock))
+        assertTrue(LaptopCode.verifyUnlockCode(secret, "K7MP", "mtl5-n2ms"))
+        assertFalse(LaptopCode.verifyUnlockCode(secret, "K7MP", "MTL5N2MT"))
+        assertFalse(LaptopCode.verifyUnlockCode(secret, "2345", "MTL5N2MS"))
+    }
+
+    @Test
+    fun `generated secrets and ids use the safe alphabet`() {
         repeat(20) {
             val s = LaptopCode.generateSecret()
-            assertEquals(24, s.length)
-            assertTrue(s.all { it in "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789" }, s)
+            assertEquals(16, s.length)
+            assertTrue(LaptopCode.isSecret(s), s)
+            assertTrue(LaptopCode.isSecret(LaptopCode.format(s)), LaptopCode.format(s))
+            assertEquals(4, LaptopCode.newChallengeId().length)
         }
         assertNotEquals(LaptopCode.generateSecret(), LaptopCode.generateSecret())
+        assertFalse(LaptopCode.isSecret("ABCDEFGHJKLMNPQ"))
+        assertFalse(LaptopCode.isSecret("ABCDEFGHJKLMNPQ0"))
     }
 }

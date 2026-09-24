@@ -48,17 +48,19 @@ if (-not $Secret) {
     $Secret = $existing
     Write-Host "استُخدم السر الموجود في config.json."
   } else {
-    $Secret = Read-Host "الصق السر (24 حرفاً) من تطبيق خطوة ← الإعدادات ← قفل اللابتوب"
+    $Secret = Read-Host "الصق كود الاقتران (16 حرفاً) من تطبيق خطوة ← الإعدادات ← قفل اللابتوب"
   }
 }
-$Secret = $Secret.Trim()
-if ($Secret.Length -lt 8) { Write-Host "السر قصير جداً." -ForegroundColor Red; exit 1 }
+$Secret = ($Secret.ToUpperInvariant() -replace '[^A-Z0-9]', '')
+if ($Secret.Length -ne 16) { Write-Host "كود الاقتران يجب أن يكون 16 حرفاً ورقماً." -ForegroundColor Red; exit 1 }
 
-$config = @{ secret = $Secret; emergencyPhrase = 'أختار الاستسلام اليوم وأعلم أن هذا يُسجَّل'; emergencyWaitSeconds = 60 }
+$config = @{ secret = $Secret; language = 'ar'; emergencyWaitSeconds = 60 }
 if (Test-Path $configPath) {
   try {
     $old = Get-Content $configPath -Raw | ConvertFrom-Json
-    if ($old.emergencyPhrase) { $config.emergencyPhrase = $old.emergencyPhrase }
+    if ($old.language) { $config.language = $old.language }
+    if ($old.emergencyPhraseAr) { $config.emergencyPhraseAr = $old.emergencyPhraseAr }
+    if ($old.emergencyPhraseEn) { $config.emergencyPhraseEn = $old.emergencyPhraseEn }
     if ($old.emergencyWaitSeconds) { $config.emergencyWaitSeconds = [int]$old.emergencyWaitSeconds }
   } catch {}
 }
@@ -69,18 +71,16 @@ $principal = New-ScheduledTaskPrincipal -UserId $user -RunLevel Highest -LogonTy
 $settings  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -MultipleInstances IgnoreNew -ExecutionTimeLimit ([TimeSpan]::Zero) -Hidden
 $trigger   = New-ScheduledTaskTrigger -AtLogOn -User $user
 
-$lockAction = New-ScheduledTaskAction -Execute $target -WorkingDirectory $dir
-Register-ScheduledTask -TaskName 'KhatwaLock' -Action $lockAction -Trigger $trigger -Principal $principal -Settings $settings -Description 'khatwa: lock the laptop until the daily walking code is entered' -Force | Out-Null
-
+# The GUI (no arguments) is for pairing and entering the lock code; at sign-in only the
+# watchdog runs: it shows the lock screen whenever the laptop is locked.
+Unregister-ScheduledTask -TaskName 'KhatwaLock' -Confirm:$false -ErrorAction SilentlyContinue
 $wdAction = New-ScheduledTaskAction -Execute $target -Argument '--watchdog' -WorkingDirectory $dir
-Register-ScheduledTask -TaskName 'KhatwaLockWatchdog' -Action $wdAction -Trigger $trigger -Principal $principal -Settings $settings -Description 'khatwa: restart the lock screen if it is closed while still locked' -Force | Out-Null
+Register-ScheduledTask -TaskName 'KhatwaLockWatchdog' -Action $wdAction -Trigger $trigger -Principal $principal -Settings $settings -Description 'khatwa: show the lock screen whenever the laptop is locked' -Force | Out-Null
 
 Write-Host ""
 Write-Host "تم التثبيت في: $dir" -ForegroundColor Green
-Write-Host "المهمتان المجدولتان: KhatwaLock و KhatwaLockWatchdog (عند تسجيل الدخول، بأعلى صلاحيات)."
-Write-Host "الإزالة: uninstall.ps1"
+Write-Host "المهمة المجدولة: KhatwaLockWatchdog (عند تسجيل الدخول، بأعلى صلاحيات)."
+Write-Host "لقفل اللابتوب: شغّل $target والصق كود القفل من الجوال. الإزالة: uninstall.ps1"
 if (-not $NoStart) {
-  Write-Host "تشغيل تجريبي الآن... (أدخل كود اليوم من التطبيق، أو استخدم الطوارئ)"
   Start-ScheduledTask -TaskName 'KhatwaLockWatchdog'
-  Start-ScheduledTask -TaskName 'KhatwaLock'
 }

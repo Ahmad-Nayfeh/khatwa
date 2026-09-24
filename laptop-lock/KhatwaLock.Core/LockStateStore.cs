@@ -3,12 +3,18 @@ using System.Text.Json.Serialization;
 
 namespace KhatwaLock.Core;
 
-/// <summary>state.json: "unlocked until the end of the day" as the date on which the code was accepted.</summary>
+/// <summary>
+/// state.json: whether the laptop is currently locked and by which phone challenge.
+/// The lock survives reboots and logins until the matching unlock code (or the emergency
+/// phrase) is entered.
+/// </summary>
 public sealed class LockStateStore
 {
     private sealed class StateFile
     {
-        [JsonPropertyName("unlockedDate")] public string? UnlockedDate { get; set; }
+        [JsonPropertyName("locked")] public bool Locked { get; set; }
+        [JsonPropertyName("challengeId")] public string? ChallengeId { get; set; }
+        [JsonPropertyName("lockedAt")] public string? LockedAt { get; set; }
         [JsonPropertyName("unlockedAt")] public string? UnlockedAt { get; set; }
         [JsonPropertyName("how")] public string? How { get; set; }
     }
@@ -17,27 +23,35 @@ public sealed class LockStateStore
 
     public LockStateStore(string path) => _path = path;
 
-    public DateOnly? UnlockedDate
+    private StateFile Read()
     {
-        get
-        {
-            if (!File.Exists(_path)) return null;
-            try
-            {
-                var s = JsonSerializer.Deserialize<StateFile>(File.ReadAllText(_path));
-                return s?.UnlockedDate is { } d && DateOnly.TryParseExact(d, "yyyy-MM-dd", out var date) ? date : null;
-            }
-            catch (JsonException) { return null; }
-        }
+        if (!File.Exists(_path)) return new StateFile();
+        try { return JsonSerializer.Deserialize<StateFile>(File.ReadAllText(_path)) ?? new StateFile(); }
+        catch (JsonException) { return new StateFile(); }
     }
 
-    public bool IsUnlockedOn(DateOnly today) => UnlockedDate == today;
-
-    public void MarkUnlocked(DateOnly today, string how)
+    private void Write(StateFile s)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-        var s = new StateFile { UnlockedDate = today.ToString("yyyy-MM-dd"), UnlockedAt = DateTime.Now.ToString("s"), How = how };
         File.WriteAllText(_path, JsonSerializer.Serialize(s, new JsonSerializerOptions { WriteIndented = true }));
+    }
+
+    public bool IsLocked => Read() is { Locked: true, ChallengeId: { Length: > 0 } };
+
+    public string? ChallengeId => Read().ChallengeId;
+
+    public DateTime? LockedAt => DateTime.TryParse(Read().LockedAt, out var d) ? d : null;
+
+    public void MarkLocked(string challengeId) =>
+        Write(new StateFile { Locked = true, ChallengeId = ChallengeCodes.Normalize(challengeId), LockedAt = DateTime.Now.ToString("s") });
+
+    public void MarkUnlocked(string how)
+    {
+        var s = Read();
+        s.Locked = false;
+        s.UnlockedAt = DateTime.Now.ToString("s");
+        s.How = how;
+        Write(s);
     }
 
     public void Clear()
