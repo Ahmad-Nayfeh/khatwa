@@ -7,6 +7,15 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.google.services)
+}
+
+// Firebase (groups feature): the real google-services.json is never committed. CI decodes it from
+// the KHATWA_GOOGLE_SERVICES_BASE64 secret; local builds and forks fall back to the placeholder,
+// which builds fine and makes the app show "groups not configured in this build".
+run {
+    val real = file("google-services.json")
+    if (!real.exists()) real.writeText(file("google-services.placeholder.json").readText())
 }
 
 // Release signing: CI decodes the keystore from secrets into keystore.properties + a .jks file.
@@ -123,6 +132,11 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.vico.compose.m3)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.firestore)
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.appcheck.playintegrity)
+    debugImplementation(libs.firebase.appcheck.debug)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     testImplementation(libs.junit)

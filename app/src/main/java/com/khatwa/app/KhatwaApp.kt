@@ -32,6 +32,7 @@ class AppContainer(val app: Application) {
     val tracker = StepTracker(db, settings, scope)
     val features = Features(this)
     val lock = LockController(this)
+    val groups = com.khatwa.app.groups.GroupsRepository(app, settings)
 
     /** Called once from Application.onCreate. */
     fun start() {
@@ -54,6 +55,7 @@ class AppContainer(val app: Application) {
                 alarms.scheduleAll(s)
                 SnapshotWorker.schedule(app)
                 com.khatwa.app.alarms.ScheduledLock.checkNow(this@AppContainer)
+                com.khatwa.app.groups.GroupsSync.schedule(app, s.groupsEnabled && groups.configured)
             }
             features.start()
         }

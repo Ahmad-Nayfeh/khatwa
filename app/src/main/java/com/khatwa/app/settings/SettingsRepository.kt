@@ -53,6 +53,12 @@ data class Settings(
     val emergencyPhrase: String = DEFAULT_EMERGENCY_PHRASE,
     /** Date (ISO) on which a scheduled lock was surrendered; it is not re-armed that day. */
     val scheduleSkipDate: String? = null,
+    /** Groups & competition (Firebase) opt-in. Off by default: nothing leaves the phone. */
+    val groupsEnabled: Boolean = false,
+    /** Nickname shown to group members. */
+    val groupsNickname: String = "",
+    /** Last Firebase anonymous uid seen (informational: shown in settings and kept in backups). */
+    val groupsUid: String? = null,
 ) {
     fun goalConfig(today: LocalDate): GoalConfig = GoalConfig(
         startDate = goalStartDate ?: today,
@@ -154,6 +160,12 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setLanguage(v: String) = edit { it[K.language] = AppLanguage.normalize(v) }
 
+    suspend fun setGroupsEnabled(v: Boolean) = edit { it[K.groupsEnabled] = v }
+
+    suspend fun setGroupsNickname(v: String) = edit { it[K.groupsNickname] = v.trim().take(24) }
+
+    suspend fun setGroupsUid(v: String?) = edit { if (v == null) it.remove(K.groupsUid) else it[K.groupsUid] = v }
+
     suspend fun setShowQuote(v: Boolean) = edit { it[K.showQuote] = v }
 
     suspend fun setQuotesSeedVersion(v: Int) = edit { it[K.quotesSeedVersion] = v }
@@ -194,7 +206,7 @@ class SettingsRepository(private val context: Context) {
         for ((name, value) in map) {
             when (name) {
                 K.onboardingDone.name, K.scheduleEnabled.name, K.blockSettings.name, K.allowlistInitialized.name,
-                K.weightReminderEnabled.name, K.morningEnabled.name, K.showQuote.name ->
+                K.weightReminderEnabled.name, K.morningEnabled.name, K.showQuote.name, K.groupsEnabled.name ->
                     p[booleanPreferencesKey(name)] = value.toBooleanStrictOrNull() ?: false
                 K.themeMode.name -> p[K.themeMode] = ThemeMode.normalize(value)
                 K.language.name -> p[K.language] = AppLanguage.normalize(value)
@@ -205,7 +217,7 @@ class SettingsRepository(private val context: Context) {
                 K.allowlist.name, K.scheduleDays.name ->
                     p[stringSetPreferencesKey(name)] = value.split(",").filter { it.isNotBlank() }.toSet()
                 K.goalStartDate.name, K.laptopSecret.name, K.lockState.name, K.laptopChallenge.name, K.quoteOverrideDate.name,
-                K.emergencyPhrase.name, K.scheduleSkipDate.name ->
+                K.emergencyPhrase.name, K.scheduleSkipDate.name, K.groupsNickname.name, K.groupsUid.name ->
                     p[stringPreferencesKey(name)] = value
             }
         }
@@ -241,6 +253,9 @@ class SettingsRepository(private val context: Context) {
         val quotesSeedVersion = intPreferencesKey("quotes_seed_version")
         val emergencyPhrase = stringPreferencesKey("emergency_phrase")
         val scheduleSkipDate = stringPreferencesKey("schedule_skip_date")
+        val groupsEnabled = booleanPreferencesKey("groups_enabled")
+        val groupsNickname = stringPreferencesKey("groups_nickname")
+        val groupsUid = stringPreferencesKey("groups_uid")
     }
 
     private fun Preferences.toSettings(): Settings {
@@ -277,6 +292,9 @@ class SettingsRepository(private val context: Context) {
             quotesSeedVersion = this[K.quotesSeedVersion] ?: 0,
             emergencyPhrase = this[K.emergencyPhrase] ?: Settings.DEFAULT_EMERGENCY_PHRASE,
             scheduleSkipDate = this[K.scheduleSkipDate],
+            groupsEnabled = this[K.groupsEnabled] ?: false,
+            groupsNickname = this[K.groupsNickname] ?: "",
+            groupsUid = this[K.groupsUid],
         )
     }
 }

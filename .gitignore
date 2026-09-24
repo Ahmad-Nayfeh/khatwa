@@ -38,3 +38,4 @@ laptop-lock/**/TestResults/
 /ci/evidence/
 node_modules/
 .kotlin/
+firebase/node_modules

@@ -1,0 +1,180 @@
+rules_version = '2';
+
+// khatwa — groups & competition (SPEC §10). Paste this whole file into
+// Firebase console → Firestore Database → Rules, then "Publish".
+//
+// Data model
+//   users/{uid}                      private profile: nickname, ownedGroups (0..5)
+//   users/{uid}/memberships/{gid}    the user's own list of group ids
+//   groups/{gid}                     public card: name, description, ownerUid, memberCount, hidden, summary
+//   groups/{gid}/private/invite      { code } — owner + members only
+//   groups/{gid}/members/{uid}       { nickname, joinedAt, code? } — members only
+//   groups/{gid}/contrib/{uid}       anonymous numbers (no name) — any signed-in user may read
+//   invites/{code}                   { groupId } — get by exact code only, never listed
+//
+// Everything is client-written (Spark plan, no Cloud Functions), so the rules validate shapes,
+// caps (60 000 steps/day, 5 owned groups, 200 members) and who may touch what.
+
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function groupPath(gid) { return /databases/$(db)/documents/groups/$(gid); }
+    function memberPath(gid, m) { return /databases/$(db)/documents/groups/$(gid)/members/$(m); }
+    function userPath(u) { return /databases/$(db)/documents/users/$(u); }
+
+    function isMember(gid) { return exists(memberPath(gid, uid())); }
+    function isOwner(gid) { return exists(groupPath(gid)) && get(groupPath(gid)).data.ownerUid == uid(); }
+    // Owner of a group being created in this same batch.
+    function isOwnerAfter(gid) { return getAfter(groupPath(gid)).data.ownerUid == uid(); }
+
+    function validNickname(n) { return n is string && n.size() >= 1 && n.size() <= 24; }
+    function validCode(c) { return c is string && c.size() == 8 && c.matches('[A-HJ-NP-Z2-9]{8}'); }
+    function changedOnly(keys) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
+
+    // ---- users ---------------------------------------------------------------------------
+    match /users/{userId} {
+      allow read: if signedIn() && userId == uid();
+      allow create: if signedIn() && userId == uid()
+        && request.resource.data.keys().hasOnly(['nickname', 'ownedGroups', 'createdAt'])
+        && validNickname(request.resource.data.nickname)
+        && request.resource.data.ownedGroups == 0;
+      allow update: if signedIn() && userId == uid()
+        && request.resource.data.keys().hasOnly(['nickname', 'ownedGroups', 'createdAt'])
+        && validNickname(request.resource.data.nickname)
+        && request.resource.data.ownedGroups is int
+        && request.resource.data.ownedGroups >= 0 && request.resource.data.ownedGroups <= 5;
+      allow delete: if false;
+
+      // The user's own list of groups (group ids only), so "my groups" needs no collection-group query.
+      match /memberships/{gid} {
+        allow read, write: if signedIn() && userId == uid();
+      }
+    }
+
+    // ---- invite lookup ---------------------------------------------------------------------
+    match /invites/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn() && validCode(code)
+        && request.resource.data.keys().hasOnly(['groupId'])
+        && (isOwner(request.resource.data.groupId) || isOwnerAfter(request.resource.data.groupId))
+        && getAfter(/databases/$(db)/documents/groups/$(request.resource.data.groupId)/private/invite).data.code == code;
+      allow update: if false;
+      allow delete: if signedIn() && isOwner(resource.data.groupId);
+    }
+
+    // ---- groups ----------------------------------------------------------------------------
+    function validGroupFields(d) {
+      return d.name is string && d.name.size() >= 1 && d.name.size() <= 40
+        && d.description is string && d.description.size() <= 120
+        && d.hidden is bool;
+    }
+    function validSummary(s) {
+      return s.keys().hasOnly(['date', 'today', 'week', 'month', 'updatedAt'])
+        && s.date is string && s.date.size() == 10
+        && validTotals(s.today) && validTotals(s.week) && validTotals(s.month);
+    }
+    function validTotals(t) {
+      return t.keys().hasOnly(['steps', 'members', 'goalMet', 'goalRatio'])
+        && t.steps is int && t.steps >= 0 && t.steps <= 372000000
+        && t.members is int && t.members >= 0 && t.members <= 200
+        && t.goalMet is int && t.goalMet >= 0 && t.goalMet <= 200
+        && t.goalRatio is number && t.goalRatio >= 0 && t.goalRatio <= 1;
+    }
+
+    match /groups/{gid} {
+      // Public card: name, member count and totals. Names of members live in the subcollection.
+      allow read: if signedIn();
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['name', 'description', 'ownerUid', 'memberCount', 'hidden', 'createdAt', 'summary'])
+        && request.resource.data.ownerUid == uid()
+        && validGroupFields(request.resource.data)
+        && request.resource.data.memberCount == 1
+        // Owner joins in the same batch and the owned-groups counter goes up (max 5).
+        && getAfter(memberPath(gid, uid())).data.nickname is string
+        && getAfter(userPath(uid())).data.ownedGroups == get(userPath(uid())).data.ownedGroups + 1
+        && getAfter(userPath(uid())).data.ownedGroups <= 5;
+
+      allow update: if signedIn() && (
+        // (a) owner edits the card
+        (isOwner(gid) && changedOnly(['name', 'description', 'hidden']) && validGroupFields(request.resource.data))
+        // (b) a member refreshes the public summary
+        || (isMember(gid) && changedOnly(['summary']) && validSummary(request.resource.data.summary))
+        // (c) someone joins: +1 with their own membership created in this batch
+        || (changedOnly(['memberCount'])
+            && request.resource.data.memberCount == resource.data.memberCount + 1
+            && resource.data.memberCount < 200
+            && !exists(memberPath(gid, uid()))
+            && getAfter(memberPath(gid, uid())).data.nickname is string)
+        // (d) someone leaves (self) or the owner removes a member: -1
+        || (changedOnly(['memberCount'])
+            && request.resource.data.memberCount == resource.data.memberCount - 1
+            && request.resource.data.memberCount >= 1
+            && (isOwner(gid) || (isMember(gid) && !existsAfter(memberPath(gid, uid())))))
+      );
+
+      allow delete: if signedIn() && isOwner(gid)
+        && getAfter(userPath(uid())).data.ownedGroups == get(userPath(uid())).data.ownedGroups - 1;
+
+      match /private/invite {
+        allow read: if signedIn() && (isOwner(gid) || isMember(gid));
+        allow create: if signedIn() && (isOwner(gid) || isOwnerAfter(gid))
+          && request.resource.data.keys().hasOnly(['code']) && validCode(request.resource.data.code);
+        allow update: if signedIn() && isOwner(gid)
+          && request.resource.data.keys().hasOnly(['code']) && validCode(request.resource.data.code);
+        allow delete: if signedIn() && isOwner(gid);
+      }
+
+      match /members/{mid} {
+        allow read: if signedIn() && isMember(gid);
+        // Owner's own membership at creation time.
+        allow create: if signedIn() && mid == uid()
+          && request.resource.data.keys().hasOnly(['nickname', 'joinedAt', 'code'])
+          && validNickname(request.resource.data.nickname)
+          && (
+            (isOwnerAfter(gid) && !exists(groupPath(gid)))
+            // Join with a valid invite code; the group counter goes +1 in the same batch.
+            || (exists(groupPath(gid))
+                && validCode(request.resource.data.code)
+                && get(/databases/$(db)/documents/invites/$(request.resource.data.code)).data.groupId == gid
+                && getAfter(groupPath(gid)).data.memberCount == get(groupPath(gid)).data.memberCount + 1)
+          );
+        allow update: if signedIn() && mid == uid() && changedOnly(['nickname']) && validNickname(request.resource.data.nickname);
+        // Leave (self, not the owner) or removed by the owner; counter goes -1 (or the group is deleted).
+        allow delete: if signedIn() && (
+          (mid == uid() && get(groupPath(gid)).data.ownerUid != uid()
+            && getAfter(groupPath(gid)).data.memberCount == get(groupPath(gid)).data.memberCount - 1)
+          || (isOwner(gid) && mid != uid()
+            && getAfter(groupPath(gid)).data.memberCount == get(groupPath(gid)).data.memberCount - 1)
+          || (isOwner(gid) && !existsAfter(groupPath(gid)))
+        );
+      }
+
+      // Anonymous per-member numbers. Readable by any signed-in user (this is what non-members can
+      // see through the API: numbers without names, as documented in the README).
+      match /contrib/{cuid} {
+        allow read: if signedIn();
+        allow create, update: if signedIn() && cuid == uid() && isMember(gid) && validStats(request.resource.data);
+        allow delete: if signedIn() && (cuid == uid() || isOwner(gid));
+      }
+    }
+
+    function validPeriod(p, maxSteps, maxDays) {
+      return p.keys().hasOnly(['key', 'steps', 'goalDays', 'longestMs'])
+        && p.key is string && p.key.size() == 10
+        && p.steps is int && p.steps >= 0 && p.steps <= maxSteps
+        && p.goalDays is int && p.goalDays >= 0 && p.goalDays <= maxDays
+        && p.longestMs is int && p.longestMs >= 0 && p.longestMs <= 86400000;
+    }
+    function validStats(d) {
+      return d.keys().hasOnly(['streak', 'today', 'week', 'month', 'updatedAt'])
+        && d.streak is int && d.streak >= 0 && d.streak <= 10000
+        && validPeriod(d.today, 60000, 1)
+        && validPeriod(d.week, 420000, 7)
+        && validPeriod(d.month, 1860000, 31);
+    }
+  }
+}

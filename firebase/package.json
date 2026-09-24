@@ -1,0 +1,14 @@
+{
+  "name": "khatwa-firebase",
+  "private": true,
+  "type": "module",
+  "description": "Firestore security rules for the khatwa groups feature, with emulator tests.",
+  "scripts": {
+    "test": "firebase emulators:exec --only firestore --project khatwa-de941 \"node --test tests/rules.test.mjs\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "firebase": "^11.1.0",
+    "firebase-tools": "^15.0.0"
+  }
+}

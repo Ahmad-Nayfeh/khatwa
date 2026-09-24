@@ -342,6 +342,80 @@ interface Strings {
     val ofGoalPct: String
     val sessions: String
     val longestSession: String
+
+    // Groups
+    val tabGroups: String
+    val groupsTitle: String
+    val groupsNotConfigured: String
+    val groupsIntro: String
+    val groupsWhatIsSent: String
+    val groupsPrivacy: String
+    val nickname: String
+    val nicknameHint: String
+    val enableGroups: String
+    val disableGroups: String
+    val disableGroupsHint: String
+    val myGroups: String
+    val allGroups: String
+    val createGroup: String
+    val joinWithCode: String
+    val groupName: String
+    val groupDescription: String
+    val inviteCodeLabel: String
+    val inviteCodeHint: String
+    val join: String
+    val create: String
+    val noGroupsYet: String
+    val noPublicGroups: String
+    val searchGroups: String
+    val period: String
+    val periodToday: String
+    val periodWeek: String
+    val periodMonth: String
+    val sortBy: String
+    val sortSteps: String
+    val sortGoalDays: String
+    val sortStreak: String
+    val sortLongestSession: String
+    val sortTotalSteps: String
+    val sortAverageSteps: String
+    val sortGoalRatio: String
+    val sortMembers: String
+    val descending: String
+    val ascending: String
+    fun membersCount(n: String): String
+    fun goalMetToday(n: String, total: String): String
+    val groupTotal: String
+    val average: String
+    val you: String
+    val owner: String
+    val inviteCode: String
+    val regenerateCode: String
+    val regenerateCodeHint: String
+    val hideFromPublic: String
+    val leaveGroup: String
+    val leaveGroupQuestion: String
+    val deleteGroup: String
+    val deleteGroupQuestion: String
+    val removeMember: String
+    fun removeMemberQuestion(name: String): String
+    val refresh: String
+    val syncing: String
+    fun lastPublished(time: String): String
+    val notPublishedYet: String
+    val youAreOwner: String
+    val errorOffline: String
+    val errorNotConfigured: String
+    val errorInvalidCode: String
+    val errorUnknownCode: String
+    val errorAlreadyMember: String
+    val errorGroupFull: String
+    val errorTooManyGroups: String
+    val errorOwnerCannotLeave: String
+    val errorDenied: String
+    val errorUnknown: String
+    val groupsLimitation: String
+    val hiddenBadge: String
 }
 
 object I18n {
