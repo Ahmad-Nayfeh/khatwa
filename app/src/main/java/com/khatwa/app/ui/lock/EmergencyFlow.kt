@@ -32,7 +32,8 @@ import kotlinx.coroutines.delay
 const val EMERGENCY_WAIT_SECONDS = 60
 
 /**
- * The deliberately slow emergency exit: wait 60 seconds, type the long phrase exactly, confirm.
+ * The deliberately slow emergency exit: wait 60 seconds, type the long phrase, confirm. The phrase
+ * check ignores diacritics, hamza forms and punctuation (core Phrase), so it can always be typed.
  * Every completion is recorded as a surrender by the caller.
  */
 @Composable
@@ -44,7 +45,7 @@ fun EmergencyFlow(phrase: String, remaining: Long, onCancel: () -> Unit, onConfi
     LaunchedEffect(Unit) {
         while (secondsLeft > 0) { delay(1_000); secondsLeft-- }
     }
-    val typed = text.trim() == phrase.trim()
+    val typed = com.khatwa.core.lock.Phrase.matches(phrase, text)
 
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(s.emergencyTitle, style = MaterialTheme.typography.headlineMedium)

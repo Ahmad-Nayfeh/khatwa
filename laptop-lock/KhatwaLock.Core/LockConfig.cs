@@ -6,7 +6,9 @@ namespace KhatwaLock.Core;
 /// <summary>config.json: the pairing secret, the UI language and the emergency settings.</summary>
 public sealed class LockConfig
 {
-    public const string DefaultEmergencyPhraseAr = "أختار الاستسلام اليوم وأعلم أن هذا يُسجَّل";
+    public const string DefaultEmergencyPhraseAr = "أختار الاستسلام اليوم وأعلم أن هذا يسجل";
+    /// <summary>The 0.3.0 default had diacritics that are hard to type; replaced on load.</summary>
+    private const string OldDefaultEmergencyPhraseAr = "أختار الاستسلام اليوم وأعلم أن هذا يُسجَّل";
     public const string DefaultEmergencyPhraseEn = "I choose to give up today and I know this is recorded";
 
     /// <summary>8-digit pairing code from the phone (Settings ← laptop lock, or the lock card).</summary>
@@ -38,7 +40,7 @@ public sealed class LockConfig
             var cfg = JsonSerializer.Deserialize<LockConfig>(File.ReadAllText(path), Options) ?? new LockConfig();
             // An old-format pairing (16 letters/digits) is not valid any more: pair again.
             cfg.Secret = ChallengeCodes.IsSecret(cfg.Secret) ? ChallengeCodes.Normalize(cfg.Secret!) : string.Empty;
-            if (string.IsNullOrWhiteSpace(cfg.EmergencyPhraseAr)) cfg.EmergencyPhraseAr = DefaultEmergencyPhraseAr;
+            if (string.IsNullOrWhiteSpace(cfg.EmergencyPhraseAr) || cfg.EmergencyPhraseAr == OldDefaultEmergencyPhraseAr) cfg.EmergencyPhraseAr = DefaultEmergencyPhraseAr;
             if (string.IsNullOrWhiteSpace(cfg.EmergencyPhraseEn)) cfg.EmergencyPhraseEn = DefaultEmergencyPhraseEn;
             if (cfg.EmergencyWaitSeconds < 0) cfg.EmergencyWaitSeconds = 60;
             if (string.IsNullOrWhiteSpace(cfg.Language)) cfg.Language = "ar";

@@ -80,9 +80,11 @@ internal sealed class LockForm : Form
         };
         FormClosing += (_, e) =>
         {
-            if (!_allowClose)
+            // Never block Windows from restarting or shutting down (the lock comes back after
+            // sign-in anyway while it is still active). Alt+F4 or a polite "End task": stay.
+            if (!_allowClose && e.CloseReason != CloseReason.WindowsShutDown)
             {
-                e.Cancel = true; // Alt+F4 or "End task" polite close: stay
+                e.Cancel = true;
             }
         };
     }
@@ -244,7 +246,7 @@ internal sealed class LockForm : Form
                 BackColor = BackColor,
                 Text = "khatwa",
             };
-            cover.FormClosing += (_, e) => { if (!_allowClose) e.Cancel = true; };
+            cover.FormClosing += (_, e) => { if (!_allowClose && e.CloseReason != CloseReason.WindowsShutDown) e.Cancel = true; };
             cover.Show();
             _covers.Add(cover);
         }
