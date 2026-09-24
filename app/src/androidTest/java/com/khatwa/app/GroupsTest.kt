@@ -159,24 +159,39 @@ class GroupsTest {
         device.wait(Until.findObject(By.res("groups_email")), 5_000)!!.text = emailA
         device.findObject(By.res("groups_password")).text = password
         assertTrue(TestSupport.clickRes("groups_account_submit"))
+        // This phone already has data and the account has a saved copy: the app asks which to keep.
+        assertNotNull("restore question missing", device.wait(Until.findObject(By.res("restore_keep")), 20_000))
+        TestSupport.screenshot("56a-restore-offer")
+        assertTrue(TestSupport.clickRes("restore_keep"))
         assertNotNull("the group did not come back after signing in", device.wait(Until.findObject(By.res("group_card_$gid")), 20_000))
         assertEquals(uidA, c.groups.uid)
         assertEquals("nickname restored from the account", "أحمد", runBlocking { c.settings.current().groupsNickname })
         TestSupport.screenshot("56-groups-signed-in-again")
 
-        // --- admin: the key (test key; the real one is never in the repository) opens the panel.
-        repeat(3) { TestSupport.scrollForward("groups_scroll"); Thread.sleep(300) }
-        assertTrue("admin key entry missing", TestSupport.clickRes("admin_key_open", 8_000))
+        // --- Settings → Account: the account, its saved copy, and the admin password.
+        assertTrue(TestSupport.clickRes("tab_settings"))
+        assertTrue("account entry missing", TestSupport.clickRes("settings_account", 8_000))
+        assertNotNull(device.wait(Until.findObject(By.res("account_signed_in")), 10_000))
+        assertNotNull(device.wait(Until.findObject(By.res("account_saved_at").textContains(":")), 10_000))
+        TestSupport.screenshot("57-account")
+        // The temporary key (test key; the real one is never in the repository) opens the panel.
+        repeat(2) { TestSupport.scrollForward("settings_account_scroll"); Thread.sleep(300) }
+        assertTrue("admin password entry missing", TestSupport.clickRes("admin_key_open", 8_000))
         device.wait(Until.findObject(By.res("admin_key")), 5_000)!!.text = "khat-wate-stad-mink-ey22" // case and dashes do not matter
         assertTrue(TestSupport.clickRes("admin_key_confirm"))
         assertTrue("admin access not granted", runBlocking { kotlinx.coroutines.withTimeoutOrNull(15_000) { c.groups.observeIsAdmin().first { it } } } == true)
-        repeat(3) { TestSupport.scrollBackward("groups_scroll"); Thread.sleep(300) }
         assertTrue("admin panel button missing", TestSupport.clickRes("admin_open", 15_000))
         assertNotNull("admin list misses the group", device.wait(Until.findObject(By.res("admin_group_$gid")), 15_000))
-        TestSupport.screenshot("57-admin-groups")
+        TestSupport.screenshot("58-admin-groups")
+        // The admin chooses a password: from now on the temporary key no longer works.
+        assertTrue(TestSupport.clickRes("admin_change_password"))
+        device.wait(Until.findObject(By.res("admin_new_password")), 5_000)!!.text = OWN_ADMIN_PASSWORD
+        device.findObject(By.res("admin_repeat_password")).text = OWN_ADMIN_PASSWORD
+        assertTrue(TestSupport.clickRes("admin_password_save"))
+        assertNotNull("password not saved", device.wait(Until.findObject(By.res("admin_password_saved")), 15_000))
         assertTrue(TestSupport.clickRes("admin_group_$gid"))
         assertNotNull(TestSupport.findRes("admin_member_$uidB", 15_000))
-        TestSupport.screenshot("58-admin-group")
+        TestSupport.screenshot("59-admin-group")
         // Remove B, then delete the whole group.
         assertTrue(TestSupport.clickRes("admin_remove_$uidB"))
         assertTrue(TestSupport.clickRes("admin_confirm"))
@@ -187,6 +202,15 @@ class GroupsTest {
         assertTrue("group still listed", device.wait(Until.gone(By.res("admin_group_$gid")), 15_000))
         assertEquals(0, runBlocking { c.groups.groupIdsOf(uidB).size })
         TestSupport.evidence("admin removed a member and deleted the group")
+        // B cannot use the temporary key any more, only the password the admin chose.
+        runBlocking {
+            c.groups.signOut()
+            c.groups.signIn(emailB, password)
+            val old = runCatching { c.groups.claimAdmin(TEST_ADMIN_KEY) }.exceptionOrNull()
+            assertEquals(com.khatwa.app.groups.GroupsException.Kind.WRONG_ADMIN_KEY, (old as? com.khatwa.app.groups.GroupsException)?.kind)
+            c.groups.claimAdmin(OWN_ADMIN_PASSWORD)
+        }
+        TestSupport.evidence("temporary admin key refused after the password change; own password accepted")
 
         runBlocking { c.settings.setGroupsEnabled(false) }
         c.groups.signOut()
@@ -202,8 +226,39 @@ class GroupsTest {
         runBlocking { c.tracker.flush() }
     }
 
+    @Test
+    fun cloudCopyRoundTrip() {
+        assumeTrue("firebase emulator not reachable at $EMULATOR_HOST:8080", emulatorReachable())
+        GroupsRepository.emulatorHost = EMULATOR_HOST
+        assumeTrue("google-services placeholder: groups not configured in this build", c.groups.configured)
+        runBlocking { runCatching { c.groups.ensureSignedIn() } }
+        c.groups.signOut()
+        runBlocking {
+            c.groups.signUp("copy-${System.currentTimeMillis()}@khatwa.test", "walk-123456", "نسخة")
+            c.db.weights().deleteAll()
+            c.db.weights().insert(com.khatwa.app.data.WeightEntity(date = "2026-02-02", kg = 71.4, createdMs = 1L))
+            assertTrue("upload failed", c.cloud.upload())
+            val saved = c.cloud.savedAt()
+            assertNotNull(saved)
+            // Lose the local data (what a reinstall does), then bring it back from the account.
+            c.db.weights().deleteAll()
+            assertEquals(0, c.db.weights().all().size)
+            assertNotNull(c.cloud.restore())
+            val back = c.db.weights().all()
+            assertEquals(1, back.size)
+            assertEquals(71.4, back[0].kg, 0.001)
+            TestSupport.evidence("cloud copy saved at $saved and restored")
+            c.cloud.clearRestored()
+        }
+        c.groups.signOut()
+        GroupsRepository.emulatorHost = null
+    }
+
     companion object {
         const val EMULATOR_HOST = "10.0.2.2"
+        /** Only valid in the CI emulator (its rules copy holds this key's hash). */
+        const val TEST_ADMIN_KEY = "KHATWATESTADMINKEY22"
+        const val OWN_ADMIN_PASSWORD = "my own secret 9"
     }
 }
 

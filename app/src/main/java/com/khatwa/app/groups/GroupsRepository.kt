@@ -307,17 +307,53 @@ class GroupsRepository(private val context: Context, private val settings: Setti
         }
     }
 
-    /** The key is checked by the rules against its SHA-256; a wrong key is simply refused. */
-    suspend fun claimAdmin(key: String) {
+    /**
+     * The password is checked by the rules against its SHA-256; a wrong one is simply refused.
+     * Tried exactly as typed (the admin's own password), then in the one-time key's form
+     * (capitals and digits only, so dashes and case do not matter for that key).
+     */
+    suspend fun claimAdmin(password: String) {
         val me = ensureSignedIn()
-        val normalized = normalizeAdminKey(key)
-        try {
-            db.document("admins/$me").set(mapOf("key" to normalized, "claimedAt" to now())).await()
-        } catch (e: Exception) {
-            val kind = kindOf(e)
-            throw GroupsException(if (kind == GroupsException.Kind.DENIED) GroupsException.Kind.WRONG_ADMIN_KEY else kind, e)
+        val attempts = listOf(password.trim(), normalizeAdminKey(password)).filter { it.isNotEmpty() }.distinct()
+        var last: Exception? = null
+        for (candidate in attempts) {
+            try {
+                db.document("admins/$me").set(mapOf("key" to candidate, "claimedAt" to now())).await()
+                Log.i(TAG, "admin access granted")
+                return
+            } catch (e: Exception) { last = e }
         }
-        Log.i(TAG, "admin access granted")
+        val kind = last?.let { kindOf(it) } ?: GroupsException.Kind.UNKNOWN
+        throw GroupsException(if (kind == GroupsException.Kind.DENIED) GroupsException.Kind.WRONG_ADMIN_KEY else kind, last)
+    }
+
+    /** Sets the admin password. Only its SHA-256 is stored; from now on the one-time key stops working. */
+    suspend fun setAdminPassword(password: String) {
+        ensureSignedIn()
+        wrap { db.document("config/admin").set(mapOf("keySha256" to sha256Hex(password.trim()), "changedAt" to now())).await() }
+        Log.i(TAG, "admin password changed")
+    }
+
+    // ---- private cloud backup (users/{uid}/backup/latest, owner only) --------------------------
+
+    suspend fun saveBackup(data: String, bytes: Int) {
+        val me = ensureSignedIn()
+        wrap { db.document("users/$me/backup/latest").set(mapOf("data" to data, "updatedAt" to now(), "bytes" to bytes, "version" to 1)).await() }
+    }
+
+    /** The saved backup (data, saved at) or null when this account has none yet. */
+    suspend fun loadBackup(): Pair<String, Long>? {
+        val me = ensureSignedIn()
+        val snap = wrap { db.document("users/$me/backup/latest").get().await() }
+        val data = snap.getString("data") ?: return null
+        return data to (snap.getLong("updatedAt") ?: 0L)
+    }
+
+    /** When the account's backup was saved, or null (no backup yet). Cheap: no data is parsed. */
+    suspend fun backupSavedAt(): Long? {
+        val me = ensureSignedIn()
+        val snap = wrap { db.document("users/$me/backup/latest").get().await() }
+        return if (snap.exists()) snap.getLong("updatedAt") ?: 0L else null
     }
 
     fun observeAllGroups(): Flow<List<Group>> = flow {
@@ -560,6 +596,9 @@ class GroupsRepository(private val context: Context, private val settings: Setti
     companion object {
         private const val TAG = "Groups"
         const val PLACEHOLDER_PROJECT = "khatwa-placeholder"
+
+        fun sha256Hex(text: String): String =
+            java.security.MessageDigest.getInstance("SHA-256").digest(text.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
 
         /** Upper-case letters and digits only: dashes, spaces and case do not matter when typing. */
         fun normalizeAdminKey(key: String): String = key.uppercase().filter { it in 'A'..'Z' || it in '0'..'9' }
