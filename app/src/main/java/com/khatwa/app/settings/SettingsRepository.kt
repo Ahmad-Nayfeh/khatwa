@@ -62,6 +62,8 @@ data class Settings(
     val groupsNickname: String = "",
     /** Last Firebase anonymous uid seen (informational: shown in settings and kept in backups). */
     val groupsUid: String? = null,
+    /** When this phone last saved its data to the signed-in account (0: never). */
+    val cloudBackupAtMs: Long = 0,
 ) {
     /** The laptop pairing code in the current format (8 digits), or null (unpaired, or an old 16-character pairing). */
     val laptopPairing: String?
@@ -182,6 +184,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setGroupsNickname(v: String) = edit { it[K.groupsNickname] = v.trim().take(24) }
 
     suspend fun setGroupsUid(v: String?) = edit { if (v == null) it.remove(K.groupsUid) else it[K.groupsUid] = v }
+    suspend fun setCloudBackupAt(v: Long) = edit { it[K.cloudBackupAt] = v }
 
     suspend fun setShowQuote(v: Boolean) = edit { it[K.showQuote] = v }
 
@@ -234,6 +237,7 @@ class SettingsRepository(private val context: Context) {
                 K.allowlist.name, K.scheduleDays.name ->
                     p[stringSetPreferencesKey(name)] = value.split(",").filter { it.isNotBlank() }.toSet()
                 K.laptopCounter.name -> value.toLongOrNull()?.let { p[K.laptopCounter] = it }
+                K.cloudBackupAt.name -> value.toLongOrNull()?.let { p[K.cloudBackupAt] = it }
                 K.goalStartDate.name, K.laptopSecret.name, K.lockState.name, K.laptopChallenge.name, K.quoteOverrideDate.name,
                 K.emergencyPhrase.name, K.scheduleSkipDate.name, K.groupsNickname.name, K.groupsUid.name ->
                     p[stringPreferencesKey(name)] = value
@@ -275,6 +279,7 @@ class SettingsRepository(private val context: Context) {
         val groupsEnabled = booleanPreferencesKey("groups_enabled")
         val groupsNickname = stringPreferencesKey("groups_nickname")
         val groupsUid = stringPreferencesKey("groups_uid")
+        val cloudBackupAt = longPreferencesKey("cloud_backup_at")
     }
 
     private fun Preferences.toSettings(): Settings {
@@ -315,6 +320,7 @@ class SettingsRepository(private val context: Context) {
             groupsEnabled = this[K.groupsEnabled] ?: false,
             groupsNickname = this[K.groupsNickname] ?: "",
             groupsUid = this[K.groupsUid],
+            cloudBackupAtMs = this[K.cloudBackupAt] ?: 0L,
         )
     }
 }

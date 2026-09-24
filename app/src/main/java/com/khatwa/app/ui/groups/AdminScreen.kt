@@ -125,7 +125,16 @@ class AdminViewModel(private val c: AppContainer) : ViewModel() {
     fun renameUser(uid: String, name: String) = run { c.groups.adminRenameUser(uid, name) }
     fun deleteUser(uid: String, onDone: () -> Unit) = run { c.groups.adminDeleteUserData(uid); onDone() }
 
-    fun clearMessage() { _message.value = null }
+    private val _passwordSaved = MutableStateFlow(false)
+    val passwordSaved: StateFlow<Boolean> = _passwordSaved
+
+    /** Only the SHA-256 of the password is stored; from now on the temporary key stops working. */
+    fun setAdminPassword(password: String) = run {
+        c.groups.setAdminPassword(password)
+        _passwordSaved.value = true
+    }
+
+    fun clearMessage() { _message.value = null; _passwordSaved.value = false }
 
     private fun run(block: suspend () -> Unit): Job = viewModelScope.launch {
         _busy.value = true
@@ -146,7 +155,9 @@ fun AdminScreen(container: AppContainer, onBack: () -> Unit) {
     val users by vm.users.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
+    val passwordSaved by vm.passwordSaved.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(0) }
+    var changingPassword by rememberSaveable { mutableStateOf(false) }
     var openGroup by rememberSaveable { mutableStateOf<String?>(null) }
     var openUser by rememberSaveable { mutableStateOf<String?>(null) }
     val names = users.associate { it.uid to it.nickname }
@@ -169,12 +180,21 @@ fun AdminScreen(container: AppContainer, onBack: () -> Unit) {
             }
             VSpace()
         }
+        if (passwordSaved) {
+            KCard(tone = CardTone.Accent, modifier = Modifier.testTag("admin_password_saved")) {
+                Text(s.adminPasswordSet)
+                TextButton(onClick = { vm.clearMessage() }) { Text(s.done) }
+            }
+            VSpace()
+        }
         val g = openGroup
         val u = openUser
         when {
             g != null -> AdminGroupDetail(vm, s, g, names) { openGroup = null; vm.openGroup(null) }
             u != null -> AdminUserDetail(vm, s, users.firstOrNull { it.uid == u }, groups) { openUser = null; vm.openUser(null) }
             else -> {
+                SecondaryButton(s.changeAdminPassword, Modifier.fillMaxWidth().testTag("admin_change_password")) { changingPassword = true }
+                VSpace()
                 TabRow(selectedTabIndex = tab) {
                     Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text(s.adminGroups(Fmt.n(groups.size))) }, modifier = Modifier.testTag("admin_tab_groups"))
                     Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text(s.adminUsers(Fmt.n(users.size))) }, modifier = Modifier.testTag("admin_tab_users"))
@@ -205,6 +225,43 @@ fun AdminScreen(container: AppContainer, onBack: () -> Unit) {
             }
         }
     }
+    if (changingPassword) ChangeAdminPasswordDialog(s, onDismiss = { changingPassword = false }) { pw -> changingPassword = false; vm.setAdminPassword(pw) }
+}
+
+/** New admin password, typed twice; at least 8 characters. */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+@Composable
+private fun ChangeAdminPasswordDialog(s: Strings, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var first by remember { mutableStateOf("") }
+    var second by remember { mutableStateOf("") }
+    val long = first.trim().length >= 8
+    val same = first == second
+    AlertDialog(
+        modifier = Modifier.semantics { testTagsAsResourceId = true },
+        onDismissRequest = onDismiss,
+        title = { Text(s.changeAdminPassword) },
+        text = {
+            Column {
+                Muted(s.adminPasswordRules)
+                VSpace(6.dp)
+                OutlinedTextField(
+                    value = first, onValueChange = { first = it.take(64) }, label = { Text(s.newPassword) }, singleLine = true,
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth().testTag("admin_new_password"),
+                )
+                VSpace(4.dp)
+                OutlinedTextField(
+                    value = second, onValueChange = { second = it.take(64) }, label = { Text(s.repeatPassword) }, singleLine = true,
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    isError = second.isNotEmpty() && !same,
+                    supportingText = { if (second.isNotEmpty() && !same) Text(s.passwordsDontMatch) },
+                    modifier = Modifier.fillMaxWidth().testTag("admin_repeat_password"),
+                )
+            }
+        },
+        confirmButton = { TextButton(enabled = long && same, onClick = { onSave(first) }, modifier = Modifier.testTag("admin_password_save")) { Text(s.save) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(s.cancel) } },
+    )
 }
 
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)

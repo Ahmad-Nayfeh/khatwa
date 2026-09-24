@@ -42,6 +42,8 @@ private val tabs = listOf(Tab.Home, Tab.Stats, Tab.Groups, Tab.Settings)
 
 @Composable
 fun KhatwaRoot(container: AppContainer, settings: Settings) {
+    // "Restore the copy from your account?" / "your data is back": over any screen.
+    com.khatwa.app.ui.account.CloudBackupDialogs(container)
     if (!settings.onboardingDone) {
         OnboardingScreen(container)
         return

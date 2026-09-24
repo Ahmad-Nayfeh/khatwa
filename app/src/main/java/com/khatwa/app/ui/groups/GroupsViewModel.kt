@@ -49,9 +49,6 @@ data class GroupDetailState(
     val error: GroupsException.Kind? = null,
 )
 
-/** A positive, one-off notice shown on the Groups tab. */
-enum class GroupsNotice { RESET_SENT, ADMIN_GRANTED }
-
 class GroupsViewModel(private val c: AppContainer) : ViewModel() {
     /** The signed-in account (null: nobody is signed in on this phone). */
     val account: StateFlow<Account?> = c.groups.observeAccount().stateIn(viewModelScope, SharingStarted.Eagerly, c.groups.account)
@@ -68,8 +65,6 @@ class GroupsViewModel(private val c: AppContainer) : ViewModel() {
     val busy: StateFlow<Boolean> = _busy
     private val _message = MutableStateFlow<GroupsException.Kind?>(null)
     val message: StateFlow<GroupsException.Kind?> = _message
-    private val _notice = MutableStateFlow<GroupsNotice?>(null)
-    val notice: StateFlow<GroupsNotice?> = _notice
     private val _lastSync = MutableStateFlow<Long?>(null)
     val lastSync: StateFlow<Long?> = _lastSync
 
@@ -129,26 +124,11 @@ class GroupsViewModel(private val c: AppContainer) : ViewModel() {
 
     fun close() { selected.value = null }
 
-    /** New account (on an old anonymous account the email is added to it, keeping its groups). */
-    fun signUp(email: String, password: String, nickname: String) = run {
-        val name = nickname.trim().take(24)
-        if (name.isBlank()) return@run
-        c.groups.signUp(email, password, name)
-        turnOn()
-    }
-
-    fun signIn(email: String, password: String) = run {
-        c.groups.signIn(email, password)
-        turnOn()
-    }
-
-    fun resetPassword(email: String) = run {
-        c.groups.sendPasswordReset(email)
-        _notice.value = GroupsNotice.RESET_SENT
-    }
-
     /** Turns groups on for the signed-in account (they were turned off on this phone). */
     fun enable() = run { turnOn() }
+
+    /** Turns groups on right away (after signing in from the Groups tab). */
+    suspend fun turnOnNow() = turnOn()
 
     private suspend fun turnOn() {
         c.settings.setGroupsEnabled(true)
@@ -159,17 +139,6 @@ class GroupsViewModel(private val c: AppContainer) : ViewModel() {
     fun disable() = run {
         c.settings.setGroupsEnabled(false)
         GroupsSync.schedule(c.app, false)
-    }
-
-    fun signOut() = run {
-        c.settings.setGroupsEnabled(false)
-        GroupsSync.schedule(c.app, false)
-        c.groups.signOut()
-    }
-
-    fun claimAdmin(key: String) = run {
-        c.groups.claimAdmin(key)
-        _notice.value = GroupsNotice.ADMIN_GRANTED
     }
 
     fun rename(nickname: String) = run {
@@ -203,7 +172,7 @@ class GroupsViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
-    fun clearMessage() { _message.value = null; _notice.value = null }
+    fun clearMessage() { _message.value = null }
 
     private fun run(block: suspend () -> Unit): Job = viewModelScope.launch {
         _busy.value = true

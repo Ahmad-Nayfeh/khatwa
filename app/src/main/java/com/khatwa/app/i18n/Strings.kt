@@ -418,6 +418,28 @@ interface Strings {
     val hiddenBadge: String
 
     // Groups account + admin
+    val account: String
+    val accountSignedOut: String
+    val accountStepTitle: String
+    val accountStepText: String
+    val cloudBackupTitle: String
+    val cloudBackupAuto: String
+    fun lastSaved(t: String): String
+    val notSavedYet: String
+    val saveNow: String
+    val savedToAccount: String
+    val saveFailed: String
+    val restoreFromAccount: String
+    fun restoreQuestion(t: String): String
+    val restore: String
+    val keepPhoneData: String
+    val dataRestoredTitle: String
+    val changeAdminPassword: String
+    val newPassword: String
+    val repeatPassword: String
+    val adminPasswordRules: String
+    val passwordsDontMatch: String
+    val adminPasswordSet: String
     val accountIntro: String
     val createAccount: String
     val signIn: String

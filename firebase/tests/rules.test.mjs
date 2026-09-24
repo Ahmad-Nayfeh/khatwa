@@ -245,3 +245,27 @@ test('admin: reads and changes everything, including hidden groups and other use
   del.update(doc(a, 'users', 'u1'), { ownedGroups: increment(-1) });
   await assertSucceeds(del.commit());
 });
+
+test('backup: only the owner reads and writes it, not other users and not the admin', async () => {
+  const data = 'H4sIAAAAAAAA/6tWKkktLlGyUlAqzy/KSVGqBQCnU7xLEgAAAA==';
+  await assertSucceeds(setDoc(doc(db('u1'), 'users', 'u1', 'backup', 'latest'), { data, updatedAt: 1, bytes: 40, version: 1 }));
+  await assertSucceeds(getDoc(doc(db('u1'), 'users', 'u1', 'backup', 'latest')));
+  await assertFails(getDoc(doc(db('u2'), 'users', 'u1', 'backup', 'latest')));
+  await assertFails(setDoc(doc(db('u2'), 'users', 'u1', 'backup', 'latest'), { data, updatedAt: 2, bytes: 40, version: 1 }));
+  await assertFails(setDoc(doc(db('u1'), 'users', 'u1', 'backup', 'latest'), { data, updatedAt: 1, bytes: 40, version: 1, extra: 1 }));
+  await assertFails(setDoc(doc(db('u1'), 'users', 'u1', 'backup', 'latest'), { data: 'x'.repeat(1000001), updatedAt: 1, bytes: 1, version: 1 }));
+  await assertSucceeds(setDoc(doc(db('adm'), 'admins', 'adm'), { key: TEST_ADMIN_KEY, claimedAt: 1 }));
+  await assertFails(getDoc(doc(db('adm'), 'users', 'u1', 'backup', 'latest')));
+});
+
+test('admin password: the admin sets a new one; then the one-time key stops working', async () => {
+  const sha = (t) => createHash('sha256').update(t).digest('hex');
+  await assertSucceeds(setDoc(doc(db('adm'), 'admins', 'adm'), { key: TEST_ADMIN_KEY, claimedAt: 1 }));
+  // Nobody else may set the password.
+  await assertFails(setDoc(doc(db('u1'), 'config', 'admin'), { keySha256: sha('mine'), changedAt: 1 }));
+  await assertSucceeds(setDoc(doc(db('adm'), 'config', 'admin'), { keySha256: sha('My own Secret 9!'), changedAt: 1 }));
+  await assertFails(getDoc(doc(db('u1'), 'config', 'admin')));
+  await assertFails(setDoc(doc(db('u2'), 'admins', 'u2'), { key: TEST_ADMIN_KEY, claimedAt: 1 }));
+  await assertFails(setDoc(doc(db('u2'), 'admins', 'u2'), { key: 'my own secret 9!', claimedAt: 1 }));
+  await assertSucceeds(setDoc(doc(db('u2'), 'admins', 'u2'), { key: 'My own Secret 9!', claimedAt: 1 }));
+});

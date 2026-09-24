@@ -29,6 +29,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -53,7 +54,7 @@ import com.khatwa.app.ui.components.VSpace
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
-private const val STEPS = 7
+private const val STEPS = 8
 
 /** Re-runs [onResume] every time the activity comes back (after a system settings screen). */
 @Composable
@@ -87,6 +88,7 @@ fun OnboardingScreen(container: AppContainer) {
                 3 -> GoalsStep(container)
                 4 -> LockPermissionsStep()
                 5 -> BatteryStep()
+                6 -> AccountStep(container)
                 else -> DoneStep()
             }
         }
@@ -112,6 +114,26 @@ fun OnboardingScreen(container: AppContainer) {
                 } else step++
             }
         }
+    }
+}
+
+/**
+ * Optional account at the end of setup (after the permissions): signing in to an account that
+ * already has a saved copy brings the data back at once (a reinstall, a new phone). Skippable.
+ */
+@Composable
+private fun AccountStep(container: AppContainer) {
+    val s = strings
+    val vm = com.khatwa.app.ui.containerViewModel { com.khatwa.app.ui.account.AccountViewModel(it) }
+    val account by vm.account.collectAsStateWithLifecycle()
+    Title(s.accountStepTitle)
+    Body(s.accountStepText)
+    com.khatwa.app.ui.account.AccountMessages(vm, s)
+    val acc = account
+    when {
+        !vm.configured -> Muted(s.groupsNotConfigured)
+        acc != null && !acc.anonymous -> KCard(tone = CardTone.Accent, modifier = Modifier.testTag("onboarding_signed_in")) { Text(s.signedInAs(acc.email ?: "—")) }
+        else -> com.khatwa.app.ui.account.AccountCard(vm, s, fresh = true)
     }
 }
 

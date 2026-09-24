@@ -54,7 +54,7 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = (findProperty("khatwa.versionCode") as String?)?.toInt() ?: 1
-        versionName = (findProperty("khatwa.versionName") as String?) ?: "0.4.0"
+        versionName = (findProperty("khatwa.versionName") as String?) ?: "0.5.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
     }

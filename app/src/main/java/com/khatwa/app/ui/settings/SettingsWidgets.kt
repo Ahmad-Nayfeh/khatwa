@@ -47,9 +47,9 @@ import com.khatwa.app.util.Fmt
 
 /** Scrollable sub-screen with a title row and a back arrow. */
 @Composable
-fun SubScreen(title: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+fun SubScreen(title: String, onBack: () -> Unit, tag: String? = null, content: @Composable ColumnScope.() -> Unit) {
     val s = strings
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp)) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).then(if (tag != null) Modifier.testTag(tag) else Modifier).padding(horizontal = 20.dp, vertical = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = s.back) }
             Text(title, style = MaterialTheme.typography.headlineMedium)
@@ -61,9 +61,9 @@ fun SubScreen(title: String, onBack: () -> Unit, content: @Composable ColumnScop
 }
 
 @Composable
-fun SettingsEntry(title: String, subtitle: String? = null, onClick: () -> Unit) {
+fun SettingsEntry(title: String, subtitle: String? = null, tag: String? = null, onClick: () -> Unit) {
     Surface(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable(onClick = onClick).then(if (tag != null) Modifier.testTag(tag) else Modifier),
         color = MaterialTheme.colorScheme.surface,
         shape = MaterialTheme.shapes.large,
     ) {

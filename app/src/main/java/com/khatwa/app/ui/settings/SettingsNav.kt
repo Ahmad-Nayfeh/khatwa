@@ -42,6 +42,7 @@ fun SettingsNav(container: AppContainer) {
         "quotes" -> QuotesScreen(container, back)
         "backup" -> BackupScreen(container, back)
         "permissions" -> PermissionsScreen(container, back)
+        "account" -> com.khatwa.app.ui.account.AccountScreen(container, back)
         else -> SettingsRoot(container) { screen = it }
     }
 }
@@ -54,6 +55,10 @@ private fun SettingsRoot(container: AppContainer, open: (String) -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).testTag("settings_scroll").padding(horizontal = 20.dp, vertical = 16.dp)) {
         Text(str.settings, style = MaterialTheme.typography.headlineMedium)
         VSpace()
+        val account by container.groups.observeAccount().collectAsStateWithLifecycle(initialValue = container.groups.account)
+        if (container.groups.configured) {
+            SettingsEntry(str.account, account?.takeIf { !it.anonymous }?.email?.let { str.signedInAs(it) } ?: str.accountSignedOut, tag = "settings_account") { open("account") }
+        }
         SettingsEntry(str.goal, str.goalSubtitle) { open("goal") }
         SettingsEntry(str.scheduledLock, str.scheduledLockSubtitle) { open("schedule") }
         SettingsEntry(str.allowlist, str.allowlistSubtitle) { open("allowlist") }
