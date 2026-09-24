@@ -3,6 +3,7 @@
 import { test, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
 import { doc, getDoc, getDocs, collection, setDoc, updateDoc, deleteDoc, writeBatch, increment } from 'firebase/firestore';
 
@@ -10,10 +11,19 @@ const PROJECT = 'khatwa-de941';
 const [host, port] = (process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080').split(':');
 let env;
 
+// The real admin key is never in the repository; tests swap its hash for the hash of this one.
+export const TEST_ADMIN_KEY = 'KHATWATESTADMINKEY22';
+const withTestAdminKey = (rules) => {
+  const hash = createHash('sha256').update(TEST_ADMIN_KEY).digest('hex');
+  const out = rules.replace(/(function adminKeySha256\(\) \{ return ')[0-9a-f]{64}(')/, `$1${hash}$2`);
+  assert.notEqual(out, rules, 'adminKeySha256() not found in firestore.rules');
+  return out;
+};
+
 before(async () => {
   env = await initializeTestEnvironment({
     projectId: PROJECT,
-    firestore: { rules: readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8'), host, port: Number(port) },
+    firestore: { rules: withTestAdminKey(readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8')), host, port: Number(port) },
   });
 });
 after(async () => { await env.cleanup(); });
@@ -190,4 +200,48 @@ test('regenerate invite code: owner only, old lookup removed', async () => {
   await assertSucceeds(regen('u1'));
   await assertFails(join('u3', 'g1', CODE));
   await assertSucceeds(join('u3', 'g1', NEW));
+});
+
+test('admin key: the wrong key, a key for someone else, or a changed claim all fail', async () => {
+  await assertFails(setDoc(doc(db('u1'), 'admins', 'u1'), { key: 'WRONGKEY', claimedAt: 1 }));
+  await assertFails(setDoc(doc(db('u1'), 'admins', 'u2'), { key: TEST_ADMIN_KEY, claimedAt: 1 }));
+  await assertFails(setDoc(doc(db('u1'), 'admins', 'u1'), { key: TEST_ADMIN_KEY, claimedAt: 1, extra: true }));
+  await assertFails(setDoc(doc(anon(), 'admins', 'x'), { key: TEST_ADMIN_KEY, claimedAt: 1 }));
+  await assertSucceeds(setDoc(doc(db('u1'), 'admins', 'u1'), { key: TEST_ADMIN_KEY, claimedAt: 1 }));
+  await assertSucceeds(getDoc(doc(db('u1'), 'admins', 'u1')));
+  await assertFails(getDoc(doc(db('u2'), 'admins', 'u1')));
+  await assertFails(getDocs(collection(db('u2'), 'admins')));
+  // A normal user is still a normal user: no access to others' profiles.
+  await seedUser('u3', 'Other');
+  await assertFails(getDoc(doc(db('u2'), 'users', 'u3')));
+});
+
+test('admin: reads and changes everything, including hidden groups and other users', async () => {
+  await seedUser('u1', 'Owner');
+  await seedUser('u2', 'Member');
+  await createGroup('u1', 'g1', CODE, { hidden: true });
+  await join('u2', 'g1', CODE);
+  await assertSucceeds(setDoc(doc(db('adm'), 'admins', 'adm'), { key: TEST_ADMIN_KEY, claimedAt: 1 }));
+  const a = db('adm');
+  await assertSucceeds(getDocs(collection(a, 'users')));
+  await assertSucceeds(getDocs(collection(a, 'groups')));
+  await assertSucceeds(getDocs(collection(a, 'groups', 'g1', 'members')));
+  await assertSucceeds(getDoc(doc(a, 'groups', 'g1', 'private', 'invite')));
+  await assertSucceeds(getDocs(collection(a, 'users', 'u2', 'memberships')));
+  await assertSucceeds(updateDoc(doc(a, 'groups', 'g1'), { name: 'Renamed by admin', hidden: false }));
+  await assertSucceeds(updateDoc(doc(a, 'users', 'u2'), { nickname: 'Renamed' }));
+  // Remove a member everywhere (their own membership list included), then delete the group.
+  const rm = writeBatch(a);
+  rm.delete(doc(a, 'groups', 'g1', 'members', 'u2'));
+  rm.delete(doc(a, 'users', 'u2', 'memberships', 'g1'));
+  rm.update(doc(a, 'groups', 'g1'), { memberCount: increment(-1) });
+  await assertSucceeds(rm.commit());
+  const del = writeBatch(a);
+  del.delete(doc(a, 'groups', 'g1', 'members', 'u1'));
+  del.delete(doc(a, 'users', 'u1', 'memberships', 'g1'));
+  del.delete(doc(a, 'groups', 'g1', 'private', 'invite'));
+  del.delete(doc(a, 'invites', CODE));
+  del.delete(doc(a, 'groups', 'g1'));
+  del.update(doc(a, 'users', 'u1'), { ownedGroups: increment(-1) });
+  await assertSucceeds(del.commit());
 });

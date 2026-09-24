@@ -11,6 +11,7 @@ rules_version = '2';
 //   groups/{gid}/members/{uid}       { nickname, joinedAt, code? } — members only
 //   groups/{gid}/contrib/{uid}       anonymous numbers (no name) — any signed-in user may read
 //   invites/{code}                   { groupId } — get by exact code only, never listed
+//   admins/{uid}                     { key, claimedAt } — created once with the admin key
 //
 // Everything is client-written (Spark plan, no Cloud Functions), so the rules validate shapes,
 // caps (60 000 steps/day, 5 owned groups, 200 members) and who may touch what.
@@ -32,6 +33,25 @@ service cloud.firestore {
     function validNickname(n) { return n is string && n.size() >= 1 && n.size() <= 24; }
     function validCode(c) { return c is string && c.size() == 8 && c.matches('[A-HJ-NP-Z2-9]{8}'); }
     function changedOnly(keys) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
+
+    // ---- admin -----------------------------------------------------------------------------
+    // Only the SHA-256 of the admin key is here; the key itself is never stored in the code.
+    // Whoever types the key in the app once gets admins/{their uid}, and with it full access.
+    function adminKeySha256() { return '9ec71ea4c16e69692192b3e08c4b95a7c357f6ba748acbc193326bdf37bda804'; }
+    function isAdmin() { return signedIn() && exists(/databases/$(db)/documents/admins/$(uid())); }
+
+    match /admins/{adminId} {
+      allow get: if signedIn() && adminId == uid();
+      allow create: if signedIn() && adminId == uid()
+        && request.resource.data.keys().hasOnly(['key', 'claimedAt'])
+        && request.resource.data.key is string
+        && hashing.sha256(request.resource.data.key).toHexString().lower() == adminKeySha256();
+    }
+
+    // The admin reads and changes everything (groups, members, numbers, profiles, invites).
+    match /{path=**} {
+      allow read, write: if isAdmin();
+    }
 
     // ---- users ---------------------------------------------------------------------------
     match /users/{userId} {

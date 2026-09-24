@@ -25,9 +25,10 @@ import java.net.Socket
  * Phase 7 evidence against the Firebase Emulator Suite (auth + firestore) running on the CI
  * runner (reachable from the Android emulator as 10.0.2.2). Skipped when no emulator is listening.
  *
- * Flow: user A enables groups and creates a group -> the invite code appears; user B (a second
- * anonymous sign-in in the same process) joins with the code, publishes numbers, and the
- * leaderboard ranks both.
+ * Flow: user A creates an email account (keeping an old anonymous uid) and a group -> the invite
+ * code appears; user B (a second email account in the same process) joins with the code, publishes
+ * numbers, and the leaderboard ranks both. A signs in again and gets the group back, then the admin
+ * key opens the admin panel, which removes a member and deletes the group.
  */
 @RunWith(AndroidJUnit4::class)
 class GroupsTest {
@@ -51,19 +52,34 @@ class GroupsTest {
         GroupsRepository.emulatorHost = EMULATOR_HOST
         assumeTrue("google-services placeholder: groups not configured in this build", c.groups.configured)
         runBlocking { c.settings.setGroupsEnabled(false) }
+        // First touch goes through the repository: it points Auth + Firestore at the emulator, so no
+        // call below can ever reach the real project.
+        runBlocking { runCatching { c.groups.ensureSignedIn() } }
+        val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+        auth.signOut()
+        val run = System.currentTimeMillis()
+        val emailA = "ahmad-$run@khatwa.test"
+        val emailB = "sara-$run@khatwa.test"
+        val password = "walk-123456"
         // User A has walked 4 200 steps today (fake sensor), so the board has real numbers.
         addSteps(4_200)
+        // A phone that still has an old anonymous account: creating the email account keeps its uid.
+        val anonUid = runBlocking { auth.signInAnonymously().awaitTask().user!!.uid }
 
-        // --- user A through the UI: enable, create a group, read the invite code.
+        // --- user A through the UI: create the account, create a group, read the invite code.
         TestSupport.launchApp()
         assertNotNull(device.wait(Until.findObject(By.res("home_steps")), 15_000))
         assertTrue(TestSupport.clickRes("tab_groups"))
         val nick = device.wait(Until.findObject(By.res("groups_nickname")), 8_000)
-        assertNotNull("opt-in card missing", nick)
-        TestSupport.screenshot("50-groups-optin")
+        assertNotNull("account card missing", nick)
         nick!!.text = "أحمد"
-        assertTrue(TestSupport.clickRes("groups_enable"))
+        device.findObject(By.res("groups_email")).text = emailA
+        device.findObject(By.res("groups_password")).text = password
+        TestSupport.screenshot("50-groups-account")
+        assertTrue(TestSupport.clickRes("groups_account_submit"))
         assertNotNull("enabled view missing", device.wait(Until.findObject(By.res("groups_create")), 20_000))
+        assertEquals("the old anonymous account keeps its uid", anonUid, c.groups.uid)
+        assertEquals(emailA, auth.currentUser?.email)
         TestSupport.screenshot("51-groups-enabled-empty")
         assertTrue(TestSupport.clickRes("groups_create"))
         val name = device.wait(Until.findObject(By.res("group_name")), 5_000)
@@ -84,11 +100,9 @@ class GroupsTest {
         // User B (same phone in this test) has walked 2 600 more by the time it publishes.
         addSteps(2_600)
 
-        // --- user B: a fresh anonymous identity in the same process joins with the code.
-        com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
+        // --- user B: a second email account in the same process joins with the code.
         runBlocking {
-            c.settings.setGroupsNickname("سارة")
-            c.groups.ensureProfile("سارة")
+            c.groups.signUp(emailB, password, "سارة")
             assertTrue(c.groups.uid != uidA)
             val joined = c.groups.joinByCode(code)
             assertEquals(gid, joined)
@@ -107,6 +121,7 @@ class GroupsTest {
             assertTrue(runCatching { c.groups.joinByCode("ZZZZ9999") }.isFailure)
             assertTrue(runCatching { c.groups.joinByCode(code) }.isFailure)
         }
+        val uidB = c.groups.uid!!
 
         // --- the UI as B: two members on the board.
         TestSupport.launchApp()
@@ -136,12 +151,45 @@ class GroupsTest {
         Thread.sleep(800)
         TestSupport.screenshot("55-groups-public")
 
-        // B leaves; A cannot leave (owner) but can delete.
-        runBlocking {
-            c.groups.leave(gid)
-            assertEquals(0, c.groups.observeMyGroups().first().size)
-        }
+        // --- A signs in again (what happens after a reinstall or on a new phone): the group is back.
+        runBlocking { c.groups.signOut(); c.settings.setGroupsEnabled(false); c.settings.setGroupsNickname("") }
+        TestSupport.launchApp()
+        assertTrue(TestSupport.clickRes("tab_groups"))
+        assertTrue("switch to sign-in missing", TestSupport.clickRes("groups_account_switch", 8_000))
+        device.wait(Until.findObject(By.res("groups_email")), 5_000)!!.text = emailA
+        device.findObject(By.res("groups_password")).text = password
+        assertTrue(TestSupport.clickRes("groups_account_submit"))
+        assertNotNull("the group did not come back after signing in", device.wait(Until.findObject(By.res("group_card_$gid")), 20_000))
+        assertEquals(uidA, c.groups.uid)
+        assertEquals("nickname restored from the account", "أحمد", runBlocking { c.settings.current().groupsNickname })
+        TestSupport.screenshot("56-groups-signed-in-again")
+
+        // --- admin: the key (test key; the real one is never in the repository) opens the panel.
+        repeat(3) { TestSupport.scrollForward("groups_scroll"); Thread.sleep(300) }
+        assertTrue("admin key entry missing", TestSupport.clickRes("admin_key_open", 8_000))
+        device.wait(Until.findObject(By.res("admin_key")), 5_000)!!.text = "khat-wate-stad-mink-ey22" // case and dashes do not matter
+        assertTrue(TestSupport.clickRes("admin_key_confirm"))
+        assertTrue("admin access not granted", runBlocking { kotlinx.coroutines.withTimeoutOrNull(15_000) { c.groups.observeIsAdmin().first { it } } } == true)
+        repeat(3) { TestSupport.scrollBackward("groups_scroll"); Thread.sleep(300) }
+        assertTrue("admin panel button missing", TestSupport.clickRes("admin_open", 15_000))
+        assertNotNull("admin list misses the group", device.wait(Until.findObject(By.res("admin_group_$gid")), 15_000))
+        TestSupport.screenshot("57-admin-groups")
+        assertTrue(TestSupport.clickRes("admin_group_$gid"))
+        assertNotNull(TestSupport.findRes("admin_member_$uidB", 15_000))
+        TestSupport.screenshot("58-admin-group")
+        // Remove B, then delete the whole group.
+        assertTrue(TestSupport.clickRes("admin_remove_$uidB"))
+        assertTrue(TestSupport.clickRes("admin_confirm"))
+        assertTrue("member not removed", device.wait(Until.gone(By.res("admin_member_$uidB")), 15_000))
+        assertTrue(TestSupport.clickRes("admin_delete_group"))
+        assertTrue(TestSupport.clickRes("admin_confirm"))
+        assertTrue("group not deleted", device.wait(Until.gone(By.res("admin_group_detail")), 15_000))
+        assertTrue("group still listed", device.wait(Until.gone(By.res("admin_group_$gid")), 15_000))
+        assertEquals(0, runBlocking { c.groups.groupIdsOf(uidB).size })
+        TestSupport.evidence("admin removed a member and deleted the group")
+
         runBlocking { c.settings.setGroupsEnabled(false) }
+        c.groups.signOut()
         GroupsRepository.emulatorHost = null
     }
 
@@ -156,5 +204,12 @@ class GroupsTest {
 
     companion object {
         const val EMULATOR_HOST = "10.0.2.2"
+    }
+}
+
+private suspend fun <T> com.google.android.gms.tasks.Task<T>.awaitTask(): T = kotlinx.coroutines.suspendCancellableCoroutine { cont ->
+    addOnCompleteListener { t ->
+        val e = t.exception
+        if (e != null) cont.resumeWith(Result.failure(e)) else cont.resumeWith(Result.success(t.result))
     }
 }

@@ -46,8 +46,20 @@ data class Group(
 
 data class Member(val uid: String, val nickname: String, val joinedAt: Long)
 
+/** The signed-in account. [anonymous] accounts are from before email accounts existed. */
+data class Account(val uid: String, val email: String?, val anonymous: Boolean)
+
+/** A profile as the admin sees it. */
+data class UserProfile(val uid: String, val nickname: String, val ownedGroups: Int, val createdAt: Long)
+
 class GroupsException(val kind: Kind, cause: Throwable? = null) : Exception(kind.name, cause) {
-    enum class Kind { NOT_CONFIGURED, OFFLINE, NOT_SIGNED_IN, INVALID_CODE, UNKNOWN_CODE, ALREADY_MEMBER, GROUP_FULL, TOO_MANY_GROUPS, OWNER_CANNOT_LEAVE, DENIED, UNKNOWN }
+    enum class Kind {
+        NOT_CONFIGURED, OFFLINE, NOT_SIGNED_IN, INVALID_CODE, UNKNOWN_CODE, ALREADY_MEMBER, GROUP_FULL, TOO_MANY_GROUPS, OWNER_CANNOT_LEAVE, DENIED, UNKNOWN,
+        // account
+        EMAIL_IN_USE, INVALID_EMAIL, WEAK_PASSWORD, WRONG_CREDENTIALS, SIGN_IN_DISABLED, TOO_MANY_ATTEMPTS,
+        // admin
+        WRONG_ADMIN_KEY, REMOVE_OWNER_FIRST,
+    }
 }
 
 /**
@@ -93,15 +105,68 @@ class GroupsRepository(private val context: Context, private val settings: Setti
 
     // ---- identity --------------------------------------------------------------------------
 
+    /** The current account, updated on sign-in and sign-out. */
+    fun observeAccount(): Flow<Account?> = if (!configured) flowOf(null) else callbackFlow {
+        db // points auth at the emulator first when one is set
+        val listener = FirebaseAuth.AuthStateListener { a -> trySend(a.currentUser?.let { Account(it.uid, it.email, it.isAnonymous) }) }
+        auth.addAuthStateListener(listener)
+        awaitClose { auth.removeAuthStateListener(listener) }
+    }
+
+    val account: Account? get() = if (!configured) null else { db; auth.currentUser?.let { Account(it.uid, it.email, it.isAnonymous) } }
+
+    /** The signed-in uid. Groups need an account; there is no automatic anonymous sign-in any more. */
     suspend fun ensureSignedIn(): String {
         if (!configured) throw GroupsException(GroupsException.Kind.NOT_CONFIGURED)
         db // initialise first: points auth + firestore at the emulator when one is set, installs App Check
-        auth.currentUser?.uid?.let { return it }
-        val result = wrap { auth.signInAnonymously().await() }
-        val id = result.user?.uid ?: throw GroupsException(GroupsException.Kind.NOT_SIGNED_IN)
-        settings.setGroupsUid(id)
-        Log.i(TAG, "signed in anonymously")
-        return id
+        return auth.currentUser?.uid ?: throw GroupsException(GroupsException.Kind.NOT_SIGNED_IN)
+    }
+
+    /**
+     * Creates an email account. On a phone that still has an old anonymous account, the email is
+     * added to that same account, so its groups are kept.
+     */
+    suspend fun signUp(email: String, password: String, nickname: String) {
+        if (!configured) throw GroupsException(GroupsException.Kind.NOT_CONFIGURED)
+        db
+        val credential = com.google.firebase.auth.EmailAuthProvider.getCredential(email.trim(), password)
+        val current = auth.currentUser
+        val user = if (current != null && current.isAnonymous) {
+            wrap { current.linkWithCredential(credential).await() }.user
+        } else {
+            if (current != null) auth.signOut()
+            wrap { auth.createUserWithEmailAndPassword(email.trim(), password).await() }.user
+        } ?: throw GroupsException(GroupsException.Kind.NOT_SIGNED_IN)
+        settings.setGroupsUid(user.uid)
+        settings.setGroupsNickname(nickname)
+        ensureProfile(nickname)
+        Log.i(TAG, "account created")
+    }
+
+    /** Signs in to an existing account and restores its nickname (after a reinstall, on a new phone). */
+    suspend fun signIn(email: String, password: String) {
+        if (!configured) throw GroupsException(GroupsException.Kind.NOT_CONFIGURED)
+        db
+        if (auth.currentUser != null) auth.signOut()
+        val user = wrap { auth.signInWithEmailAndPassword(email.trim(), password).await() }.user
+            ?: throw GroupsException(GroupsException.Kind.NOT_SIGNED_IN)
+        settings.setGroupsUid(user.uid)
+        val nickname = wrap { db.document("users/${user.uid}").get().await() }.getString("nickname")
+        if (nickname != null) settings.setGroupsNickname(nickname)
+        else ensureProfile(settings.current().groupsNickname.ifBlank { user.email?.substringBefore('@')?.take(24) ?: "khatwa" })
+        Log.i(TAG, "signed in")
+    }
+
+    suspend fun sendPasswordReset(email: String) {
+        if (!configured) throw GroupsException(GroupsException.Kind.NOT_CONFIGURED)
+        db
+        wrap { auth.sendPasswordResetEmail(email.trim()).await() }
+    }
+
+    fun signOut() {
+        if (!configured) return
+        db
+        auth.signOut()
     }
 
     /** Creates the private profile on first use, or updates the nickname everywhere it appears. */
@@ -233,6 +298,122 @@ class GroupsRepository(private val context: Context, private val settings: Setti
         wrap { db.document("groups/$gid").update("hidden", hidden).await() }
     }
 
+    // ---- admin: admins/{uid} (created once with the admin key) gets full access in the rules ----
+
+    fun observeIsAdmin(): Flow<Boolean> = observeAccount().flatMapLatest { acc ->
+        if (acc == null) flowOf(false) else callbackFlow {
+            val reg = db.document("admins/${acc.uid}").addSnapshotListener { snap, _ -> trySend(snap?.exists() == true) }
+            awaitClose { reg.remove() }
+        }
+    }
+
+    /** The key is checked by the rules against its SHA-256; a wrong key is simply refused. */
+    suspend fun claimAdmin(key: String) {
+        val me = ensureSignedIn()
+        val normalized = normalizeAdminKey(key)
+        try {
+            db.document("admins/$me").set(mapOf("key" to normalized, "claimedAt" to now())).await()
+        } catch (e: Exception) {
+            val kind = kindOf(e)
+            throw GroupsException(if (kind == GroupsException.Kind.DENIED) GroupsException.Kind.WRONG_ADMIN_KEY else kind, e)
+        }
+        Log.i(TAG, "admin access granted")
+    }
+
+    fun observeAllGroups(): Flow<List<Group>> = flow {
+        ensureSignedIn()
+        emitAll(snapshots(db.collection("groups").limit(1000)).flatMapLatest { qs ->
+            flowOf(qs.documents.mapNotNull { parseGroup(it) }.sortedBy { it.name.lowercase() })
+        })
+    }
+
+    fun observeUsers(): Flow<List<UserProfile>> = flow {
+        ensureSignedIn()
+        emitAll(snapshots(db.collection("users").limit(2000)).flatMapLatest { qs ->
+            flowOf(qs.documents.map {
+                UserProfile(it.id, it.getString("nickname") ?: "?", (it.getLong("ownedGroups") ?: 0L).toInt(), it.getLong("createdAt") ?: 0L)
+            }.sortedBy { it.nickname.lowercase() })
+        })
+    }
+
+    suspend fun groupIdsOf(user: String): List<String> =
+        wrap { db.collection("users/$user/memberships").get().await() }.documents.map { it.id }
+
+    suspend fun adminUpdateGroup(gid: String, name: String, description: String, hidden: Boolean) {
+        ensureSignedIn()
+        wrap { db.document("groups/$gid").update(mapOf("name" to name.trim().take(40), "description" to description.trim().take(120), "hidden" to hidden)).await() }
+    }
+
+    /** Removes a member everywhere, their own list of groups included. The owner must be changed first. */
+    suspend fun adminRemoveMember(gid: String, member: String) {
+        ensureSignedIn()
+        val group = wrap { db.document("groups/$gid").get().await() }
+        if (group.getString("ownerUid") == member) throw GroupsException(GroupsException.Kind.REMOVE_OWNER_FIRST)
+        val isMember = wrap { db.document("groups/$gid/members/$member").get().await() }.exists()
+        val b = db.batch()
+        b.delete(db.document("groups/$gid/members/$member"))
+        b.delete(db.document("groups/$gid/contrib/$member"))
+        b.delete(db.document("users/$member/memberships/$gid"))
+        if (isMember && group.exists()) b.update(db.document("groups/$gid"), "memberCount", FieldValue.increment(-1))
+        wrap { b.commit().await() }
+    }
+
+    suspend fun adminMakeOwner(gid: String, newOwner: String) {
+        ensureSignedIn()
+        val old = wrap { db.document("groups/$gid").get().await() }.getString("ownerUid")
+        if (old == newOwner) return
+        val b = db.batch()
+        b.update(db.document("groups/$gid"), "ownerUid", newOwner)
+        if (old != null && profileExists(old)) b.update(db.document("users/$old"), "ownedGroups", FieldValue.increment(-1))
+        if (profileExists(newOwner)) b.update(db.document("users/$newOwner"), "ownedGroups", FieldValue.increment(1))
+        wrap { b.commit().await() }
+    }
+
+    /** Deletes a group with everything in it, in batches (a group can have up to 200 members). */
+    suspend fun adminDeleteGroup(gid: String) {
+        ensureSignedIn()
+        val group = wrap { db.document("groups/$gid").get().await() }
+        val members = wrap { db.collection("groups/$gid/members").get().await() }.documents.map { it.id }
+        val contrib = wrap { db.collection("groups/$gid/contrib").get().await() }.documents.map { it.id }
+        val code = wrap { db.document("groups/$gid/private/invite").get().await() }.getString("code")
+        val ops = members.flatMap { m -> listOf("groups/$gid/members/$m", "users/$m/memberships/$gid") } +
+            contrib.map { "groups/$gid/contrib/$it" }
+        ops.chunked(400).forEach { chunk ->
+            val b = db.batch()
+            chunk.forEach { b.delete(db.document(it)) }
+            wrap { b.commit().await() }
+        }
+        val owner = group.getString("ownerUid")
+        val b = db.batch()
+        b.delete(db.document("groups/$gid/private/invite"))
+        if (code != null) b.delete(db.document("invites/$code"))
+        b.delete(db.document("groups/$gid"))
+        if (group.exists() && owner != null && profileExists(owner)) b.update(db.document("users/$owner"), "ownedGroups", FieldValue.increment(-1))
+        wrap { b.commit().await() }
+        Log.i(TAG, "admin deleted group $gid")
+    }
+
+    suspend fun adminRenameUser(user: String, nickname: String) {
+        ensureSignedIn()
+        val name = nickname.trim().take(24)
+        if (name.isEmpty()) return
+        wrap { db.document("users/$user").update("nickname", name).await() }
+        for (gid in groupIdsOf(user)) runCatching { db.document("groups/$gid/members/$user").update("nickname", name).await() }
+    }
+
+    /** Takes a user out of every group (deleting the groups they own) and deletes their profile. */
+    suspend fun adminDeleteUserData(user: String) {
+        ensureSignedIn()
+        for (gid in groupIdsOf(user)) {
+            val owner = wrap { db.document("groups/$gid").get().await() }.getString("ownerUid")
+            if (owner == user) adminDeleteGroup(gid) else adminRemoveMember(gid, user)
+        }
+        wrap { db.document("users/$user").delete().await() }
+        Log.i(TAG, "admin deleted user data")
+    }
+
+    private suspend fun profileExists(user: String): Boolean = wrap { db.document("users/$user").get().await() }.exists()
+
     // ---- observation -----------------------------------------------------------------------
 
     fun observeMyGroups(): Flow<List<Group>> = flow {
@@ -363,12 +544,25 @@ class GroupsRepository(private val context: Context, private val settings: Setti
         e is com.google.firebase.firestore.FirebaseFirestoreException && e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED -> GroupsException.Kind.DENIED
         e is com.google.firebase.firestore.FirebaseFirestoreException && e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAVAILABLE -> GroupsException.Kind.OFFLINE
         e is com.google.firebase.FirebaseNetworkException -> GroupsException.Kind.OFFLINE
+        e is com.google.firebase.FirebaseTooManyRequestsException -> GroupsException.Kind.TOO_MANY_ATTEMPTS
+        e is com.google.firebase.auth.FirebaseAuthException -> when (e.errorCode) {
+            "ERROR_EMAIL_ALREADY_IN_USE", "ERROR_CREDENTIAL_ALREADY_IN_USE", "ERROR_PROVIDER_ALREADY_LINKED" -> GroupsException.Kind.EMAIL_IN_USE
+            "ERROR_INVALID_EMAIL" -> GroupsException.Kind.INVALID_EMAIL
+            "ERROR_WEAK_PASSWORD" -> GroupsException.Kind.WEAK_PASSWORD
+            "ERROR_WRONG_PASSWORD", "ERROR_USER_NOT_FOUND", "ERROR_INVALID_CREDENTIAL", "ERROR_INVALID_LOGIN_CREDENTIALS", "ERROR_USER_DISABLED" -> GroupsException.Kind.WRONG_CREDENTIALS
+            "ERROR_OPERATION_NOT_ALLOWED" -> GroupsException.Kind.SIGN_IN_DISABLED
+            "ERROR_TOO_MANY_REQUESTS" -> GroupsException.Kind.TOO_MANY_ATTEMPTS
+            else -> GroupsException.Kind.UNKNOWN
+        }
         else -> GroupsException.Kind.UNKNOWN
     }
 
     companion object {
         private const val TAG = "Groups"
         const val PLACEHOLDER_PROJECT = "khatwa-placeholder"
+
+        /** Upper-case letters and digits only: dashes, spaces and case do not matter when typing. */
+        fun normalizeAdminKey(key: String): String = key.uppercase().filter { it in 'A'..'Z' || it in '0'..'9' }
 
         /** Set before first use to talk to the Firebase Emulator Suite (tests / CI). */
         @Volatile var emulatorHost: String? = null

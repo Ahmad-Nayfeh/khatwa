@@ -416,6 +416,50 @@ interface Strings {
     val errorUnknown: String
     val groupsLimitation: String
     val hiddenBadge: String
+
+    // Groups account + admin
+    val accountIntro: String
+    val createAccount: String
+    val signIn: String
+    val email: String
+    val password: String
+    val passwordHint: String
+    val forgotPassword: String
+    val resetSent: String
+    val haveAccount: String
+    val noAccount: String
+    fun signedInAs(email: String): String
+    val signOut: String
+    val signOutHint: String
+    val turnOnGroups: String
+    val saveAccountTitle: String
+    val saveAccountText: String
+    val errorEmailInUse: String
+    val errorInvalidEmail: String
+    val errorWeakPassword: String
+    val errorWrongCredentials: String
+    val errorSignInDisabled: String
+    val errorTooManyAttempts: String
+    val errorNotSignedIn: String
+    val errorWrongAdminKey: String
+    val errorRemoveOwnerFirst: String
+    val adminKey: String
+    val adminKeyHint: String
+    val adminGranted: String
+    val adminPanel: String
+    fun adminGroups(n: String): String
+    fun adminUsers(n: String): String
+    fun adminOwns(n: String): String
+    val adminTheirGroups: String
+    val adminMakeOwner: String
+    val adminRename: String
+    val adminDeleteUser: String
+    val adminDeleteUserQuestion: String
+    val adminEditGroup: String
+    val adminShowInPublic: String
+    fun adminWeekSteps(n: String): String
+    val adminNoData: String
+    val confirm: String
 }
 
 object I18n {

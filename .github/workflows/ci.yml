@@ -119,6 +119,11 @@ jobs:
           (cd .. && ./gradlew --stop) || true
           pkill -f KotlinCompileDaemon || true
           export JAVA_TOOL_OPTIONS="-Xmx512m -XX:ActiveProcessorCount=1 -XX:+UseSerialGC"
+          # The real admin key is never in the repository: in this throwaway copy of the rules the
+          # admin hash is the one of the test key the groups test types (GroupsTest.TEST_ADMIN_KEY).
+          TEST_HASH=$(printf '%s' 'KHATWATESTADMINKEY22' | sha256sum | cut -d' ' -f1)
+          sed -i -E "s/(function adminKeySha256\(\) \{ return ')[0-9a-f]{64}(')/\1${TEST_HASH}\2/" firestore.rules
+          grep -q "$TEST_HASH" firestore.rules || { echo "admin hash not replaced"; exit 1; }
           nice -n 10 npx --yes firebase-tools@15 emulators:start --only auth,firestore --project khatwa-de941 > ../ci/firebase-emulator.log 2>&1 &
           free -m
           for i in $(seq 1 60); do
