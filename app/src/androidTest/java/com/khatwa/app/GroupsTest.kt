@@ -51,6 +51,8 @@ class GroupsTest {
         GroupsRepository.emulatorHost = EMULATOR_HOST
         assumeTrue("google-services placeholder: groups not configured in this build", c.groups.configured)
         runBlocking { c.settings.setGroupsEnabled(false) }
+        // User A has walked 4 200 steps today (fake sensor), so the board has real numbers.
+        addSteps(4_200)
 
         // --- user A through the UI: enable, create a group, read the invite code.
         TestSupport.launchApp()
@@ -78,6 +80,9 @@ class GroupsTest {
         TestSupport.screenshot("52-group-detail-owner")
         val gid = runBlocking { c.groups.observeMyGroups().first().single().id }
         val uidA = c.groups.uid!!
+        runBlocking { c.groups.publish(GroupsSync.localStats(c), c.tracker.today.value.date) }
+        // User B (same phone in this test) has walked 2 600 more by the time it publishes.
+        addSteps(2_600)
 
         // --- user B: a fresh anonymous identity in the same process joins with the code.
         com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
@@ -95,6 +100,9 @@ class GroupsTest {
             assertEquals(2, members.size)
             val ranked = Ranking.rankMembers(stats, Period.TODAY, MemberSort.STEPS, true, c.tracker.today.value.date)
             TestSupport.evidence("leaderboard: ${ranked.joinToString { "${it.uid.take(6)}=${it.steps}" }}")
+            assertEquals("B walked more and should lead", c.groups.uid, ranked[0].uid)
+            assertEquals(uidA, ranked[1].uid)
+            assertTrue("B should have 2 600 more steps than A", ranked[0].steps - ranked[1].steps == 2_600L)
             // A wrong code and a second join are rejected.
             assertTrue(runCatching { c.groups.joinByCode("ZZZZ9999") }.isFailure)
             assertTrue(runCatching { c.groups.joinByCode(code) }.isFailure)
@@ -123,6 +131,15 @@ class GroupsTest {
         }
         runBlocking { c.settings.setGroupsEnabled(false) }
         GroupsRepository.emulatorHost = null
+    }
+
+    private fun addSteps(n: Long) {
+        val before = c.tracker.today.value.steps
+        TestSupport.fake().add(n)
+        val end = System.currentTimeMillis() + 15_000
+        while (System.currentTimeMillis() < end && c.tracker.today.value.steps < before + n) Thread.sleep(200)
+        assertTrue("fake steps not counted", c.tracker.today.value.steps >= before + n)
+        runBlocking { c.tracker.flush() }
     }
 
     companion object {
