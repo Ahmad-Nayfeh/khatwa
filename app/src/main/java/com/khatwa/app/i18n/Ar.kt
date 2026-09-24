@@ -57,7 +57,7 @@ object Ar : Strings {
     override val unlockedText = "أكملت الخطوات المطلوبة وفُتح القفل."
     override fun restoreSummary(days: Int, sessions: Int, weights: Int, quotes: Int) =
         "تمت الاستعادة: $days يوم، $sessions جلسة، $weights وزن، $quotes حكمة."
-    override val defaultEmergencyPhrase = "أختار الاستسلام اليوم وأعلم أن هذا يسجل"
+    override val defaultEmergencyPhrase = "أختار الاستسلام اليوم بدلا من المشي، وأعلم أن هذا يسجل علي، وأعد نفسي أن أحاول من جديد غدا"
 
     override val vsLastWeek = "مقارنة بالأسبوع الماضي"
     override val countingStoppedNoPermission = "العدّ متوقف: صلاحية النشاط البدني غير ممنوحة"

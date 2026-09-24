@@ -80,12 +80,18 @@ data class Settings(
      * long sentence of the current app language (Arabic or English).
      */
     val effectiveEmergencyPhrase: String
-        get() = if (emergencyPhrase == DEFAULT_EMERGENCY_PHRASE || emergencyPhrase.isBlank()) {
+        get() = if (emergencyPhrase == DEFAULT_EMERGENCY_PHRASE || emergencyPhrase in OLD_DEFAULT_PHRASES || emergencyPhrase.isBlank()) {
             com.khatwa.app.i18n.I18n.of(language).defaultEmergencyPhrase
         } else emergencyPhrase
 
     companion object {
-        const val DEFAULT_EMERGENCY_PHRASE = "أختار الاستسلام اليوم وأعلم أن هذا يسجل"
+        const val DEFAULT_EMERGENCY_PHRASE = "أختار الاستسلام اليوم بدلا من المشي، وأعلم أن هذا يسجل علي، وأعد نفسي أن أحاول من جديد غدا"
+        /** Earlier, shorter defaults (e.g. from an old backup): replaced by the current one. */
+        val OLD_DEFAULT_PHRASES = setOf(
+            "أختار الاستسلام اليوم وأعلم أن هذا يسجل",
+            "أختار الاستسلام اليوم وأعلم أن هذا يُسجَّل",
+            "I choose to give up today and I know this is recorded",
+        )
     }
 }
 

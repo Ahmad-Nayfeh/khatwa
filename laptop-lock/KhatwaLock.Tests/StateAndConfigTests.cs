@@ -102,11 +102,21 @@ public class StateAndConfigTests : IDisposable
         Assert.True(LockDecision.PhraseMatches(withTashkeel, "أختار الاستسلام اليوم وأعلم أن هذا يسجل"));
         Assert.True(LockDecision.PhraseMatches(withTashkeel, "اختار الاستسلام اليوم واعلم ان هذا يسجل"));
         Assert.True(LockDecision.PhraseMatches(withTashkeel, "\u200Fاختار الاستسلام اليوم، واعلم ان هذا يـسـجـل."));
-        Assert.True(LockDecision.PhraseMatches(LockConfig.DefaultEmergencyPhraseAr, withTashkeel));
         Assert.False(LockDecision.PhraseMatches(withTashkeel, "اختار الاستسلام اليوم"));
         Assert.False(LockDecision.PhraseMatches(withTashkeel, "اختار الاستسلام اليوم واعلم ان هذا لا يسجل"));
         Assert.False(LockDecision.PhraseMatches("", ""));
-        Assert.True(LockDecision.PhraseMatches(LockConfig.DefaultEmergencyPhraseEn, "i choose to give up today, and I know this is recorded."));
+    }
+
+    [Fact]
+    public void TheLongDefaultPhraseIsAcceptedHoweverItIsTyped()
+    {
+        // No hamza, no commas, and "على" for "علي": all accepted.
+        Assert.True(LockDecision.PhraseMatches(LockConfig.DefaultEmergencyPhraseAr,
+            "اختار الاستسلام اليوم بدلا من المشي واعلم ان هذا يسجل على واعد نفسي ان احاول من جديد غدا"));
+        Assert.False(LockDecision.PhraseMatches(LockConfig.DefaultEmergencyPhraseAr, "اختار الاستسلام اليوم بدلا من المشي"));
+        Assert.True(LockDecision.PhraseMatches(LockConfig.DefaultEmergencyPhraseEn,
+            "i choose to give up today instead of walking i know this is recorded and i promise myself to try again tomorrow"));
+        Assert.True(LockConfig.DefaultEmergencyPhraseAr.Split(' ').Length >= 15);
     }
 
     [Fact]
@@ -115,6 +125,18 @@ public class StateAndConfigTests : IDisposable
         var path = Path.Combine(_dir, "config.json");
         File.WriteAllText(path, "{ \"secret\": \"12345678\", \"emergencyPhraseAr\": \"أختار الاستسلام اليوم وأعلم أن هذا يُسجَّل\" }");
         Assert.Equal(LockConfig.DefaultEmergencyPhraseAr, LockConfig.Load(path).EmergencyPhraseAr);
+    }
+
+    [Fact]
+    public void TheShortDefaultsAreReplacedButACustomPhraseIsKept()
+    {
+        var path = Path.Combine(_dir, "config.json");
+        File.WriteAllText(path, "{ \"emergencyPhraseAr\": \"أختار الاستسلام اليوم وأعلم أن هذا يسجل\", \"emergencyPhraseEn\": \"I choose to give up today and I know this is recorded\" }");
+        var cfg = LockConfig.Load(path);
+        Assert.Equal(LockConfig.DefaultEmergencyPhraseAr, cfg.EmergencyPhraseAr);
+        Assert.Equal(LockConfig.DefaultEmergencyPhraseEn, cfg.EmergencyPhraseEn);
+        File.WriteAllText(path, "{ \"emergencyPhraseAr\": \"جملتي الخاصة الطويلة\" }");
+        Assert.Equal("جملتي الخاصة الطويلة", LockConfig.Load(path).EmergencyPhraseAr);
     }
 
     [Fact]
