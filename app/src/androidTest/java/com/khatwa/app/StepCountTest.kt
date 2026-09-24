@@ -35,8 +35,12 @@ class StepCountTest {
         assertNotNull("home did not update to ${fmt(before + 1234)}", shown)
         TestSupport.screenshot("02-home-after-1234-steps")
 
-        // The database has the open day with the same count.
-        val day = runBlocking { TestSupport.container.db.days().openDay() }
+        // The database has the open day with the same count. Persistence is throttled, so flush
+        // first (a CI run that crossed midnight read the fresh day's row before the write was due).
+        val day = runBlocking {
+            TestSupport.container.tracker.flush()
+            TestSupport.container.db.days().openDay()
+        }
         assertNotNull(day)
         assertEquals(before + 1234, day!!.steps)
         TestSupport.evidence("steps today=${day.steps} goal=${day.goal} date=${day.date}")
