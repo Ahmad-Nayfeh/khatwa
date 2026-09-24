@@ -13,6 +13,7 @@ import com.khatwa.core.stats.DayStat
 import com.khatwa.core.stats.MonthSummary
 import com.khatwa.core.stats.Snapshot
 import com.khatwa.core.stats.Stats
+import com.khatwa.core.stats.Streaks
 import com.khatwa.core.time.Days
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -26,8 +27,14 @@ import java.time.ZoneId
 
 data class SessionStats(val countThisWeek: Int, val longestMs: Long, val averageMs: Long, val countThisMonth: Int)
 
+/** One day as shown in the day slider: steps, goal and the walking sessions recorded that day. */
+data class DayCard(val stat: DayStat, val sessions: Int, val longestSessionMs: Long, val isToday: Boolean)
+
 data class StatsUiState(
     val loaded: Boolean = false,
+    /** Oldest first, ending with today. */
+    val days: List<DayCard> = emptyList(),
+    val streaks: Streaks = Streaks(0, 0),
     val last30: List<DayStat> = emptyList(),
     val month: MonthSummary = MonthSummary(0, null, 0, 0),
     val sessions: SessionStats = SessionStats(0, 0, 0, 0),
@@ -43,7 +50,7 @@ class StatsViewModel(private val c: AppContainer) : ViewModel() {
     private val zone: ZoneId get() = ZoneId.systemDefault()
 
     private val sessions = c.tracker.today.map { it.date }.flatMapLatest { today ->
-        c.db.sessions().observeBetween(Days.startOfDayMs(today.minusDays(60), zone), Days.startOfDayMs(today.plusDays(1), zone))
+        c.db.sessions().observeBetween(Days.startOfDayMs(today.minusDays(SLIDER_DAYS.toLong()), zone), Days.startOfDayMs(today.plusDays(1), zone))
     }
     private val snapshots = c.tracker.today.map { it.date }.flatMapLatest { today ->
         c.db.snapshots().observeBetween(Days.startOfDayMs(today.minusDays(30), zone), Days.startOfDayMs(today.plusDays(1), zone))
@@ -81,6 +88,19 @@ class StatsViewModel(private val c: AppContainer) : ViewModel() {
             val d = today.date.minusDays(back.toLong())
             DayStat(d, stepsByDate[d] ?: 0L, goalByDate[d] ?: today.goal)
         }
+        val sessionsByDate = sessions.groupBy { it.date }
+        val days = (SLIDER_DAYS - 1 downTo 0).map { back ->
+            val d = today.date.minusDays(back.toLong())
+            val daySessions = sessionsByDate[d.toString()].orEmpty()
+            DayCard(
+                stat = DayStat(d, stepsByDate[d] ?: 0L, goalByDate[d] ?: today.goal),
+                sessions = daySessions.size,
+                longestSessionMs = daySessions.maxOfOrNull { it.endMs - it.startMs } ?: 0L,
+                isToday = d == today.date,
+            )
+        }
+        val statsByDate = stepsByDate.keys.associateWith { d -> DayStat(d, stepsByDate[d] ?: 0L, goalByDate[d] ?: today.goal) }
+        val streaks = Stats.streaks(statsByDate, today.date)
         val recorded30 = last30.filter { stepsByDate.containsKey(it.date) }
         val month = Stats.monthSummary(recorded30)
 
@@ -103,6 +123,8 @@ class StatsViewModel(private val c: AppContainer) : ViewModel() {
 
         return StatsUiState(
             loaded = true,
+            days = days,
+            streaks = streaks,
             last30 = last30,
             month = month,
             sessions = sessionStats,
@@ -113,5 +135,10 @@ class StatsViewModel(private val c: AppContainer) : ViewModel() {
             surrendersThisMonth = surrenders.size,
             goal = today.goal,
         )
+    }
+
+    companion object {
+        /** Days available in the day slider (today included). */
+        const val SLIDER_DAYS = 90
     }
 }

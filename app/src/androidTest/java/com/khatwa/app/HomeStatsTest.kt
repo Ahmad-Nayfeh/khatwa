@@ -73,13 +73,32 @@ class HomeStatsTest {
         assertNotNull("quote card missing after $scrolls scrolls (quotes in db: $quotesInDb)", quote)
         TestSupport.screenshot("10-home-with-session")
 
-        // Stats tab
+        // Stats tab: the day slider opens on today, showing today's steps.
         device.findObject(By.res("tab_stats"))?.click()
-        device.wait(Until.hasObject(By.textContains("آخر 30 يوماً")), 5_000)
+        val focused = device.wait(Until.findObject(By.res("stats_day_steps")), 8_000)
+        if (focused == null) TestSupport.dump("missing-stats_day_steps")
+        assertNotNull("day slider not shown", focused)
         runBlocking { c.tracker.snapshot() }
         Thread.sleep(800)
         TestSupport.screenshot("11-stats")
-        assertTrue(device.hasObject(By.textContains("جلسات المشي")))
+        val todaySteps = focused!!.text
+        TestSupport.evidence("day slider focused on today: $todaySteps steps")
+        assertEquals(com.khatwa.app.util.Fmt.n(c.tracker.today.value.steps), todaySteps)
+
+        // Swipe to the previous day: the focused card changes and shows that day's steps (0 here).
+        val pager = device.findObject(By.res("stats_day_pager"))
+        assertNotNull("pager missing", pager)
+        // RTL layout: the previous day sits on the left, so swipe right brings it to the centre.
+        pager!!.swipe(androidx.test.uiautomator.Direction.RIGHT, 0.6f)
+        Thread.sleep(1_200)
+        val previous = device.wait(Until.findObject(By.res("stats_day_steps")), 5_000)
+        assertNotNull("focused day missing after swipe", previous)
+        TestSupport.evidence("day slider after swipe: ${previous!!.text} steps")
+        TestSupport.screenshot("11b-stats-day-slider")
+
+        TestSupport.scrollForward("stats_scroll")
+        assertNotNull(device.wait(Until.findObject(By.textContains("جلسات المشي")), 5_000))
+        TestSupport.screenshot("11c-stats-charts")
     }
 
     @Test

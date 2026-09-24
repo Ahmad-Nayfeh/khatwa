@@ -64,7 +64,7 @@ class SettingsBackupTest {
         Thread.sleep(800)
         TestSupport.screenshot("44-light-home")
         device.findObject(By.res("tab_stats"))?.click()
-        device.wait(Until.hasObject(By.textContains("آخر 30 يوماً")), 5_000)
+        device.wait(Until.hasObject(By.res("stats_day_steps")), 8_000)
         Thread.sleep(800)
         TestSupport.screenshot("45-light-stats")
         runBlocking { c.settings.setThemeMode(com.khatwa.app.settings.ThemeMode.DARK) }
