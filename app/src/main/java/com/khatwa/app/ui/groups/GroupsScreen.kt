@@ -31,6 +31,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -111,6 +113,7 @@ private fun OptInCard(vm: GroupsViewModel, s: Strings) {
     Muted(s.groupsLimitation)
 }
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 private fun EnabledContent(vm: GroupsViewModel, s: Strings, open: (String) -> Unit) {
     val nickname by vm.nickname.collectAsStateWithLifecycle()
@@ -202,6 +205,8 @@ private fun EnabledContent(vm: GroupsViewModel, s: Strings, open: (String) -> Un
             var name by remember { mutableStateOf("") }
             var desc by remember { mutableStateOf("") }
             AlertDialog(
+                // Dialogs are separate windows: expose their test tags as resource ids too.
+                modifier = Modifier.semantics { testTagsAsResourceId = true },
                 onDismissRequest = { dialog = null },
                 title = { Text(s.createGroup) },
                 text = {
@@ -218,6 +223,8 @@ private fun EnabledContent(vm: GroupsViewModel, s: Strings, open: (String) -> Un
         "join" -> {
             var code by remember { mutableStateOf("") }
             AlertDialog(
+                // Dialogs are separate windows: expose their test tags as resource ids too.
+                modifier = Modifier.semantics { testTagsAsResourceId = true },
                 onDismissRequest = { dialog = null },
                 title = { Text(s.joinWithCode) },
                 text = {
@@ -230,6 +237,8 @@ private fun EnabledContent(vm: GroupsViewModel, s: Strings, open: (String) -> Un
         "nickname" -> {
             var name by remember { mutableStateOf(nickname) }
             AlertDialog(
+                // Dialogs are separate windows: expose their test tags as resource ids too.
+                modifier = Modifier.semantics { testTagsAsResourceId = true },
                 onDismissRequest = { dialog = null },
                 title = { Text(s.nickname) },
                 text = { OutlinedTextField(value = name, onValueChange = { name = it.take(24) }, singleLine = true, modifier = Modifier.fillMaxWidth()) },

@@ -44,7 +44,8 @@ class SettingsBackupTest {
         assertTrue(TestSupport.clickText("قفل اللابتوب"))
         val gen = device.wait(Until.findObject(By.res("laptop_generate")), 5_000)
         if (gen != null) {
-            gen.click()
+            // The node can go stale while the screen settles; clickRes re-finds and retries.
+            assertTrue(TestSupport.clickRes("laptop_generate"))
             val secret = device.wait(Until.findObject(By.res("laptop_secret")), 5_000)
             assertNotNull(secret)
             assertEquals("XXXX-XXXX-XXXX-XXXX".length, secret.text.length)
