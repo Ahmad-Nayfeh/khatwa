@@ -198,6 +198,22 @@ class LockFlowTest {
     }
 
     @Test
+    fun aLockStartedFromHomeDoesNotCoverHome() {
+        val blocked = blockedApp()
+        // The last app screen before ours was a blocked app (e.g. the app was opened from a notification).
+        val activity = TestSupport.context.packageManager.getLaunchIntentForPackage(blocked)!!.component!!.className
+        val main = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+        main.runOnMainSync { c.lock.onForeground(blocked, activity) }
+        TestSupport.launchApp()
+        assertNotNull(device.wait(Until.findObject(By.res("home_steps")), 15_000))
+        main.runOnMainSync { c.lock.onForeground(TestSupport.PKG, "com.khatwa.app.ui.MainActivity") }
+        runBlocking { c.lock.startManual(1000) }
+        main.runOnMainSync { } // let the posted re-check run
+        assertFalse("the lock screen covered our own Home", c.lock.overlay.isShown)
+        assertNotNull(device.wait(Until.findObject(By.res("home_steps")), 5_000))
+    }
+
+    @Test
     fun disabledAccessibilityShowsWarningOnHome() {
         TestSupport.disableAccessibility()
         waitUntil(10_000, "accessibility disconnected") { !KhatwaAccessibilityService.connected }

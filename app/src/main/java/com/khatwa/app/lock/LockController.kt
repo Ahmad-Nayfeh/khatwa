@@ -253,8 +253,12 @@ class LockController(private val c: AppContainer) {
     fun onForeground(pkg: String, className: String?) {
         val s = _state.value
         if (pkg == context.packageName) {
-            // Our own windows: the overlay itself must not hide itself; our activities are allowed.
-            if (className != null && className.contains("Activity")) overlay.hide()
+            // Our own windows: the overlay itself must not hide itself; our activities are allowed
+            // and become the app in front, so a lock started from Home does not cover Home.
+            if (className != null && className.contains("Activity")) {
+                lastForeground = pkg
+                overlay.hide()
+            }
             return
         }
         // Only an app screen (an activity) coming to the front changes the lock. Keyboards,
