@@ -85,7 +85,7 @@ data class Settings(
         } else emergencyPhrase
 
     companion object {
-        const val DEFAULT_EMERGENCY_PHRASE = "أختار الاستسلام اليوم وأعلم أن هذا يُسجَّل"
+        const val DEFAULT_EMERGENCY_PHRASE = "أختار الاستسلام اليوم وأعلم أن هذا يسجل"
     }
 }
 

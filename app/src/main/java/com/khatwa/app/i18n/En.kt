@@ -101,7 +101,7 @@ object En : Strings {
     override fun emergencyWarning(remaining: String) = "This cancel is recorded as a “surrender” with the date and the remaining steps ($remaining)."
     override fun waitSeconds(n: Int) = "Wait $n seconds"
     override val breathe = "Take a breath. Maybe you would rather walk."
-    override val typePhrase = "Type the following sentence exactly:"
+    override val typePhrase = "Type this sentence (capitals and punctuation don't matter):"
     override val continue_ = "Continue"
     override val sureSurrender = "Are you sure? It counts as a surrender."
     override val confirmSurrender = "Confirm surrender"

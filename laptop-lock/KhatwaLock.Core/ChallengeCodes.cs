@@ -84,6 +84,13 @@ public static class ChallengeCodes
     public static bool IsSecret(string? input) =>
         input != null && Normalize(input).Length == SecretLength && input.All(c => char.IsDigit(c) || c is ' ' or '-');
 
+    /// <summary>True for a pairing code typed correctly: the phone makes it 6 random digits + 2 check
+    /// digits (ISO 7064 MOD 97-10, as in IBAN), so its 8-digit value mod 97 is 1. A mistyped or
+    /// made-up code is rejected on the spot. Secrets saved before check digits existed stay usable
+    /// (only <see cref="IsSecret"/> is required of a stored secret).</summary>
+    public static bool IsValidPairingCode(string? input) =>
+        IsSecret(input) && long.Parse(Normalize(input!)) % 97 == 1;
+
     private static string Code6(string secret, string message)
     {
         using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(Normalize(secret)));

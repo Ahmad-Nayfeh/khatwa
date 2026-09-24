@@ -144,7 +144,8 @@ class LockFlowTest {
         phrase.text = "جملة خاطئة"
         Thread.sleep(500)
         assertFalse(device.findObject(By.res("lock_continue")).isEnabled)
-        phrase.text = com.khatwa.app.settings.Settings.DEFAULT_EMERGENCY_PHRASE
+        // Typed the way people type: no hamza on the alefs, no diacritics. It must still be accepted.
+        phrase.text = "اختار الاستسلام اليوم واعلم ان هذا يسجل"
         device.wait(Until.findObject(By.res("lock_continue").enabled(true)), 5_000).click()
         device.wait(Until.findObject(By.res("lock_confirm")), 5_000).click()
         TestSupport.screenshot("25-emergency-confirmed")

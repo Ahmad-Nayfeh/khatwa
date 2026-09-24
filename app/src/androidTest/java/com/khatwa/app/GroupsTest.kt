@@ -114,8 +114,20 @@ class GroupsTest {
         val card = device.wait(Until.findObject(By.res("group_card_$gid")), 20_000)
         assertNotNull("group card missing for member", card)
         TestSupport.screenshot("53-groups-mine")
-        card!!.click()
-        assertNotNull(device.wait(Until.findObject(By.res("member_row_1")), 20_000))
+        // Open the group. The list can recompose right as the tap lands (a sync finishes), so
+        // wait for the detail screen and tap again if it did not open.
+        var opened = false
+        repeat(3) {
+            if (!opened) {
+                (device.findObject(By.res("group_card_$gid")) ?: card)?.click()
+                opened = device.wait(Until.hasObject(By.res("group_detail")), 8_000)
+            }
+        }
+        if (!opened) TestSupport.dump("missing-group_detail")
+        assertTrue("group detail did not open", opened)
+        val secondRow = TestSupport.findRes("member_row_1", 20_000)
+        if (secondRow == null) TestSupport.dump("missing-member_row_1")
+        assertNotNull("second leaderboard row missing", secondRow)
         TestSupport.screenshot("54-group-leaderboard")
         device.pressBack()
         // Public list: the group is visible with 2 members.

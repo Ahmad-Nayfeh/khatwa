@@ -17,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.khatwa.app.i18n.strings
@@ -32,7 +33,8 @@ import kotlinx.coroutines.delay
 const val EMERGENCY_WAIT_SECONDS = 60
 
 /**
- * The deliberately slow emergency exit: wait 60 seconds, type the long phrase exactly, confirm.
+ * The deliberately slow emergency exit: wait 60 seconds, type the long phrase, confirm. The phrase
+ * check ignores diacritics, hamza forms and punctuation (core Phrase), so it can always be typed.
  * Every completion is recorded as a surrender by the caller.
  */
 @Composable
@@ -44,7 +46,7 @@ fun EmergencyFlow(phrase: String, remaining: Long, onCancel: () -> Unit, onConfi
     LaunchedEffect(Unit) {
         while (secondsLeft > 0) { delay(1_000); secondsLeft-- }
     }
-    val typed = text.trim() == phrase.trim()
+    val typed = com.khatwa.core.lock.Phrase.matches(phrase, text)
 
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(s.emergencyTitle, style = MaterialTheme.typography.headlineMedium)
@@ -58,7 +60,7 @@ fun EmergencyFlow(phrase: String, remaining: Long, onCancel: () -> Unit, onConfi
             } else {
                 Text(s.typePhrase, style = MaterialTheme.typography.titleMedium)
                 VSpace(6.dp)
-                Text("«$phrase»", style = MaterialTheme.typography.bodyLarge)
+                Text(phrase, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 VSpace(10.dp)
                 OutlinedTextField(
                     value = text,

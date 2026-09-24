@@ -96,6 +96,28 @@ public class StateAndConfigTests : IDisposable
     }
 
     [Fact]
+    public void ArabicPhraseMatchesHoweverItIsTyped()
+    {
+        const string withTashkeel = "أختار الاستسلام اليوم وأعلم أن هذا يُسجَّل";
+        Assert.True(LockDecision.PhraseMatches(withTashkeel, "أختار الاستسلام اليوم وأعلم أن هذا يسجل"));
+        Assert.True(LockDecision.PhraseMatches(withTashkeel, "اختار الاستسلام اليوم واعلم ان هذا يسجل"));
+        Assert.True(LockDecision.PhraseMatches(withTashkeel, "\u200Fاختار الاستسلام اليوم، واعلم ان هذا يـسـجـل."));
+        Assert.True(LockDecision.PhraseMatches(LockConfig.DefaultEmergencyPhraseAr, withTashkeel));
+        Assert.False(LockDecision.PhraseMatches(withTashkeel, "اختار الاستسلام اليوم"));
+        Assert.False(LockDecision.PhraseMatches(withTashkeel, "اختار الاستسلام اليوم واعلم ان هذا لا يسجل"));
+        Assert.False(LockDecision.PhraseMatches("", ""));
+        Assert.True(LockDecision.PhraseMatches(LockConfig.DefaultEmergencyPhraseEn, "i choose to give up today, and I know this is recorded."));
+    }
+
+    [Fact]
+    public void TheOldDiacriticDefaultIsReplacedOnLoad()
+    {
+        var path = Path.Combine(_dir, "config.json");
+        File.WriteAllText(path, "{ \"secret\": \"12345678\", \"emergencyPhraseAr\": \"أختار الاستسلام اليوم وأعلم أن هذا يُسجَّل\" }");
+        Assert.Equal(LockConfig.DefaultEmergencyPhraseAr, LockConfig.Load(path).EmergencyPhraseAr);
+    }
+
+    [Fact]
     public void PhraseMatchingIgnoresSurroundingAndDoubledSpaces()
     {
         Assert.True(LockDecision.PhraseMatches(LockConfig.DefaultEmergencyPhraseAr, "  " + LockConfig.DefaultEmergencyPhraseAr + "  "));

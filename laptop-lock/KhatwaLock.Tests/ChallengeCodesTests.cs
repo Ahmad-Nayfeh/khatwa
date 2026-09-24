@@ -8,7 +8,8 @@ public class ChallengeCodesTests
 {
     private sealed record Vector(string secret, long counter, string lockCode, string unlockCode);
     private sealed record Skip(string secret, long last, long next);
-    private sealed record Doc(string description, int window, List<Vector> vectors, Skip nextCounterSkip);
+    private sealed record Pairing(List<string> valid, List<string> invalid);
+    private sealed record Doc(string description, int window, List<Vector> vectors, Skip nextCounterSkip, Pairing pairing);
 
     private static Doc Shared()
     {
@@ -73,6 +74,27 @@ public class ChallengeCodesTests
         Assert.False(ChallengeCodes.VerifyUnlockCode(secret, 1, null));
         Assert.Equal("179 578", ChallengeCodes.Format("179578"));
         Assert.Equal("1234 5678", ChallengeCodes.Format("12345678"));
+    }
+
+    [Fact]
+    public void PairingCodesWithWrongCheckDigitsAreRejected()
+    {
+        var p = Shared().pairing;
+        foreach (var c in p.valid) Assert.True(ChallengeCodes.IsValidPairingCode(c), c);
+        foreach (var c in p.invalid) Assert.False(ChallengeCodes.IsValidPairingCode(c), c);
+        Assert.True(ChallengeCodes.IsValidPairingCode("1234 5676"));
+        Assert.True(ChallengeCodes.IsValidPairingCode("١٢٣٤٥٦٧٦"));
+        Assert.False(ChallengeCodes.IsValidPairingCode("1234567"));
+        Assert.False(ChallengeCodes.IsValidPairingCode(""));
+        Assert.False(ChallengeCodes.IsValidPairingCode(null));
+        foreach (var good in p.valid)
+            for (var i = 0; i < 8; i++)
+            {
+                for (var d = '0'; d <= '9'; d++)
+                    if (d != good[i]) Assert.False(ChallengeCodes.IsValidPairingCode(good[..i] + d + good[(i + 1)..]));
+                if (i < 7 && good[i] != good[i + 1])
+                    Assert.False(ChallengeCodes.IsValidPairingCode(good[..i] + good[i + 1] + good[i] + good[(i + 2)..]));
+            }
     }
 
     [Fact]

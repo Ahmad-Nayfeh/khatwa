@@ -225,10 +225,11 @@ internal sealed class MainForm : Form
 
     private void Pair()
     {
-        if (!ChallengeCodes.IsSecret(_input.Text))
+        if (!ChallengeCodes.IsValidPairingCode(_input.Text))
         {
             _status.ForeColor = Red;
             _status.Text = _t.PairBad;
+            _input.Text = string.Empty;
             return;
         }
         _config.Secret = ChallengeCodes.Normalize(_input.Text);
