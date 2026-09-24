@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.khatwa.app.AppContainer
+import com.khatwa.app.i18n.strings
 import com.khatwa.app.ui.charts.BarChart
 import com.khatwa.app.ui.charts.MonthlyStepsAndWeightChart
 import com.khatwa.app.ui.charts.PlainFormatter
@@ -35,6 +36,7 @@ import com.khatwa.app.util.Fmt
 
 @Composable
 fun StatsScreen(container: AppContainer) {
+    val s = strings
     val vm = containerViewModel { StatsViewModel(it) }
     val ui by vm.state.collectAsStateWithLifecycle()
     var focusedIndex by remember { mutableIntStateOf(-1) }
@@ -42,8 +44,8 @@ fun StatsScreen(container: AppContainer) {
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).testTag("stats_scroll").padding(vertical = 16.dp)) {
         Column(Modifier.padding(horizontal = 20.dp)) {
-            Text("الإحصائيات", style = MaterialTheme.typography.headlineMedium)
-            Muted("اسحب يميناً ويساراً لتصفّح الأيام.")
+            Text(s.statistics, style = MaterialTheme.typography.headlineMedium)
+            Muted(s.swipeHint)
         }
         VSpace(8.dp)
 
@@ -58,19 +60,19 @@ fun StatsScreen(container: AppContainer) {
         Column(Modifier.padding(horizontal = 20.dp)) {
             // Summary strip
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatPill("السلسلة الحالية", "${Fmt.n(ui.streaks.current)} يوم", Modifier.weight(1f))
-                StatPill("أطول سلسلة", "${Fmt.n(ui.streaks.longest)} يوم", Modifier.weight(1f))
+                StatPill(s.currentStreak, s.daysCount(Fmt.n(ui.streaks.current)), Modifier.weight(1f))
+                StatPill(s.longestStreak, s.daysCount(Fmt.n(ui.streaks.longest)), Modifier.weight(1f))
             }
             VSpace(8.dp)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatPill("متوسط يومي", Fmt.n(ui.month.averagePerDay), Modifier.weight(1f))
-                StatPill("أفضل يوم", Fmt.n(ui.month.bestDay?.steps ?: 0), Modifier.weight(1f))
-                StatPill("أيام الهدف", "${Fmt.n(ui.month.daysAchieved)}/${Fmt.n(ui.month.daysCounted)}", Modifier.weight(1f))
+                StatPill(s.dailyAverage, Fmt.n(ui.month.averagePerDay), Modifier.weight(1f))
+                StatPill(s.bestDay, Fmt.n(ui.month.bestDay?.steps ?: 0), Modifier.weight(1f))
+                StatPill(s.goalDays, "${Fmt.n(ui.month.daysAchieved)}/${Fmt.n(ui.month.daysCounted)}", Modifier.weight(1f))
             }
             VSpace()
 
             KCard {
-                SectionTitle("آخر 30 يوماً")
+                SectionTitle(s.last30Days)
                 BarChart(
                     values = ui.last30.map { it.steps },
                     labels = ui.last30.map { Fmt.dayMonth(it.date) },
@@ -79,27 +81,27 @@ fun StatsScreen(container: AppContainer) {
                     thicknessDp = 6,
                     height = 170,
                 )
-                ui.month.bestDay?.let { Muted("أفضل يوم: ${Fmt.iso(it.date)} · الخط الأفقي هو الهدف الحالي.", Modifier.padding(top = 6.dp)) }
+                ui.month.bestDay?.let { Muted(s.bestDayLine(Fmt.iso(it.date)), Modifier.padding(top = 6.dp)) }
             }
             VSpace()
 
             KCard {
-                SectionTitle("جلسات المشي")
-                Muted("الجلسة: مشي متواصل 10 دقائق فأكثر مع توقفات لا تتجاوز دقيقتين.")
+                SectionTitle(s.walkingSessions)
+                Muted(s.sessionDefinition)
                 VSpace(6.dp)
-                KeyValueRow("هذا الأسبوع", Fmt.n(ui.sessions.countThisWeek))
-                KeyValueRow("هذا الشهر", Fmt.n(ui.sessions.countThisMonth))
-                KeyValueRow("أطول جلسة هذا الشهر", Fmt.duration(ui.sessions.longestMs))
-                KeyValueRow("متوسط طول الجلسة", Fmt.duration(ui.sessions.averageMs))
+                KeyValueRow(s.thisWeek, Fmt.n(ui.sessions.countThisWeek))
+                KeyValueRow(s.thisMonth, Fmt.n(ui.sessions.countThisMonth))
+                KeyValueRow(s.longestSessionThisMonth, Fmt.duration(ui.sessions.longestMs))
+                KeyValueRow(s.averageSessionLength, Fmt.duration(ui.sessions.averageMs))
             }
             VSpace()
 
             KCard {
-                SectionTitle("آخر 12 شهراً")
-                Muted("متوسط الخطوات اليومية لكل شهر، مع خط الوزن إن وُجد.")
+                SectionTitle(s.last12Months)
+                Muted(s.last12MonthsHint)
                 VSpace(6.dp)
                 MonthlyStepsAndWeightChart(
-                    monthLabels = ui.months.map { (ym, _) -> Fmt.arabicMonths[ym.monthValue - 1].take(3) },
+                    monthLabels = ui.months.map { (ym, _) -> Fmt.monthShort(ym.monthValue) },
                     avgSteps = ui.months.map { it.second },
                     weightsByMonth = ui.weightByMonth,
                 )
@@ -107,8 +109,8 @@ fun StatsScreen(container: AppContainer) {
             VSpace()
 
             KCard {
-                SectionTitle("توزيع المشي على ساعات اليوم")
-                Muted("متوسط الخطوات في كل ساعة خلال آخر 30 يوماً.")
+                SectionTitle(s.hourDistribution)
+                Muted(s.hourDistributionHint)
                 VSpace(6.dp)
                 BarChart(
                     values = ui.hours.map { it.toLong() },
@@ -122,9 +124,9 @@ fun StatsScreen(container: AppContainer) {
             VSpace()
 
             KCard {
-                SectionTitle("الاستسلامات هذا الشهر")
-                KeyValueRow("عدد مرات الإلغاء الطارئ للقفل", Fmt.n(ui.surrendersThisMonth))
-                Muted("كل إلغاء طارئ يُسجَّل مع التاريخ والخطوات المتبقية.")
+                SectionTitle(s.surrendersThisMonth)
+                KeyValueRow(s.emergencyCancelCount, Fmt.n(ui.surrendersThisMonth))
+                Muted(s.surrenderHint)
             }
             Box(Modifier.padding(bottom = 24.dp))
         }

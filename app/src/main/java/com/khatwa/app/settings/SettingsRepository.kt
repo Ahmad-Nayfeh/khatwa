@@ -62,6 +62,15 @@ data class Settings(
         manualGoal = manualGoal,
     )
 
+    /**
+     * The phrase to type for an emergency unlock. Unless the user stored a custom phrase, it is the
+     * long sentence of the current app language (Arabic or English).
+     */
+    val effectiveEmergencyPhrase: String
+        get() = if (emergencyPhrase == DEFAULT_EMERGENCY_PHRASE || emergencyPhrase.isBlank()) {
+            com.khatwa.app.i18n.I18n.of(language).defaultEmergencyPhrase
+        } else emergencyPhrase
+
     companion object {
         const val DEFAULT_EMERGENCY_PHRASE = "أختار الاستسلام اليوم وأعلم أن هذا يُسجَّل"
     }

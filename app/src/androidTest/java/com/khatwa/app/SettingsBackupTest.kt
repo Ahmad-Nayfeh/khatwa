@@ -5,6 +5,7 @@ import androidx.test.uiautomator.By
 import androidx.test.uiautomator.Until
 import com.khatwa.app.TestSupport.device
 import com.khatwa.app.backup.Backup
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -27,7 +28,11 @@ class SettingsBackupTest {
     @Test
     fun quotesAreSeededAndSettingsScreensOpen() {
         val count = runBlocking { c.db.quotes().count() }
-        assertTrue("expected at least 365 bundled quotes, got $count", count >= 365)
+        // The bundled set is sourced (attributed) quotes in Arabic and English.
+        assertTrue("expected at least 100 bundled quotes, got $count", count >= 100)
+        val arabic = runBlocking { c.db.quotes().observeByLang("ar").first().size }
+        val english = runBlocking { c.db.quotes().observeByLang("en").first().size }
+        assertTrue("expected Arabic and English quotes, got ar=$arabic en=$english", arabic >= 50 && english >= 40)
         TestSupport.evidence("quotes seeded: $count")
 
         TestSupport.launchApp()
@@ -54,7 +59,7 @@ class SettingsBackupTest {
         device.pressBack()
 
         assertTrue(TestSupport.clickText("الحكم"))
-        assertNotNull(device.wait(Until.findObject(By.textContains("حكمة.")), 5_000))
+        assertNotNull(device.wait(Until.findObject(By.textContains("حكمة اليوم")), 5_000))
         TestSupport.screenshot("43-quotes-editor")
 
         // Light theme evidence: the same screens with the light colour scheme.
@@ -68,6 +73,27 @@ class SettingsBackupTest {
         Thread.sleep(800)
         TestSupport.screenshot("45-light-stats")
         runBlocking { c.settings.setThemeMode(com.khatwa.app.settings.ThemeMode.DARK) }
+
+        // English: the whole UI switches language and direction from the language setting.
+        runBlocking { c.settings.setLanguage(com.khatwa.app.settings.AppLanguage.EN) }
+        TestSupport.launchApp()
+        assertNotNull(device.wait(Until.findObject(By.res("home_steps")), 15_000))
+        assertNotNull("English tab label missing", device.wait(Until.findObject(By.text("Statistics")), 8_000))
+        Thread.sleep(800)
+        TestSupport.screenshot("46-english-home")
+        device.findObject(By.res("tab_stats"))?.click()
+        assertNotNull(device.wait(Until.findObject(By.res("stats_day_steps")), 8_000))
+        Thread.sleep(800)
+        TestSupport.screenshot("47-english-stats")
+        device.findObject(By.res("tab_settings"))?.click()
+        assertNotNull(device.wait(Until.findObject(By.text("Laptop lock")), 8_000))
+        TestSupport.screenshot("48-english-settings")
+        // Switch back through the UI itself (the language chips), then verify Arabic is back.
+        TestSupport.scrollForward("settings_scroll")
+        val arChip = device.wait(Until.findObject(By.res("settings_language_ar")), 5_000)
+        if (arChip != null) arChip.click() else runBlocking { c.settings.setLanguage(com.khatwa.app.settings.AppLanguage.AR) }
+        assertNotNull("Arabic not restored", device.wait(Until.findObject(By.text("الإعدادات")), 8_000))
+        TestSupport.evidence("language switched en -> ar via ${if (arChip != null) "chip" else "settings"}")
     }
 
     @Test

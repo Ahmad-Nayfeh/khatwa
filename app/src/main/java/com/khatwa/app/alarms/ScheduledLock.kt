@@ -2,6 +2,7 @@ package com.khatwa.app.alarms
 
 import android.util.Log
 import com.khatwa.app.AppContainer
+import com.khatwa.app.i18n.I18n
 import com.khatwa.app.lock.UnlockReason
 import com.khatwa.app.notifications.Notifications
 import com.khatwa.app.settings.Settings
@@ -53,8 +54,8 @@ object ScheduledLock {
         val remaining = today.goal - today.steps
         container.notifications.event(
             Notifications.ID_LOCK_WARN,
-            "القفل المجدول بعد ${settings.schedule.warnMinutesBefore} دقيقة",
-            "المتبقي ${Fmt.n(remaining)} خطوة لتفادي القفل الساعة ${Fmt.time(settings.schedule.startMinute)}.",
+            I18n.current.lockWarnTitle(settings.schedule.warnMinutesBefore),
+            I18n.current.lockWarnText(Fmt.n(remaining), Fmt.time(settings.schedule.startMinute)),
             silent = true,
         )
     }

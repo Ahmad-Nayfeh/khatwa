@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.khatwa.app.AppContainer
+import com.khatwa.app.i18n.strings
 import com.khatwa.app.ui.components.CardTone
 import com.khatwa.app.ui.components.KCard
 import com.khatwa.app.ui.components.KeyValueRow
@@ -27,6 +28,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun GoalScreen(container: AppContainer, onBack: () -> Unit) {
+    val s = strings
     val scope = rememberCoroutineScope()
     val settings by container.settings.flow.collectAsStateWithLifecycle(initialValue = null)
     val today by container.tracker.today.collectAsStateWithLifecycle()
@@ -36,56 +38,56 @@ fun GoalScreen(container: AppContainer, onBack: () -> Unit) {
     var manual by rememberSaveable { mutableStateOf("") }
     var loaded by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(settings) {
-        val s = settings ?: return@LaunchedEffect
+        val cfg = settings ?: return@LaunchedEffect
         if (!loaded) {
-            temp = s.tempGoal.toString(); final = s.finalGoal.toString(); inc = s.weeklyIncrement.toString()
-            manual = (s.manualGoal ?: today.goal).toString(); loaded = true
+            temp = cfg.tempGoal.toString(); final = cfg.finalGoal.toString(); inc = cfg.weeklyIncrement.toString()
+            manual = (cfg.manualGoal ?: today.goal).toString(); loaded = true
         }
     }
 
-    SubScreen(title = "الهدف", onBack = onBack) {
+    SubScreen(title = s.goal, onBack = onBack) {
         val gi = today.goalInfo
         KCard(tone = CardTone.Accent) {
-            SectionTitle("الحالة الآن")
-            KeyValueRow("الهدف الفعلي الحالي", "${Fmt.n(today.goal)} خطوة")
-            KeyValueRow("الأسبوع", if (gi?.isMeasurementWeek == true) "أسبوع القياس" else Fmt.n((gi?.weekIndex ?: 0) + 1))
-            KeyValueRow("الوضع", when {
-                gi?.isManual == true -> "يدوي (التدرّج متوقف)"
-                gi?.reachedFinal == true -> "وصل للهدف النهائي"
-                else -> "تدريجي"
+            SectionTitle(s.statusNow)
+            KeyValueRow(s.currentEffectiveGoal, s.stepsCount(Fmt.n(today.goal)))
+            KeyValueRow(s.week, if (gi?.isMeasurementWeek == true) s.measurementWeek else Fmt.n((gi?.weekIndex ?: 0) + 1))
+            KeyValueRow(s.mode, when {
+                gi?.isManual == true -> s.manualMode
+                gi?.reachedFinal == true -> s.reachedFinalGoal
+                else -> s.progressive
             })
-            settings?.goalStartDate?.let { KeyValueRow("بداية الاستخدام", it.toString()) }
+            settings?.goalStartDate?.let { KeyValueRow(s.startedOn, it.toString()) }
         }
         VSpace()
         KCard {
-            SectionTitle("التدرّج")
-            Muted("أسبوع القياس (7 أيام) بالهدف المؤقت، ثم متوسط القياس + الزيادة، ثم يرتفع بالزيادة كل أسبوع حتى الهدف النهائي. إن فشلت أكثر من 4 أيام في أسبوع يثبت الهدف في الأسبوع التالي. لا يهبط تلقائياً أبداً.")
+            SectionTitle(s.progression)
+            Muted(s.progressionText)
             VSpace(6.dp)
-            NumberField("الهدف النهائي", final, { final = it })
-            NumberField("الزيادة الأسبوعية", inc, { inc = it })
-            NumberField("الهدف المؤقت (أسبوع القياس)", temp, { temp = it })
+            NumberField(s.finalGoal, final, { final = it })
+            NumberField(s.weeklyIncrement, inc, { inc = it })
+            NumberField(s.tempGoalMeasurement, temp, { temp = it })
             VSpace(6.dp)
-            PrimaryButton("حفظ", Modifier.fillMaxWidth(), enabled = final.toIntOrNull() != null && inc.toIntOrNull() != null && temp.toIntOrNull() != null) {
+            PrimaryButton(s.save, Modifier.fillMaxWidth(), enabled = final.toIntOrNull() != null && inc.toIntOrNull() != null && temp.toIntOrNull() != null) {
                 scope.launch { container.settings.setGoals(temp.toIntOrNull(), final.toIntOrNull(), inc.toIntOrNull(), null) }
             }
         }
         VSpace()
         KCard {
-            SectionTitle("تعديل يدوي")
-            Muted("يوقف التدرّج ويثبت الهدف على قيمة تختارها. يمكنك العودة للتدرّج في أي وقت.")
+            SectionTitle(s.manualEdit)
+            Muted(s.manualEditHint)
             VSpace(6.dp)
-            NumberField("الهدف اليدوي", manual, { manual = it })
+            NumberField(s.manualGoal, manual, { manual = it })
             VSpace(6.dp)
             if (settings?.manualGoal == null) {
-                PrimaryButton("تثبيت هذا الهدف وإيقاف التدرّج", Modifier.fillMaxWidth(), enabled = (manual.toIntOrNull() ?: 0) >= 100) {
+                PrimaryButton(s.fixGoalStopProgression, Modifier.fillMaxWidth(), enabled = (manual.toIntOrNull() ?: 0) >= 100) {
                     scope.launch { container.settings.setGoals(null, null, null, manual.toInt()) }
                 }
             } else {
-                PrimaryButton("تحديث الهدف اليدوي", Modifier.fillMaxWidth(), enabled = (manual.toIntOrNull() ?: 0) >= 100) {
+                PrimaryButton(s.updateManualGoal, Modifier.fillMaxWidth(), enabled = (manual.toIntOrNull() ?: 0) >= 100) {
                     scope.launch { container.settings.setGoals(null, null, null, manual.toInt()) }
                 }
                 VSpace(6.dp)
-                SecondaryButton("العودة إلى التدرّج التلقائي", Modifier.fillMaxWidth()) {
+                SecondaryButton(s.backToProgression, Modifier.fillMaxWidth()) {
                     scope.launch { container.settings.setGoals(null, null, null, null, clearManual = true) }
                 }
             }

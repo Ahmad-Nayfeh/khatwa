@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.khatwa.app.AppContainer
+import com.khatwa.app.i18n.strings
 import com.khatwa.app.lock.LaptopChallenge
 import com.khatwa.app.ui.components.CardTone
 import com.khatwa.app.ui.components.KCard
@@ -37,7 +38,8 @@ import kotlinx.coroutines.launch
 
 /** A code shown large, monospace, with a copy button. */
 @Composable
-fun CodeBox(label: String, code: String, tag: String, copyLabel: String = "نسخ") {
+fun CodeBox(label: String, code: String, tag: String, copyLabel: String = strings.copy) {
+    val s = strings
     val context = LocalContext.current
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -50,7 +52,7 @@ fun CodeBox(label: String, code: String, tag: String, copyLabel: String = "نس�
         )
         VSpace(6.dp)
         SecondaryButton(copyLabel, Modifier.fillMaxWidth().testTag("${tag}_copy")) {
-            Clip.copy(context, "khatwa code", LaptopCode.format(code), "تم النسخ")
+            Clip.copy(context, "khatwa code", LaptopCode.format(code), s.copied)
         }
     }
 }
@@ -62,13 +64,14 @@ fun CodeBox(label: String, code: String, tag: String, copyLabel: String = "نس�
 @Composable
 fun LaptopLockCodeRow(container: AppContainer, secret: String?, challenge: LaptopChallenge?, onPair: () -> Unit) {
     if (challenge == null || challenge.finished) return
+    val s = strings
     VSpace(10.dp)
     if (secret == null) {
-        Muted("لقفل اللابتوب مع هذا التحدي، اقرن اللابتوب مرة واحدة.")
+        Muted(s.pairLaptopHint)
         VSpace(6.dp)
-        SecondaryButton("اقتران اللابتوب", Modifier.fillMaxWidth().testTag("laptop_pair")) { onPair() }
+        SecondaryButton(s.pairLaptop, Modifier.fillMaxWidth().testTag("laptop_pair")) { onPair() }
     } else {
-        CodeBox("كود قفل اللابتوب (الصقه في برنامج اللابتوب)", LaptopCode.lockCode(secret, challenge.id), "home_lock_code")
+        CodeBox(s.laptopLockCodeLabel, LaptopCode.lockCode(secret, challenge.id), "home_lock_code")
     }
 }
 
@@ -76,14 +79,15 @@ fun LaptopLockCodeRow(container: AppContainer, secret: String?, challenge: Lapto
 @Composable
 fun LaptopUnlockCard(container: AppContainer, secret: String?, challenge: LaptopChallenge?) {
     if (challenge == null || !challenge.finished || secret == null) return
+    val s = strings
     val scope = rememberCoroutineScope()
     KCard(tone = CardTone.Accent) {
-        SectionTitle(if (challenge.finishReason == "surrender") "انتهى التحدي (استسلام)" else "أكملت التحدي")
+        SectionTitle(if (challenge.finishReason == "surrender") s.challengeEndedSurrender else s.challengeDone)
         VSpace(6.dp)
-        CodeBox("كود فتح اللابتوب", LaptopCode.unlockCode(secret, challenge.id), "home_unlock_code")
+        CodeBox(s.laptopUnlockCodeLabel, LaptopCode.unlockCode(secret, challenge.id), "home_unlock_code")
         VSpace(6.dp)
         TextButton(onClick = { scope.launch { container.lock.dismissLaptopChallenge() } }, modifier = Modifier.testTag("home_unlock_dismiss")) {
-            Text("تم، أخفِ الكود")
+            Text(s.hideCode)
         }
     }
     VSpace()
@@ -92,6 +96,7 @@ fun LaptopUnlockCard(container: AppContainer, secret: String?, challenge: Laptop
 /** One-time pairing: shows the pairing code the laptop program asks for on its first run. */
 @Composable
 fun PairingDialog(container: AppContainer, secret: String?, onDismiss: () -> Unit) {
+    val strs = strings
     val scope = rememberCoroutineScope()
     var current by remember { mutableStateOf(secret) }
     if (current == null) {
@@ -101,28 +106,29 @@ fun PairingDialog(container: AppContainer, secret: String?, onDismiss: () -> Uni
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("اقتران اللابتوب") },
+        title = { Text(strs.pairLaptop) },
         text = {
             Column {
-                Muted("افتح برنامج خطوة على اللابتوب لأول مرة وأدخل هذا الكود. مرة واحدة فقط، ثم تُقفل وتُفتح بالأكواد من الرئيسية.")
+                Muted(strs.pairingDialogText)
                 VSpace(10.dp)
-                CodeBox("كود الاقتران", current!!, "laptop_secret")
+                CodeBox(strs.pairingCode, current!!, "laptop_secret")
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("تم") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(strs.done) } },
     )
 }
 
 /** Small pairing/status card used in Settings ← laptop lock. */
 @Composable
 fun PairingStatus(container: AppContainer, secret: String?, onRegenerate: () -> Unit) {
+    val s = strings
     if (secret == null) {
-        Muted("لم يُقرن اللابتوب بعد. الاقتران يبدأ من الرئيسية عند أول قفل، أو من هنا.")
+        Muted(s.notPairedYet)
     } else {
-        CodeBox("كود الاقتران الحالي", secret, "laptop_secret")
+        CodeBox(s.currentPairingCode, secret, "laptop_secret")
         VSpace(8.dp)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = onRegenerate) { Text("إعادة توليد (يلغي الاقتران القديم)") }
+            TextButton(onClick = onRegenerate) { Text(s.regeneratePairing) }
         }
     }
 }

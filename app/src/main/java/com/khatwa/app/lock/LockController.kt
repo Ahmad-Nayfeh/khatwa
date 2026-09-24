@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.khatwa.app.AppContainer
+import com.khatwa.app.i18n.I18n
 import com.khatwa.app.data.SurrenderEntity
 import com.khatwa.app.notifications.Notifications
 import com.khatwa.app.permissions.PermissionChecks
@@ -146,7 +147,7 @@ class LockController(private val c: AppContainer) {
         set(LockState.Scheduled(goal = goal, startedAtMs = System.currentTimeMillis(), endAtMs = endAtMs))
         newChallenge()
         Log.i(TAG, "scheduled lock started until ${java.time.Instant.ofEpochMilli(endAtMs)}")
-        c.notifications.event(Notifications.ID_LOCK_STARTED, "بدأ القفل المجدول", "أكمل هدف اليوم لفتح الجوال. التطبيقات المسموحة تبقى متاحة.", silent = true)
+        c.notifications.event(Notifications.ID_LOCK_STARTED, I18n.current.scheduledLockStartedTitle, I18n.current.scheduledLockStartedText, silent = true)
         reapply()
     }
 
@@ -157,7 +158,7 @@ class LockController(private val c: AppContainer) {
         finishChallenge(reason.name.lowercase())
         main.post { overlay.hide() }
         when (reason) {
-            UnlockReason.COMPLETED -> c.notifications.event(Notifications.ID_UNLOCKED, "أحسنت", "أكملت الخطوات المطلوبة وفُتح القفل.", silent = true)
+            UnlockReason.COMPLETED -> c.notifications.event(Notifications.ID_UNLOCKED, I18n.current.unlockedTitle, I18n.current.unlockedText, silent = true)
             UnlockReason.TIME_UP -> Log.i(TAG, "scheduled lock ended by time")
             else -> Unit
         }

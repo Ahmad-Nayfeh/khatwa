@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.khatwa.app.i18n.strings
 import com.khatwa.app.ui.components.CardTone
 import com.khatwa.app.ui.components.DangerButton
 import com.khatwa.app.ui.components.KCard
@@ -36,6 +37,7 @@ const val EMERGENCY_WAIT_SECONDS = 60
  */
 @Composable
 fun EmergencyFlow(phrase: String, remaining: Long, onCancel: () -> Unit, onConfirm: () -> Unit) {
+    val s = strings
     var secondsLeft by remember { mutableIntStateOf(EMERGENCY_WAIT_SECONDS) }
     var text by remember { mutableStateOf("") }
     var confirming by remember { mutableStateOf(false) }
@@ -45,16 +47,16 @@ fun EmergencyFlow(phrase: String, remaining: Long, onCancel: () -> Unit, onConfi
     val typed = text.trim() == phrase.trim()
 
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("طوارئ / إلغاء القفل", style = MaterialTheme.typography.headlineMedium)
+        Text(s.emergencyTitle, style = MaterialTheme.typography.headlineMedium)
         VSpace(8.dp)
-        Muted("سيُسجَّل هذا الإلغاء باسم «استسلام» مع التاريخ والخطوات المتبقية (${Fmt.n(remaining)}).", align = TextAlign.Center)
+        Muted(s.emergencyWarning(Fmt.n(remaining)), align = TextAlign.Center)
         VSpace(16.dp)
         KCard(tone = CardTone.Soft) {
             if (secondsLeft > 0) {
-                Text("انتظر $secondsLeft ثانية", style = MaterialTheme.typography.titleLarge, modifier = Modifier.testTag("lock_countdown"))
-                Muted("خذ نفساً. ربما تفضّل المشي.")
+                Text(s.waitSeconds(secondsLeft), style = MaterialTheme.typography.titleLarge, modifier = Modifier.testTag("lock_countdown"))
+                Muted(s.breathe)
             } else {
-                Text("اكتب الجملة التالية حرفياً:", style = MaterialTheme.typography.titleMedium)
+                Text(s.typePhrase, style = MaterialTheme.typography.titleMedium)
                 VSpace(6.dp)
                 Text("«$phrase»", style = MaterialTheme.typography.bodyLarge)
                 VSpace(10.dp)
@@ -67,16 +69,16 @@ fun EmergencyFlow(phrase: String, remaining: Long, onCancel: () -> Unit, onConfi
                 )
                 VSpace(10.dp)
                 if (!confirming) {
-                    DangerButton("متابعة", Modifier.fillMaxWidth().testTag("lock_continue"), enabled = typed) { confirming = true }
+                    DangerButton(s.continue_, Modifier.fillMaxWidth().testTag("lock_continue"), enabled = typed) { confirming = true }
                 } else {
-                    Text("هل أنت متأكد؟ سيُحسب استسلاماً.", style = MaterialTheme.typography.bodyLarge)
+                    Text(s.sureSurrender, style = MaterialTheme.typography.bodyLarge)
                     VSpace(8.dp)
-                    DangerButton("تأكيد الاستسلام", Modifier.fillMaxWidth().testTag("lock_confirm"), onClick = onConfirm)
+                    DangerButton(s.confirmSurrender, Modifier.fillMaxWidth().testTag("lock_confirm"), onClick = onConfirm)
                 }
             }
         }
         VSpace(12.dp)
-        SecondaryButton("رجوع، سأمشي", Modifier.fillMaxWidth().testTag("lock_emergency_cancel"), onClick = onCancel)
+        SecondaryButton(s.backIWillWalk, Modifier.fillMaxWidth().testTag("lock_emergency_cancel"), onClick = onCancel)
         TextButton(onClick = onCancel, modifier = Modifier.padding(top = 4.dp)) { Text("") }
     }
 }

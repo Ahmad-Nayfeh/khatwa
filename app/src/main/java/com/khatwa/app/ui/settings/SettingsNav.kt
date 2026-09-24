@@ -20,6 +20,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.khatwa.app.AppContainer
+import com.khatwa.app.i18n.strings
 import com.khatwa.app.ui.components.KCard
 import com.khatwa.app.ui.components.Muted
 import com.khatwa.app.ui.components.SectionTitle
@@ -49,45 +50,57 @@ fun SettingsNav(container: AppContainer) {
 private fun SettingsRoot(container: AppContainer, open: (String) -> Unit) {
     val scope = rememberCoroutineScope()
     val settings by container.settings.flow.collectAsStateWithLifecycle(initialValue = null)
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp)) {
-        Text("الإعدادات", style = MaterialTheme.typography.headlineMedium)
+    val str = strings
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).testTag("settings_scroll").padding(horizontal = 20.dp, vertical = 16.dp)) {
+        Text(str.settings, style = MaterialTheme.typography.headlineMedium)
         VSpace()
-        SettingsEntry("الهدف", "الهدف الفعلي والنهائي والزيادة الأسبوعية والتعديل اليدوي") { open("goal") }
-        SettingsEntry("القفل المجدول", "وقت البدء والانتهاء وأيام الأسبوع") { open("schedule") }
-        SettingsEntry("قائمة المسموح", "التطبيقات المتاحة أثناء القفل، وحظر الإعدادات") { open("allowlist") }
-        SettingsEntry("قفل اللابتوب", "السر المشترك وكود اليوم") { open("laptop") }
-        SettingsEntry("سجل الوزن", "إدخال أسبوعي وتذكير اختياري") { open("weight") }
-        SettingsEntry("الحكم", "تعديل وتصدير واستيراد") { open("quotes") }
-        SettingsEntry("النسخة الاحتياطية", "تصدير واستيراد ومسح البيانات") { open("backup") }
-        SettingsEntry("حالة الصلاحيات", "الحساس والإتاحة والعرض فوق التطبيقات والبطارية") { open("permissions") }
+        SettingsEntry(str.goal, str.goalSubtitle) { open("goal") }
+        SettingsEntry(str.scheduledLock, str.scheduledLockSubtitle) { open("schedule") }
+        SettingsEntry(str.allowlist, str.allowlistSubtitle) { open("allowlist") }
+        SettingsEntry(str.laptopLock, str.laptopLockSubtitle) { open("laptop") }
+        SettingsEntry(str.weightLog, str.weightLogSubtitle) { open("weight") }
+        SettingsEntry(str.quotes, str.quotesSubtitle) { open("quotes") }
+        SettingsEntry(str.backup, str.backupSubtitle) { open("backup") }
+        SettingsEntry(str.permissionsStatus, str.permissionsSubtitle) { open("permissions") }
         VSpace()
         settings?.let { s ->
             KCard {
-                SectionTitle("الإشعارات والمظهر")
-                SwitchRow("إظهار حكمة اليوم في الصفحة الرئيسية", s.showQuote) { on ->
+                SectionTitle(str.notificationsAndAppearance)
+                SwitchRow(str.showQuoteOnHome, s.showQuote) { on ->
                     scope.launch { container.settings.setShowQuote(on) }
                 }
-                SwitchRow("إشعار صباحي بحكمة اليوم وخطوات الأمس", s.morningEnabled) { on ->
+                SwitchRow(str.morningNotification, s.morningEnabled) { on ->
                     scope.launch { container.settings.setMorning(on, s.morningMinute); container.alarms.scheduleAll(container.settings.current()) }
                 }
-                if (s.morningEnabled) TimePickerRow("وقت الإشعار الصباحي", s.morningMinute) { m ->
+                if (s.morningEnabled) TimePickerRow(str.morningNotificationTime, s.morningMinute) { m ->
                     scope.launch { container.settings.setMorning(true, m); container.alarms.scheduleAll(container.settings.current()) }
                 }
                 VSpace(8.dp)
-                Text("المظهر", style = MaterialTheme.typography.bodyLarge)
+                Text(str.appearance, style = MaterialTheme.typography.bodyLarge)
                 VSpace(6.dp)
                 ChoiceRow(
                     options = listOf(
-                        com.khatwa.app.settings.ThemeMode.SYSTEM to "تلقائي",
-                        com.khatwa.app.settings.ThemeMode.LIGHT to "فاتح",
-                        com.khatwa.app.settings.ThemeMode.DARK to "داكن",
+                        com.khatwa.app.settings.ThemeMode.SYSTEM to str.themeSystem,
+                        com.khatwa.app.settings.ThemeMode.LIGHT to str.themeLight,
+                        com.khatwa.app.settings.ThemeMode.DARK to str.themeDark,
                     ),
                     selected = s.themeMode,
                 ) { mode -> scope.launch { container.settings.setThemeMode(mode) } }
+                VSpace(8.dp)
+                Text(str.language, style = MaterialTheme.typography.bodyLarge)
+                VSpace(6.dp)
+                ChoiceRow(
+                    options = listOf(
+                        com.khatwa.app.settings.AppLanguage.AR to str.languageArabic,
+                        com.khatwa.app.settings.AppLanguage.EN to str.languageEnglish,
+                    ),
+                    selected = s.language,
+                    tag = "settings_language",
+                ) { lang -> scope.launch { container.settings.setLanguage(lang) } }
             }
         }
         VSpace()
-        Muted("خطوة · مفتوح المصدر برخصة MIT · يعمل بلا إنترنت ولا يرسل أي بيانات.")
+        Muted(str.footer)
         Box(Modifier.padding(bottom = 24.dp).testTag("settings_root"))
     }
 }

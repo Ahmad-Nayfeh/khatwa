@@ -38,7 +38,7 @@ class MainActivity : ComponentActivity() {
                     navigationBarStyle = if (dark) SystemBarStyle.dark(transparent) else SystemBarStyle.light(transparent, transparent),
                 )
             }
-            KhatwaTheme(dark = dark) {
+            KhatwaTheme(dark = dark, language = settings?.language) {
                 Surface(
                     modifier = Modifier.fillMaxSize().semantics { testTagsAsResourceId = true },
                     color = androidx.compose.material3.MaterialTheme.colorScheme.background,

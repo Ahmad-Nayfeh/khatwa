@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.collectAsState
 import com.khatwa.app.AppContainer
+import com.khatwa.app.i18n.strings
 import com.khatwa.app.ui.components.KCard
 import com.khatwa.app.ui.components.CardTone
 import com.khatwa.app.ui.components.Muted
@@ -38,6 +39,7 @@ import kotlinx.coroutines.launch
 /** The lock screen shown over blocked apps (and reused inside the app for the emergency exit). */
 @Composable
 fun LockScreenContent(c: AppContainer, onOpenAllowed: () -> Unit) {
+    val s = strings
     val today by c.tracker.today.collectAsState()
     val lock by c.lock.state.collectAsState()
     val settings by c.settings.flow.collectAsState(initial = null)
@@ -58,26 +60,26 @@ fun LockScreenContent(c: AppContainer, onOpenAllowed: () -> Unit) {
     ) {
         if (emergency) {
             EmergencyFlow(
-                phrase = settings?.emergencyPhrase ?: com.khatwa.app.settings.Settings.DEFAULT_EMERGENCY_PHRASE,
+                phrase = settings?.effectiveEmergencyPhrase ?: s.defaultEmergencyPhrase,
                 remaining = remaining,
                 onCancel = { emergency = false },
                 onConfirm = { scope.launch { c.lock.surrender() } },
             )
             return@Column
         }
-        Text("امشِ لتفتح جوالك", style = MaterialTheme.typography.headlineMedium)
+        Text(s.walkToUnlock, style = MaterialTheme.typography.headlineMedium)
         VSpace(20.dp)
         ProgressRing(progress = progress, size = 240.dp) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(Fmt.n(remaining), style = MaterialTheme.typography.displayLarge, modifier = Modifier.testTag("lock_remaining"))
-                Muted("خطوة متبقية")
+                Muted(s.stepsRemaining)
             }
         }
         VSpace(16.dp)
         Muted(
             when (val l = lock) {
-                is com.khatwa.core.lock.LockState.Manual -> "قفل يدوي: ${Fmt.n(l.targetSteps)} خطوة من لحظة التفعيل"
-                is com.khatwa.core.lock.LockState.Scheduled -> "قفل مجدول حتى إكمال هدف اليوم (${Fmt.n(l.goal)}) أو الساعة ${Fmt.time(minuteOfDay(l.endAtMs))}"
+                is com.khatwa.core.lock.LockState.Manual -> s.manualLockLong(Fmt.n(l.targetSteps))
+                is com.khatwa.core.lock.LockState.Scheduled -> s.scheduledLockLong(Fmt.n(l.goal), Fmt.time(minuteOfDay(l.endAtMs)))
                 else -> ""
             },
             align = TextAlign.Center,
@@ -89,10 +91,10 @@ fun LockScreenContent(c: AppContainer, onOpenAllowed: () -> Unit) {
             }
             VSpace(20.dp)
         }
-        PrimaryButton("فتح التطبيقات المسموحة", Modifier.fillMaxWidth().testTag("lock_open_allowed"), onClick = onOpenAllowed)
+        PrimaryButton(s.openAllowedApps, Modifier.fillMaxWidth().testTag("lock_open_allowed"), onClick = onOpenAllowed)
         VSpace(8.dp)
         TextButton(onClick = { emergency = true }, modifier = Modifier.testTag("lock_emergency")) {
-            Text("طوارئ / إلغاء القفل", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(s.emergencyTitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

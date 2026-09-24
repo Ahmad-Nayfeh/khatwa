@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.khatwa.app.AppContainer
 import com.khatwa.app.backup.Backup
+import com.khatwa.app.i18n.strings
 import com.khatwa.app.ui.components.CardTone
 import com.khatwa.app.ui.components.DangerButton
 import com.khatwa.app.ui.components.KCard
@@ -32,6 +33,7 @@ import java.time.LocalDate
 
 @Composable
 fun BackupScreen(container: AppContainer, onBack: () -> Unit) {
+    val s = strings
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val backup = remember { Backup(container) }
@@ -44,31 +46,31 @@ fun BackupScreen(container: AppContainer, onBack: () -> Unit) {
         scope.launch {
             val text = backup.export()
             withContext(Dispatchers.IO) { context.contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray()) } }
-            message = "تم حفظ النسخة الاحتياطية."
+            message = s.backupSaved
         }
     }
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> confirmImportUri = uri }
 
-    SubScreen(title = "النسخة الاحتياطية", onBack = onBack) {
+    SubScreen(title = s.backup, onBack = onBack) {
         KCard {
-            SectionTitle("تصدير")
-            Muted("ملف JSON واحد يشمل الخطوات والجلسات واللقطات والوزن والاستسلامات والحكم وكل الإعدادات (بما فيها سر اللابتوب). احفظه في مكان آمن.")
+            SectionTitle(s.export)
+            Muted(s.exportHint)
             VSpace(8.dp)
-            PrimaryButton("تصدير نسخة كاملة", Modifier.fillMaxWidth()) { exportLauncher.launch("khatwa-backup-${LocalDate.now()}.json") }
+            PrimaryButton(s.exportFull, Modifier.fillMaxWidth()) { exportLauncher.launch("khatwa-backup-${LocalDate.now()}.json") }
         }
         VSpace()
         KCard {
-            SectionTitle("استيراد")
-            Muted("يستبدل كل البيانات الحالية بمحتوى الملف.")
+            SectionTitle(s.import_)
+            Muted(s.importHint)
             VSpace(8.dp)
-            SecondaryButton("اختيار ملف واستيراده", Modifier.fillMaxWidth()) { importLauncher.launch(arrayOf("application/json", "text/*", "*/*")) }
+            SecondaryButton(s.chooseFileAndImport, Modifier.fillMaxWidth()) { importLauncher.launch(arrayOf("application/json", "text/*", "*/*")) }
         }
         VSpace()
         KCard(tone = CardTone.Warning) {
-            SectionTitle("مسح كل البيانات")
-            Text("يحذف كل شيء ويعيد التطبيق إلى شاشة الترحيب. لا يمكن التراجع.")
+            SectionTitle(s.clearAll)
+            Text(s.clearAllHint)
             VSpace(8.dp)
-            DangerButton("مسح كل البيانات", Modifier.fillMaxWidth()) { confirmClear = true }
+            DangerButton(s.clearAll, Modifier.fillMaxWidth()) { confirmClear = true }
         }
         message?.let { VSpace(); Muted(it) }
     }
@@ -76,27 +78,27 @@ fun BackupScreen(container: AppContainer, onBack: () -> Unit) {
     confirmImportUri?.let { uri ->
         AlertDialog(
             onDismissRequest = { confirmImportUri = null },
-            title = { Text("استبدال كل البيانات؟") },
-            text = { Text("سيُستبدل كل ما في التطبيق بمحتوى الملف المختار.") },
+            title = { Text(s.replaceAllQuestion) },
+            text = { Text(s.replaceAllText) },
             confirmButton = {
                 TextButton(onClick = {
                     confirmImportUri = null
                     scope.launch {
                         val text = withContext(Dispatchers.IO) { context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } }
-                        message = runCatching { backup.import(text ?: "") }.getOrElse { "تعذّر الاستيراد: ${it.message ?: "الملف غير صالح"}" }
+                        message = runCatching { backup.import(text ?: "") }.getOrElse { s.importFailed(it.message ?: s.invalidFile) }
                     }
-                }) { Text("استيراد") }
+                }) { Text(s.import_) }
             },
-            dismissButton = { TextButton(onClick = { confirmImportUri = null }) { Text("إلغاء") } },
+            dismissButton = { TextButton(onClick = { confirmImportUri = null }) { Text(s.cancel) } },
         )
     }
     if (confirmClear) {
         AlertDialog(
             onDismissRequest = { confirmClear = false },
-            title = { Text("مسح كل البيانات؟") },
-            text = { Text("سيُحذف كل شيء نهائياً.") },
-            confirmButton = { TextButton(onClick = { confirmClear = false; scope.launch { backup.clearAll() } }) { Text("مسح") } },
-            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("إلغاء") } },
+            title = { Text(s.clearAllQuestion) },
+            text = { Text(s.clearAllText) },
+            confirmButton = { TextButton(onClick = { confirmClear = false; scope.launch { backup.clearAll() } }) { Text(s.clear) } },
+            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text(s.cancel) } },
         )
     }
 }

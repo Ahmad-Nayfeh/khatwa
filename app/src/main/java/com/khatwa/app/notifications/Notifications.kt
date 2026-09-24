@@ -10,6 +10,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.khatwa.app.R
+import com.khatwa.app.i18n.I18n
 import com.khatwa.app.steps.Today
 import com.khatwa.app.ui.MainActivity
 import com.khatwa.app.util.Fmt
@@ -21,7 +22,7 @@ class Notifications(private val context: Context) {
         if (Build.VERSION.SDK_INT < 26) return
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_SERVICE, context.getString(R.string.notification_channel_service), NotificationManager.IMPORTANCE_LOW).apply {
-                description = "إشعار ثابت هادئ يعرض خطوات اليوم"
+                description = I18n.current.channelServiceDescription
                 setShowBadge(false)
                 enableVibration(false)
                 setSound(null, null)
@@ -29,7 +30,7 @@ class Notifications(private val context: Context) {
         )
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_EVENTS, context.getString(R.string.notification_channel_events), NotificationManager.IMPORTANCE_DEFAULT).apply {
-                description = "تنبيهات القفل والحكمة الصباحية وتذكير الوزن"
+                description = I18n.current.channelEventsDescription
             }
         )
     }
@@ -41,10 +42,11 @@ class Notifications(private val context: Context) {
 
     fun buildServiceNotification(today: Today): Notification {
         val remaining = (today.goal - today.steps).coerceAtLeast(0)
-        val text = if (remaining == 0L) "أكملت هدف اليوم" else "المتبقي ${Fmt.n(remaining)} خطوة"
+        val s = I18n.current
+        val text = if (remaining == 0L) s.goalDoneToday else s.remainingSteps(Fmt.n(remaining))
         return NotificationCompat.Builder(context, CHANNEL_SERVICE)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("${Fmt.n(today.steps)} من ${Fmt.n(today.goal.toLong())} خطوة")
+            .setContentTitle(s.stepsOfGoal(Fmt.n(today.steps), Fmt.n(today.goal.toLong())))
             .setContentText(text)
             .setOngoing(true)
             .setOnlyAlertOnce(true)

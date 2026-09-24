@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
+import com.khatwa.app.i18n.strings
 import com.khatwa.app.ui.components.ProgressRing
 import com.khatwa.app.ui.components.StatPill
 import com.khatwa.app.ui.components.VSpace
@@ -95,6 +96,7 @@ fun DaySlider(days: List<DayCard>, modifier: Modifier = Modifier, onFocus: (Int)
 
 @Composable
 private fun DayPage(day: DayCard, distance: Float, focused: Boolean, modifier: Modifier = Modifier) {
+    val s = strings
     val scale = lerp(1f, 0.78f, distance)
     val alpha = lerp(1f, 0.38f, distance)
     val blurRadius = lerp(0f, 3f, distance)
@@ -113,7 +115,7 @@ private fun DayPage(day: DayCard, distance: Float, focused: Boolean, modifier: M
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            if (day.isToday) "اليوم" else Fmt.arabicDays[stat.date.dayOfWeek.value] ?: "",
+            if (day.isToday) s.today else Fmt.dayName(stat.date.dayOfWeek.value),
             style = MaterialTheme.typography.labelLarge, color = fg, maxLines = 1,
         )
         Text(Fmt.dayMonth(stat.date), style = MaterialTheme.typography.labelMedium, color = fg.copy(alpha = 0.7f))
@@ -126,12 +128,12 @@ private fun DayPage(day: DayCard, distance: Float, focused: Boolean, modifier: M
                     color = fg, maxLines = 1, textAlign = TextAlign.Center,
                     modifier = if (focused) Modifier.testTag("stats_day_steps") else Modifier,
                 )
-                Text("خطوة", style = MaterialTheme.typography.labelSmall, color = fg.copy(alpha = 0.7f))
+                Text(s.step, style = MaterialTheme.typography.labelSmall, color = fg.copy(alpha = 0.7f))
             }
         }
         VSpace(8.dp)
         Text(
-            if (stat.achieved) "✓ تحقق الهدف" else "الهدف ${Fmt.n(stat.goal)}",
+            if (stat.achieved) s.goalReachedCheck else s.goalLabel(Fmt.n(stat.goal)),
             style = MaterialTheme.typography.labelMedium, color = fg, maxLines = 1,
         )
     }
@@ -140,12 +142,13 @@ private fun DayPage(day: DayCard, distance: Float, focused: Boolean, modifier: M
 /** Details of the focused day, shown under the slider. */
 @Composable
 fun DayDetails(day: DayCard, modifier: Modifier = Modifier) {
+    val s = strings
     val stat = day.stat
     val pct = if (stat.goal > 0) (stat.steps * 100 / stat.goal).toInt() else 0
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        StatPill("من الهدف", "$pct%", Modifier.weight(1f))
-        StatPill("الجلسات", Fmt.n(day.sessions), Modifier.weight(1f))
-        StatPill("أطول جلسة", if (day.longestSessionMs > 0) Fmt.duration(day.longestSessionMs) else "—", Modifier.weight(1f))
+        StatPill(s.ofGoalPct, "$pct%", Modifier.weight(1f))
+        StatPill(s.sessions, Fmt.n(day.sessions), Modifier.weight(1f))
+        StatPill(s.longestSession, if (day.longestSessionMs > 0) Fmt.duration(day.longestSessionMs) else "—", Modifier.weight(1f))
     }
     Box(Modifier.height(0.dp))
 }

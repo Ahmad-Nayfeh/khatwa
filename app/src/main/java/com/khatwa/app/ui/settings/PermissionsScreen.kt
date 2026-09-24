@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.khatwa.app.AppContainer
+import com.khatwa.app.i18n.strings
 import com.khatwa.app.lock.KhatwaAccessibilityService
 import com.khatwa.app.permissions.PermissionChecks
 import com.khatwa.app.steps.StepService
@@ -34,50 +35,51 @@ import com.khatwa.app.ui.onboarding.OnResume
 
 @Composable
 fun PermissionsScreen(container: AppContainer, onBack: () -> Unit) {
+    val s = strings
     val context = LocalContext.current
     var tick by rememberSaveable { mutableIntStateOf(0) }
     OnResume { tick++; container.lock.refreshHealth() }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { tick++ }
 
-    SubScreen(title = "حالة الصلاحيات", onBack = onBack) {
+    SubScreen(title = s.permissionsStatus, onBack = onBack) {
         key(tick) {
-            StatusRow("حساس الخطوات", PermissionChecks.stepSensor(context), "الجهاز يملك حساس عدّ خطوات.", null, null)
-            StatusRow("النشاط البدني", PermissionChecks.activityRecognition(context), "مطلوبة لقراءة الحساس.", "منح") {
+            StatusRow(s.stepSensor, PermissionChecks.stepSensor(context), s.stepSensorText, null, null)
+            StatusRow(s.physicalActivity, PermissionChecks.activityRecognition(context), s.physicalActivityText, s.grant) {
                 if (Build.VERSION.SDK_INT >= 29) launcher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
             }
-            StatusRow("الإشعارات", PermissionChecks.notifications(context), "للإشعار الثابت وتنبيهات القفل.", "فتح") {
+            StatusRow(s.notifications, PermissionChecks.notifications(context), s.notificationsText, s.open) {
                 if (Build.VERSION.SDK_INT >= 33) launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 else context.startActivity(PermissionChecks.notificationSettingsIntent(context))
             }
-            StatusRow("خدمة الإتاحة", PermissionChecks.accessibilityEnabled(context, KhatwaAccessibilityService::class.java), "لمعرفة التطبيق المفتوح أثناء القفل.", "فتح") {
+            StatusRow(s.accessibilityService, PermissionChecks.accessibilityEnabled(context, KhatwaAccessibilityService::class.java), s.accessibilityServiceShort, s.open) {
                 context.startActivity(PermissionChecks.accessibilityIntent())
             }
-            StatusRow("العرض فوق التطبيقات", PermissionChecks.overlay(context), "لعرض شاشة القفل.", "فتح") {
+            StatusRow(s.overlay, PermissionChecks.overlay(context), s.overlayShort, s.open) {
                 context.startActivity(PermissionChecks.overlayIntent(context))
             }
-            StatusRow("استبعاد البطارية", PermissionChecks.batteryIgnored(context), "حتى لا يوقف النظام العدّ.", "فتح") {
+            StatusRow(s.batteryExemption, PermissionChecks.batteryIgnored(context), s.batteryExemptionText, s.open) {
                 context.startActivity(PermissionChecks.batteryIntent(context))
             }
-            StatusRow("العدّاد يعمل", container.tracker.today.value.sensorSeen, "وصلت قراءة من الحساس منذ آخر تشغيل.", "تشغيل") {
+            StatusRow(s.counterRuns, container.tracker.today.value.sensorSeen, s.counterRunsText, s.run) {
                 StepService.start(context); tick++
             }
         }
         VSpace()
         if (Build.VERSION.SDK_INT >= 33) {
             KCard(tone = CardTone.Soft) {
-                SectionTitle("الإعدادات المقيّدة (أندرويد 13+)")
-                Text("لأن التطبيق مثبّت من خارج المتجر، قد يرفض النظام تفعيل خدمة الإتاحة ويعرض «إعداد مقيّد». الحل:")
+                SectionTitle(s.restrictedSettings)
+                Text(s.restrictedSettingsText)
                 VSpace(4.dp)
-                Text("1. افتح إعدادات التطبيق (الزر أدناه).\n2. اضغط النقاط الثلاث أعلى الشاشة.\n3. اختر «السماح بالإعدادات المقيّدة» وأكّد.\n4. عد إلى الإتاحة وفعّل «خطوة».")
+                Text(s.restrictedSettingsSteps)
                 VSpace(8.dp)
-                SecondaryButton("فتح إعدادات التطبيق", Modifier.fillMaxWidth()) { context.startActivity(PermissionChecks.appInfoIntent(context)) }
+                SecondaryButton(s.openAppSettings, Modifier.fillMaxWidth()) { context.startActivity(PermissionChecks.appInfoIntent(context)) }
             }
             VSpace()
         }
         if (PermissionChecks.isSamsung()) {
             KCard(tone = CardTone.Soft) {
-                SectionTitle("سامسونج")
-                Text("• Auto Blocker: الإعدادات ← الأمان والخصوصية ← Auto Blocker ← أوقفه مؤقتاً أثناء التثبيت والتفعيل.\n• التطبيقات غير الخاضعة للسكون: الإعدادات ← العناية بالجهاز ← البطارية ← حدود استخدام الخلفية ← أضف «خطوة».")
+                SectionTitle(s.samsung)
+                Text(s.samsungText)
             }
         }
     }

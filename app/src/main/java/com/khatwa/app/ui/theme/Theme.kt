@@ -14,6 +14,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.sp
+import com.khatwa.app.i18n.I18n
+import com.khatwa.app.i18n.LocalStrings
 
 object KhatwaColors {
     val Green = Color(0xFF7BD389)
@@ -106,12 +108,17 @@ private val KhatwaTypography = Typography(
 )
 
 /**
- * Arabic-first theme. The layout direction is forced to RTL because every string in the app is
- * Arabic; charts (Vico) and Material components read LocalLayoutDirection, so they mirror with it.
+ * App theme. The layout direction follows the app language (RTL for Arabic, LTR for English);
+ * charts (Vico) and Material components read LocalLayoutDirection, so they mirror with it.
+ * [LocalStrings] is provided here so every screen reads the same language.
  */
 @Composable
-fun KhatwaTheme(dark: Boolean = true, content: @Composable () -> Unit) {
-    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+fun KhatwaTheme(dark: Boolean = true, language: String? = null, content: @Composable () -> Unit) {
+    val strings = I18n.of(language)
+    CompositionLocalProvider(
+        LocalLayoutDirection provides if (strings.rtl) LayoutDirection.Rtl else LayoutDirection.Ltr,
+        LocalStrings provides strings,
+    ) {
         MaterialTheme(
             colorScheme = if (dark) DarkScheme else LightScheme,
             typography = KhatwaTypography,

@@ -37,7 +37,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.khatwa.app.i18n.strings
 import com.khatwa.app.ui.components.KCard
 import com.khatwa.app.ui.components.Muted
 import com.khatwa.app.ui.components.VSpace
@@ -46,9 +48,10 @@ import com.khatwa.app.util.Fmt
 /** Scrollable sub-screen with a title row and a back arrow. */
 @Composable
 fun SubScreen(title: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    val s = strings
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "رجوع") }
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = s.back) }
             Text(title, style = MaterialTheme.typography.headlineMedium)
         }
         VSpace(8.dp)
@@ -87,14 +90,14 @@ fun SwitchRow(title: String, checked: Boolean, subtitle: String? = null, onChang
 
 /** Single-choice chips in a row (theme mode and similar small enumerations). */
 @Composable
-fun ChoiceRow(options: List<Pair<String, String>>, selected: String, onChange: (String) -> Unit) {
+fun ChoiceRow(options: List<Pair<String, String>>, selected: String, tag: String? = null, onChange: (String) -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         options.forEach { (value, label) ->
             FilterChip(
                 selected = value == selected,
                 onClick = { onChange(value) },
                 label = { Text(label, maxLines = 1) },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).then(if (tag != null) Modifier.testTag("${tag}_$value") else Modifier),
             )
         }
     }
@@ -113,7 +116,7 @@ fun DayOfWeekPicker(selected: Set<Int>, single: Boolean = false, onChange: (Set<
                     if (single) onChange(setOf(d))
                     else onChange(if (on) selected - d else selected + d)
                 },
-                label = { Text(Fmt.arabicDaysShort[d] ?: "") },
+                label = { Text(Fmt.dayShort(d)) },
                 modifier = Modifier.weight(1f),
             )
         }
@@ -123,6 +126,7 @@ fun DayOfWeekPicker(selected: Set<Int>, single: Boolean = false, onChange: (Set<
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TimePickerRow(label: String, minuteOfDay: Int, onChange: (Int) -> Unit) {
+    val s = strings
     var open by remember { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth().clickable { open = true }.padding(vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = MaterialTheme.typography.bodyLarge)
@@ -132,8 +136,8 @@ fun TimePickerRow(label: String, minuteOfDay: Int, onChange: (Int) -> Unit) {
         val state = rememberTimePickerState(initialHour = minuteOfDay / 60, initialMinute = minuteOfDay % 60, is24Hour = false)
         AlertDialog(
             onDismissRequest = { open = false },
-            confirmButton = { TextButton(onClick = { onChange(state.hour * 60 + state.minute); open = false }) { Text("حفظ") } },
-            dismissButton = { TextButton(onClick = { open = false }) { Text("إلغاء") } },
+            confirmButton = { TextButton(onClick = { onChange(state.hour * 60 + state.minute); open = false }) { Text(s.save) } },
+            dismissButton = { TextButton(onClick = { open = false }) { Text(s.cancel) } },
             text = { TimePicker(state = state) },
         )
     }

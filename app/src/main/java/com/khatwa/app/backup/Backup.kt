@@ -1,6 +1,7 @@
 package com.khatwa.app.backup
 
 import com.khatwa.app.AppContainer
+import com.khatwa.app.i18n.I18n
 import com.khatwa.app.steps.SnapshotWorker
 import com.khatwa.app.steps.StepService
 import kotlinx.serialization.Serializable
@@ -71,7 +72,7 @@ class Backup(private val c: AppContainer) {
             c.alarms.scheduleAll(s)
             SnapshotWorker.schedule(c.app)
         }
-        return "تمت الاستعادة: ${file.days.size} يوم، ${file.sessions.size} جلسة، ${file.weights.size} وزن، ${file.quotes.size} حكمة."
+        return I18n.current.restoreSummary(file.days.size, file.sessions.size, file.weights.size, file.quotes.size)
     }
 
     /** Wipes everything and returns to onboarding. */
