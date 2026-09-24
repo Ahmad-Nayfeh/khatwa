@@ -25,6 +25,13 @@ class PhraseTest {
     }
 
     @Test
+    fun `the long default phrase is accepted however it is typed`() {
+        val long = "أختار الاستسلام اليوم بدلا من المشي، وأعلم أن هذا يسجل علي، وأعد نفسي أن أحاول من جديد غدا"
+        assertTrue(Phrase.matches(long, "اختار الاستسلام اليوم بدلا من المشي واعلم ان هذا يسجل على واعد نفسي ان احاول من جديد غدا"))
+        assertFalse(Phrase.matches(long, "اختار الاستسلام اليوم بدلا من المشي"))
+    }
+
+    @Test
     fun `English is case and punctuation insensitive`() {
         val en = "I choose to give up today and I know this is recorded"
         assertTrue(Phrase.matches(en, "i choose to give up today, and I know this is recorded."))

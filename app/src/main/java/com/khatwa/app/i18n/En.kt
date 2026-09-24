@@ -57,7 +57,7 @@ object En : Strings {
     override val unlockedText = "You walked the required steps and the phone is unlocked."
     override fun restoreSummary(days: Int, sessions: Int, weights: Int, quotes: Int) =
         "Restored: $days days, $sessions sessions, $weights weights, $quotes quotes."
-    override val defaultEmergencyPhrase = "I choose to give up today and I know this is recorded"
+    override val defaultEmergencyPhrase = "I choose to give up today instead of walking, I know this is recorded, and I promise myself to try again tomorrow"
 
     override val vsLastWeek = "vs. last week"
     override val countingStoppedNoPermission = "Counting stopped: physical activity permission not granted"

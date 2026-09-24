@@ -19,11 +19,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -56,9 +59,11 @@ private const val STEPS = 7
 @Composable
 fun OnResume(onResume: () -> Unit) {
     val owner = LocalLifecycleOwner.current
-    LaunchedEffect(owner) {
-        val obs = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_RESUME) onResume() }
+    val latest by rememberUpdatedState(onResume)
+    DisposableEffect(owner) {
+        val obs = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_RESUME) latest() }
         owner.lifecycle.addObserver(obs)
+        onDispose { owner.lifecycle.removeObserver(obs) }
     }
 }
 
@@ -68,6 +73,8 @@ fun OnboardingScreen(container: AppContainer) {
     var step by rememberSaveable { mutableIntStateOf(0) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    // Owned here (not in SensorStep) so "Next" is enabled the moment the permission is granted.
+    var sensorGranted by remember { mutableStateOf(PermissionChecks.activityRecognition(context)) }
 
     Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 20.dp, vertical = 16.dp)) {
         LinearProgressIndicator(progress = { (step + 1f) / STEPS }, modifier = Modifier.fillMaxWidth())
@@ -75,7 +82,7 @@ fun OnboardingScreen(container: AppContainer) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
             when (step) {
                 0 -> WelcomeStep()
-                1 -> SensorStep()
+                1 -> SensorStep(sensorGranted) { sensorGranted = it }
                 2 -> NotificationsStep()
                 3 -> GoalsStep(container)
                 4 -> LockPermissionsStep()
@@ -90,7 +97,7 @@ fun OnboardingScreen(container: AppContainer) {
             PrimaryButton(
                 if (last) s.start else s.next,
                 Modifier.weight(2f).testTag("onboarding_next"),
-                enabled = step != 1 || PermissionChecks.activityRecognition(context),
+                enabled = step != 1 || sensorGranted,
             ) {
                 if (last) {
                     scope.launch {
@@ -136,12 +143,11 @@ private fun WelcomeStep() {
 }
 
 @Composable
-private fun SensorStep() {
+private fun SensorStep(granted: Boolean, onGranted: (Boolean) -> Unit) {
     val s = strings
     val context = LocalContext.current
-    var granted by rememberSaveable { mutableStateOf(PermissionChecks.activityRecognition(context)) }
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted = it }
-    OnResume { granted = PermissionChecks.activityRecognition(context) }
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { onGranted(it) }
+    OnResume { onGranted(PermissionChecks.activityRecognition(context)) }
 
     Title(s.stepPermissionTitle)
     Body(s.stepPermissionText)
@@ -155,7 +161,7 @@ private fun SensorStep() {
         KCard(tone = CardTone.Accent) { Text(s.permissionGrantedCheck) }
     } else {
         PrimaryButton(s.grantPermission, Modifier.fillMaxWidth().testTag("grant_activity")) {
-            if (Build.VERSION.SDK_INT >= 29) launcher.launch(Manifest.permission.ACTIVITY_RECOGNITION) else granted = true
+            if (Build.VERSION.SDK_INT >= 29) launcher.launch(Manifest.permission.ACTIVITY_RECOGNITION) else onGranted(true)
         }
         VSpace(8.dp)
         Muted(s.permissionFallbackHint)

@@ -257,6 +257,11 @@ class LockController(private val c: AppContainer) {
             if (className != null && className.contains("Activity")) overlay.hide()
             return
         }
+        // Only an app screen (an activity) coming to the front changes the lock. Keyboards,
+        // autofill suggestions, toasts and other pop-up windows keep it exactly as it is: typing
+        // the emergency phrase opens the keyboard, and that must never bring the lock screen back
+        // over our own app or reset the emergency screen. (reapply() passes className = null.)
+        if (className != null && !isActivity(pkg, className)) return
         lastForeground = pkg
         if (!s.isActive) { overlay.hide(); return }
         if (s.isExpired(System.currentTimeMillis())) { c.scope.launch { unlock(UnlockReason.TIME_UP) }; return }
@@ -269,6 +274,18 @@ class LockController(private val c: AppContainer) {
             AllowReason.USER_ALLOWED -> overlay.hide()
             AllowReason.SETTINGS_BLOCKED, AllowReason.BLOCKED -> overlay.show()
         }
+    }
+
+    private val activityCache = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+
+    /**
+     * True when [className] is an activity of [pkg] (the window of an app screen). A package we
+     * cannot see at all (another profile) counts as an activity, so it stays blocked as before.
+     */
+    internal fun isActivity(pkg: String, className: String): Boolean = activityCache.getOrPut("$pkg/$className") {
+        val pm = context.packageManager
+        val visible = runCatching { pm.getPackageInfo(pkg, 0); true }.getOrDefault(false)
+        !visible || runCatching { pm.getActivityInfo(android.content.ComponentName(pkg, className), 0); true }.getOrDefault(false)
     }
 
     fun onAccessibilityGone() {
