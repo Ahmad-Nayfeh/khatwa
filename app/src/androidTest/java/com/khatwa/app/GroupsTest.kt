@@ -196,8 +196,20 @@ class GroupsTest {
         device.wait(Until.findObject(By.res("admin_key")), 5_000)!!.text = "khat-wate-stad-mink-ey22" // case and dashes do not matter
         assertTrue(TestSupport.clickRes("admin_key_confirm"))
         assertTrue("admin access not granted", runBlocking { kotlinx.coroutines.withTimeoutOrNull(15_000) { c.groups.observeIsAdmin().first { it } } } == true)
-        assertTrue("admin panel button missing", TestSupport.clickRes("admin_open", 15_000))
-        assertNotNull("admin list misses the group", device.wait(Until.findObject(By.res("admin_group_$gid")), 15_000))
+        // The button appears as the password dialog closes; a tap during that change can be lost,
+        // so tap again until the panel is open.
+        var panel = false
+        repeat(3) {
+            if (!panel) {
+                TestSupport.clickRes("admin_open", 15_000)
+                panel = TestSupport.findRes("admin_tab_groups", 8_000) != null
+            }
+        }
+        if (!panel) TestSupport.dump("missing-admin-panel")
+        assertTrue("admin panel did not open", panel)
+        val adminGroup = TestSupport.findRes("admin_group_$gid", 15_000)
+        if (adminGroup == null) TestSupport.dump("missing-admin-group")
+        assertNotNull("admin list misses the group", adminGroup)
         TestSupport.screenshot("58-admin-groups")
         // The admin chooses a password: from now on the temporary key no longer works.
         assertTrue(TestSupport.clickRes("admin_change_password"))
