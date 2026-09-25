@@ -37,8 +37,8 @@ class SettingsBackupTest {
         TestSupport.evidence("quotes seeded: $count")
 
         TestSupport.launchApp()
-        device.wait(Until.findObject(By.res("home_steps")), 15_000)
-        device.findObject(By.res("tab_settings"))?.click()
+        TestSupport.findRes("home_steps", 15_000)
+        assertTrue(TestSupport.clickRes("tab_settings")) // retries if the tab was redrawn under the tap
         assertNotNull(device.wait(Until.findObject(By.text("قفل اللابتوب")), 5_000))
         TestSupport.screenshot("40-settings-root")
 
