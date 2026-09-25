@@ -65,14 +65,11 @@ fun PermissionsScreen(container: AppContainer, onBack: () -> Unit) {
             }
         }
         VSpace()
-        if (Build.VERSION.SDK_INT >= 33) {
+        val a11yOn = PermissionChecks.accessibilityEnabled(context, KhatwaAccessibilityService::class.java)
+        if (!a11yOn) key(tick) {
             KCard(tone = CardTone.Soft) {
-                SectionTitle(s.restrictedSettings)
-                Text(s.restrictedSettingsText)
-                VSpace(4.dp)
-                Text(s.restrictedSettingsSteps)
-                VSpace(8.dp)
-                SecondaryButton(s.openAppSettings, Modifier.fillMaxWidth()) { context.startActivity(PermissionChecks.appInfoIntent(context)) }
+                SectionTitle(s.accessibilityService)
+                com.khatwa.app.ui.components.AccessibilityGuide(a11yOn)
             }
             VSpace()
         }

@@ -389,6 +389,14 @@ object Ar : Strings {
     override val hiddenBadge = "مخفية"
 
     // Groups account + admin
+    override val a11yGuideIntro = "لأن التطبيق مثبّت من خارج المتجر، يطلب أندرويد ثلاث خطوات قصيرة لتفعيل القفل. نفّذها بالترتيب:"
+    override val a11yStep1 = "افتح «الإتاحة» ← «التطبيقات المثبتة» ← اضغط «خطوة». ستظهر رسالة «إعداد مقيّد»: اضغط «حسناً». هذه الخطوة هي التي تُظهر النقاط الثلاث في الخطوة التالية."
+    override val a11yStep1Button = "1. افتح الإتاحة"
+    override val a11yStep2 = "في «معلومات التطبيق» اضغط النقاط الثلاث أعلى الشاشة ← «السماح بالإعدادات المقيّدة» ← أكّد."
+    override val a11yStep2Button = "2. افتح معلومات التطبيق"
+    override val a11yStep3 = "ارجع إلى «الإتاحة» ← «التطبيقات المثبتة» ← «خطوة»، وفعّل الخدمة."
+    override val a11yStep3Button = "3. افتح الإتاحة وفعّل «خطوة»"
+    override val a11yNamesNote = "قد تختلف الأسماء قليلاً حسب الجوال، مثل «التطبيقات المثبتة» أو «التطبيقات التي تم تنزيلها»."
     override val groupWeekTrend = "خطوات المجموعة في آخر 7 أيام"
     override val membersChart = "خطوات الأعضاء"
     override val trendStartsToday = "يمتلئ هذا الرسم يوماً بعد يوم من الآن."
