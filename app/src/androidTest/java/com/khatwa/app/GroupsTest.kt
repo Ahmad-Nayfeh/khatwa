@@ -102,6 +102,9 @@ class GroupsTest {
         val gid = runBlocking { c.groups.observeMyGroups().first().single().id }
         val uidA = c.groups.uid!!
         runBlocking { c.groups.publish(GroupsSync.localStats(c), c.tracker.today.value.date) }
+        // Two accounts share this phone's step count here, so background publishing (live, on each
+        // step change) is paused while B is set up: otherwise A could publish B's extra steps too.
+        runBlocking { c.settings.setGroupsEnabled(false) }
         // User B (same phone in this test) has walked 2 600 more by the time it publishes.
         addSteps(2_600)
 
@@ -131,6 +134,7 @@ class GroupsTest {
             assertTrue(runCatching { c.groups.joinByCode(code) }.isFailure)
         }
         val uidB = c.groups.uid!!
+        runBlocking { c.settings.setGroupsEnabled(true) }
 
         // --- the UI as B: two members on the board.
         TestSupport.launchApp()
