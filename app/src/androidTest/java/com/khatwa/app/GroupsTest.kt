@@ -140,6 +140,11 @@ class GroupsTest {
         }
         if (!opened) TestSupport.dump("missing-group_detail")
         assertTrue("group detail did not open", opened)
+        assertNotNull("group charts missing", TestSupport.findRes("group_charts", 10_000))
+        Thread.sleep(1_000)
+        TestSupport.screenshot("53b-group-charts")
+        // The charts come first; the leaderboard is further down.
+        repeat(3) { TestSupport.scrollForward("group_detail"); Thread.sleep(400) }
         val secondRow = TestSupport.findRes("member_row_1", 20_000)
         if (secondRow == null) TestSupport.dump("missing-member_row_1")
         assertNotNull("second leaderboard row missing", secondRow)
@@ -214,7 +219,6 @@ class GroupsTest {
 
         runBlocking { c.settings.setGroupsEnabled(false) }
         c.groups.signOut()
-        GroupsRepository.emulatorHost = null
     }
 
     private fun addSteps(n: Long) {
@@ -251,7 +255,6 @@ class GroupsTest {
             c.cloud.clearRestored()
         }
         c.groups.signOut()
-        GroupsRepository.emulatorHost = null
     }
 
     companion object {

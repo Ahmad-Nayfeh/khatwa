@@ -76,19 +76,22 @@ fun OnboardingScreen(container: AppContainer) {
     val scope = rememberCoroutineScope()
     // Owned here (not in SensorStep) so "Next" is enabled the moment the permission is granted.
     var sensorGranted by remember { mutableStateOf(PermissionChecks.activityRecognition(context)) }
+    val signedIn = container.groups.observeAccount().collectAsStateWithLifecycle(initialValue = container.groups.account).value
+        ?.let { !it.anonymous } == true
+    var skipWarning by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 20.dp, vertical = 16.dp)) {
         LinearProgressIndicator(progress = { (step + 1f) / STEPS }, modifier = Modifier.fillMaxWidth())
         VSpace(20.dp)
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
             when (step) {
-                0 -> WelcomeStep()
-                1 -> SensorStep(sensorGranted) { sensorGranted = it }
-                2 -> NotificationsStep()
-                3 -> GoalsStep(container)
-                4 -> LockPermissionsStep()
-                5 -> BatteryStep()
-                6 -> AccountStep(container)
+                0 -> AccountStep(container)
+                1 -> WelcomeStep()
+                2 -> SensorStep(sensorGranted) { sensorGranted = it }
+                3 -> NotificationsStep()
+                4 -> GoalsStep(container)
+                5 -> LockPermissionsStep()
+                6 -> BatteryStep()
                 else -> DoneStep()
             }
         }
@@ -96,12 +99,15 @@ fun OnboardingScreen(container: AppContainer) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (step > 0) SecondaryButton(s.previous, Modifier.weight(1f)) { step-- }
             val last = step == STEPS - 1
+            // The first screen is the account: without one, "Skip" explains what that means first.
+            val skipping = step == 0 && !signedIn && container.groups.configured
             PrimaryButton(
-                if (last) s.start else s.next,
+                if (last) s.start else if (skipping) s.skip else s.next,
                 Modifier.weight(2f).testTag("onboarding_next"),
-                enabled = step != 1 || sensorGranted,
+                enabled = step != 2 || sensorGranted,
             ) {
-                if (last) {
+                if (skipping) skipWarning = true
+                else if (last) {
                     scope.launch {
                         val current = container.settings.current()
                         if (!current.allowlistInitialized) container.settings.setAllowlist(AllowlistDefaults.compute(context))
@@ -110,16 +116,28 @@ fun OnboardingScreen(container: AppContainer) {
                         StepService.start(context)
                         container.alarms.scheduleAll(container.settings.current())
                         SnapshotWorker.schedule(context)
+                        val s2 = container.settings.current()
+                        com.khatwa.app.groups.GroupsSync.schedule(context, s2.groupsEnabled && container.groups.configured)
                     }
                 } else step++
             }
         }
     }
+    if (skipWarning) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { skipWarning = false },
+            title = { Text(s.skipAccountTitle) },
+            text = { Text(s.skipAccountText) },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = { skipWarning = false; step++ }, modifier = Modifier.testTag("onboarding_skip_confirm")) { Text(s.continueWithoutAccount) } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { skipWarning = false }) { Text(s.createAccount) } },
+        )
+    }
 }
 
 /**
- * Optional account at the end of setup (after the permissions): signing in to an account that
- * already has a saved copy brings the data back at once (a reinstall, a new phone). Skippable.
+ * The first screen: create an account or sign in. Signing in to an account that already has a
+ * saved copy brings the data back at once (a reinstall, a new phone); setup then continues with
+ * the permissions. Skippable, with a warning that the data then lives only on this phone.
  */
 @Composable
 private fun AccountStep(container: AppContainer) {

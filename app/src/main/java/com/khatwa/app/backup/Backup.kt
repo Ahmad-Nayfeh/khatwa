@@ -53,8 +53,11 @@ class Backup(private val c: AppContainer) {
         return (if (pretty) json else compactJson).encodeToString(BackupFile.serializer(), file)
     }
 
-    /** Replaces everything with the backup. Returns a short human summary. */
-    suspend fun import(text: String): String {
+    /**
+     * Replaces everything with the backup. Returns a short human summary. [duringSetup]: restored
+     * on the first setup screen, so setup goes on (permissions) and nothing is started yet.
+     */
+    suspend fun import(text: String, duringSetup: Boolean = false): String {
         val file = json.decodeFromString<BackupFile>(text)
         require(file.app == "khatwa") { "not a khatwa backup" }
         StepService.stop(c.app)
@@ -68,7 +71,8 @@ class Backup(private val c: AppContainer) {
         file.surrenders.forEach { db.surrenders().insert(com.khatwa.app.data.SurrenderEntity(epochMs = it.epochMs, date = it.date, remainingSteps = it.remainingSteps, lockType = it.lockType)) }
         if (file.quotes.isNotEmpty()) db.quotes().insertAll(file.quotes.mapIndexed { i, q -> com.khatwa.app.data.QuoteEntity(text = q.text, source = q.source, sortOrder = i, lang = q.lang) })
         else c.features.quotes.seedIfNeeded()
-        c.settings.importMap(file.settings.filterKeys { it != "lock_state" })
+        val restoredSettings = file.settings.filterKeys { it != "lock_state" }
+        c.settings.importMap(if (duringSetup) restoredSettings + ("onboarding_done" to "false") else restoredSettings)
         c.tracker.reload()
         c.lock.refreshPolicy()
         val s = c.settings.current()

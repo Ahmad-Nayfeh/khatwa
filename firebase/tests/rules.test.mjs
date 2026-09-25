@@ -269,3 +269,14 @@ test('admin password: the admin sets a new one; then the one-time key stops work
   await assertFails(setDoc(doc(db('u2'), 'admins', 'u2'), { key: 'my own secret 9!', claimedAt: 1 }));
   await assertSucceeds(setDoc(doc(db('u2'), 'admins', 'u2'), { key: 'My own Secret 9!', claimedAt: 1 }));
 });
+
+test('group days: members write the day totals, strangers only read them', async () => {
+  await seedUser('u1', 'Ahmad');
+  await createGroup('u1', 'g1', CODE);
+  const day = { steps: 12000, members: 1, goalMet: 1, goalRatio: 1 };
+  await assertSucceeds(setDoc(doc(db('u1'), 'groups', 'g1', 'days', '2026-09-25'), day));
+  await assertFails(setDoc(doc(db('u9'), 'groups', 'g1', 'days', '2026-09-25'), day));
+  await assertFails(setDoc(doc(db('u1'), 'groups', 'g1', 'days', '2026-09-25'), { ...day, extra: 1 }));
+  await assertFails(setDoc(doc(db('u1'), 'groups', 'g1', 'days', 'yesterday'), day));
+  await assertSucceeds(getDoc(doc(db('u9'), 'groups', 'g1', 'days', '2026-09-25')));
+});

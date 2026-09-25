@@ -27,6 +27,15 @@ object TestSupport {
         // the first UiDevice is created.
         androidx.test.uiautomator.Configurator.getInstance()
             .setUiAutomationFlags(android.app.UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES)
+        // Every screen that shows the account talks to Firebase. When the Firebase emulator runs
+        // (CI), point the app at it before any test can touch Firebase, so no test ever reaches
+        // the real project, whatever order the tests run in.
+        val emulator = runCatching {
+            java.net.Socket().use { it.connect(java.net.InetSocketAddress(GroupsTest.EMULATOR_HOST, 8080), 2_000) }
+            true
+        }.getOrDefault(false)
+        if (emulator) com.khatwa.app.groups.GroupsRepository.emulatorHost = GroupsTest.EMULATOR_HOST
+        Log.i(TAG, "firebase emulator reachable: $emulator")
     }
 
     val device: UiDevice get() = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())

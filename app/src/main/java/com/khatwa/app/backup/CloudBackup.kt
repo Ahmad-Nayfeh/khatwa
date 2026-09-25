@@ -53,10 +53,13 @@ class CloudBackup(private val c: AppContainer) {
     /** When the account's backup was saved (null: none yet). */
     suspend fun savedAt(): Long? = c.groups.backupSavedAt()
 
-    /** Replaces the phone's data with the account's backup. Null when there is none. */
-    suspend fun restore(): String? {
+    /**
+     * Replaces the phone's data with the account's backup. Null when there is none. [duringSetup]:
+     * first setup screen; setup continues and the step counter starts only after the permissions.
+     */
+    suspend fun restore(duringSetup: Boolean = false): String? {
         val (data, _) = c.groups.loadBackup() ?: return null
-        val summary = Backup(c).import(decode(data))
+        val summary = Backup(c).import(decode(data), duringSetup)
         val s = c.settings.current()
         com.khatwa.app.groups.GroupsSync.schedule(c.app, s.onboardingDone && s.groupsEnabled && c.groups.configured)
         _restoreOffer.value = null
@@ -74,7 +77,7 @@ class CloudBackup(private val c: AppContainer) {
         val saved = runCatching { savedAt() }.getOrNull()
         when {
             saved == null -> upload()
-            fresh -> runCatching { restore() }.onFailure { Log.w(TAG, "restore failed: ${it.message}") }
+            fresh -> runCatching { restore(duringSetup = true) }.onFailure { Log.w(TAG, "restore failed: ${it.message}") }
             else -> _restoreOffer.value = saved
         }
     }
