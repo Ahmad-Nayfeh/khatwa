@@ -117,6 +117,10 @@ class GroupsTest {
             assertTrue("expected 2 contributions, got ${stats.size}", stats.size == 2)
             val members = c.groups.observeMembers(gid).first()
             assertEquals(2, members.size)
+            // Today's group total is kept per day for the 7-day chart.
+            val days = c.groups.observeGroupDays(gid).first()
+            val todayKey = c.tracker.today.value.date.toString()
+            assertTrue("no day totals for $todayKey: $days", days.any { it.date == todayKey && it.steps > 0 })
             val ranked = Ranking.rankMembers(stats, Period.TODAY, MemberSort.STEPS, true, c.tracker.today.value.date)
             TestSupport.evidence("leaderboard: ${ranked.joinToString { "${it.uid.take(6)}=${it.steps}" }}")
             assertEquals("B walked more and should lead", c.groups.uid, ranked[0].uid)
@@ -147,6 +151,8 @@ class GroupsTest {
         assertTrue("group detail did not open", opened)
         assertNotNull("group charts missing", TestSupport.findRes("group_charts", 10_000))
         Thread.sleep(1_000)
+        val todayBar = TestSupport.findRes("group_trend_today", 5_000)
+        assertTrue("today's bar has no number: '${todayBar?.text}'", !todayBar?.text.isNullOrBlank())
         TestSupport.screenshot("53b-group-charts")
         // The charts come first; the leaderboard is further down.
         repeat(3) { TestSupport.scrollForward("group_detail"); Thread.sleep(400) }

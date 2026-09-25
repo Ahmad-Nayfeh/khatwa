@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
-import { doc, getDoc, getDocs, collection, setDoc, updateDoc, deleteDoc, writeBatch, increment } from 'firebase/firestore';
+import { doc, getDoc, getDocs, collection, setDoc, updateDoc, deleteDoc, writeBatch, increment, query, where, documentId } from 'firebase/firestore';
 
 const PROJECT = 'khatwa-de941';
 const [host, port] = (process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080').split(':');
@@ -279,4 +279,8 @@ test('group days: members write the day totals, strangers only read them', async
   await assertFails(setDoc(doc(db('u1'), 'groups', 'g1', 'days', '2026-09-25'), { ...day, extra: 1 }));
   await assertFails(setDoc(doc(db('u1'), 'groups', 'g1', 'days', 'yesterday'), day));
   await assertSucceeds(getDoc(doc(db('u9'), 'groups', 'g1', 'days', '2026-09-25')));
+  await assertSucceeds(setDoc(doc(db('u1'), 'groups', 'g1', 'days', '2026-09-10'), day));
+  // The app's 7-day chart query: a range on the day id (descending id order is not supported).
+  const week = await assertSucceeds(getDocs(query(collection(db('u9'), 'groups', 'g1', 'days'), where(documentId(), '>=', '2026-09-19'))));
+  assert.deepEqual(week.docs.map((d) => d.id), ['2026-09-25']);
 });
