@@ -43,7 +43,11 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize().semantics { testTagsAsResourceId = true },
                     color = androidx.compose.material3.MaterialTheme.colorScheme.background,
                 ) {
-                    settings?.let { KhatwaRoot(container, it) }
+                    androidx.compose.foundation.layout.Box {
+                        // The living landscape behind every screen; cards and bars stay solid on top of it.
+                        com.khatwa.app.ui.theme.LivingBackground(dark)
+                        settings?.let { KhatwaRoot(container, it) }
+                    }
                 }
             }
         }

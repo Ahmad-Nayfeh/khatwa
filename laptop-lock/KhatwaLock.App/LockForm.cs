@@ -179,7 +179,7 @@ internal sealed class LockForm : Form
         _phrase.Width = 900;
         _phrase.Font = new Font("Segoe UI", 14f);
         _phrase.Multiline = true;
-        _phrase.Height = 70;
+        _phrase.Height = 100;
         _phrase.Visible = false;
         _phrase.Name = "phrase";
         _phrase.TextChanged += (_, _) => _continue.Enabled = LockDecision.PhraseMatches(_config.EmergencyPhrase, _phrase.Text);

@@ -1,579 +1,224 @@
 {
-  "quotes": [
-    {
-      "lang": "ar",
-      "text": "إذا الشعب يوماً أراد الحياة، فلا بد أن يستجيب القدر",
-      "source": "أبو القاسم الشابي، قصيدة إرادة الحياة"
-    },
-    {
-      "lang": "ar",
-      "text": "ومن لا يحب صعود الجبال، يعش أبد الدهر بين الحفر",
-      "source": "أبو القاسم الشابي، قصيدة إرادة الحياة"
-    },
-    {
-      "lang": "ar",
-      "text": "إذا ما طمحت إلى غاية، ركبت المنى ونسيت الحذر",
-      "source": "أبو القاسم الشابي، قصيدة إرادة الحياة"
-    },
-    {
-      "lang": "ar",
-      "text": "أبارك في الناس أهل الطموح، ومن يستلذ ركوب الخطر",
-      "source": "أبو القاسم الشابي، قصيدة إرادة الحياة"
-    },
-    {
-      "lang": "ar",
-      "text": "وألعن من لا يماشي الزمان، ويقنع بالعيش عيش الحجر",
-      "source": "أبو القاسم الشابي، قصيدة إرادة الحياة"
-    },
-    {
-      "lang": "ar",
-      "text": "إذا صغرت نفس الفتى كان شوقه صغيراً، فلم يتعب ولم يتجشم",
-      "source": "أبو القاسم الشابي"
-    },
-    {
-      "lang": "ar",
-      "text": "لا ينهض الشعب إلا حين يدفعه عزم الحياة إذا ما استيقظت فيه",
-      "source": "أبو القاسم الشابي"
-    },
-    {
-      "lang": "ar",
-      "text": "والقيد يألفه الأموات ما لبثوا، أما الحياة فيبليها وتبليه",
-      "source": "أبو القاسم الشابي"
-    },
-    {
-      "lang": "ar",
-      "text": "على قدر أهل العزم تأتي العزائم، وتأتي على قدر الكرام المكارم",
-      "source": "المتنبي، الديوان"
-    },
-    {
-      "lang": "ar",
-      "text": "إذا غامرت في شرف مروم، فلا تقنع بما دون النجوم",
-      "source": "المتنبي، الديوان"
-    },
-    {
-      "lang": "ar",
-      "text": "لولا المشقة ساد الناس كلهم، الجود يفقر والإقدام قتال",
-      "source": "المتنبي، الديوان"
-    },
-    {
-      "lang": "ar",
-      "text": "إذا أنت لم تشرب مراراً على القذى، ظمئت وأي الناس تصفو مشاربه",
-      "source": "المتنبي، الديوان"
-    },
-    {
-      "lang": "ar",
-      "text": "الرأي قبل شجاعة الشجعان، هو أول وهي المحل الثاني",
-      "source": "المتنبي، الديوان"
-    },
-    {
-      "lang": "ar",
-      "text": "بقدر الكد تكتسب المعالي، ومن طلب العلا سهر الليالي",
-      "source": "الإمام الشافعي، الديوان"
-    },
-    {
-      "lang": "ar",
-      "text": "ومن طلب العلا من غير كد، أضاع العمر في طلب المحال",
-      "source": "الإمام الشافعي، الديوان"
-    },
-    {
-      "lang": "ar",
-      "text": "دع الأيام تفعل ما تشاء، وطب نفساً إذا حكم القضاء",
-      "source": "الإمام الشافعي، الديوان"
-    },
-    {
-      "lang": "ar",
-      "text": "أعلل النفس بالآمال أرقبها، ما أضيق العيش لولا فسحة الأمل",
-      "source": "الطغرائي، لامية العجم"
-    },
-    {
-      "lang": "ar",
-      "text": "لا تقل أصلي وفصلي أبداً، إنما أصل الفتى ما قد حصل",
-      "source": "ابن الوردي، اللامية"
-    },
-    {
-      "lang": "ar",
-      "text": "اطلب العلم ولا تكسل فما أبعد الخير على أهل الكسل",
-      "source": "ابن الوردي، اللامية"
-    },
-    {
-      "lang": "ar",
-      "text": "أيها الشاكي وما بك داء، كن جميلاً تر الوجود جميلا",
-      "source": "إيليا أبو ماضي، قصيدة فلسفة الحياة"
-    },
-    {
-      "lang": "ar",
-      "text": "وإنما الأمم الأخلاق ما بقيت، فإن هم ذهبت أخلاقهم ذهبوا",
-      "source": "أحمد شوقي"
-    },
-    {
-      "lang": "ar",
-      "text": "ليست قيمة الإنسان بما يبلغ إليه، بل بما يتوق للبلوغ إليه",
-      "source": "جبران خليل جبران، رمل وزبد"
-    },
-    {
-      "lang": "ar",
-      "text": "احفر أين شئت في الأرض تجد كنزاً، ولكن عليك أن تحفر بإيمان الفلاح",
-      "source": "جبران خليل جبران، رمل وزبد"
-    },
-    {
-      "lang": "ar",
-      "text": "ابذر بذرة تنبت لك الأرض زهرة، انشد أحلامك في السماء تعطك السماء من تحبه نفسك",
-      "source": "جبران خليل جبران، رمل وزبد"
-    },
-    {
-      "lang": "ar",
-      "text": "سأمشي مع جميع الماشين، ولن أقف بلا حراك لأراقب موكب العابرين بي",
-      "source": "جبران خليل جبران، رمل وزبد"
-    },
-    {
-      "lang": "ar",
-      "text": "إنني سائح وملاح في وقت واحد، وفي كل صباح أكتشف قارة جديدة في نفسي",
-      "source": "جبران خليل جبران، رمل وزبد"
-    },
-    {
-      "lang": "ar",
-      "text": "ليس اللؤلؤ سوى رأي البحر في الصدف، وليس الماس سوى رأي الزمن في الفحم",
-      "source": "جبران خليل جبران، رمل وزبد"
-    },
-    {
-      "lang": "ar",
-      "text": "الجود أن تعطي أكثر مما تستطيع، والإباء أن تأخذ أقل مما تحتاج إليه",
-      "source": "جبران خليل جبران، رمل وزبد"
-    },
-    {
-      "lang": "ar",
-      "text": "نحن الحقول ونحن الزارعون، نحن الأثمار ونحن المستثمرون",
-      "source": "جبران خليل جبران، السابق"
-    },
-    {
-      "lang": "ar",
-      "text": "الحياة لا ترجع إلى الوراء، ولا تلذ لها الإقامة في منزل الأمس",
-      "source": "جبران خليل جبران، النبي"
-    },
-    {
-      "lang": "ar",
-      "text": "قم يا قلبي وارفع صوتك مترنماً، فمن لا يشارك الصبح بأغانيه كان من أبناء الظلام",
-      "source": "جبران خليل جبران، العواصف"
-    },
-    {
-      "lang": "ar",
-      "text": "يوزن المرء بقوله، ويقوّم بفعله",
-      "source": "ابن خلدون، المقدمة"
-    },
-    {
-      "lang": "ar",
-      "text": "الترف مفسد للخلق، مضعف للهمة",
-      "source": "ابن خلدون، المقدمة"
-    },
-    {
-      "lang": "ar",
-      "text": "النفس إذا ألفت شيئاً صار من جبلتها وطبيعتها",
-      "source": "ابن خلدون، المقدمة"
-    },
-    {
-      "lang": "ar",
-      "text": "رحلة الألف ميل تبدأ بخطوة",
-      "source": "لاو تسي، كتاب التاو (ترجمة)"
-    },
-    {
-      "lang": "ar",
-      "text": "كل الأفكار العظيمة حقاً تولد أثناء المشي",
-      "source": "نيتشه، أفول الأصنام (ترجمة)"
-    },
-    {
-      "lang": "ar",
-      "text": "قبل كل شيء، لا تفقد رغبتك في المشي؛ فأنا أمشي كل يوم نحو العافية وأمشي مبتعداً عن كل علة",
-      "source": "سورين كيركغور، رسالة إلى هنرييت لوند 1847 (ترجمة)"
-    },
-    {
-      "lang": "ar",
-      "text": "ليس لأن الأمور صعبة لا نجرؤ، بل لأننا لا نجرؤ تصير الأمور صعبة",
-      "source": "سينيكا، الرسائل إلى لوسيليوس 104 (ترجمة)"
-    },
-    {
-      "lang": "ar",
-      "text": "المثابرة أقوى من العنف؛ فكثير مما لا يُغلب مجتمعاً يستسلم إذا أُخذ شيئاً فشيئاً",
-      "source": "بلوتارخ، حياة سرتوريوس (ترجمة)"
-    },
-    {
-      "lang": "ar",
-      "text": "من بدأ فقد أنجز نصف العمل",
-      "source": "هوراس، الرسائل (ترجمة)"
-    },
-    {
-      "lang": "ar",
-      "text": "بدايات كل الأشياء صغيرة",
-      "source": "شيشرون، في الغايات (ترجمة)"
-    },
-    {
-      "lang": "ar",
-      "text": "الخطوة الأولى وحدها هي التي تكلف",
-      "source": "مدام دو ديفان، رسالة إلى دالمبير 1763 (ترجمة)"
-    },
-    {
-      "lang": "ar",
-      "text": "الفعل الحسن خير من القول الحسن",
-      "source": "بنجامين فرانكلين، تقويم ريتشارد المسكين 1737 (ترجمة)"
-    },
-    {
-      "lang": "ar",
-      "text": "ما نتعلمه لنفعله، نتعلمه بفعله",
-      "source": "أرسطو، الأخلاق النيقوماخية (ترجمة)"
-    },
-    {
-      "lang": "ar",
-      "text": "قل لنفسك أولاً ماذا تريد أن تكون، ثم افعل ما عليك فعله",
-      "source": "إبكتيتوس، المحادثات (ترجمة)"
-    },
-    {
-      "lang": "ar",
-      "text": "القطرة تحفر الصخر لا بالقوة بل بتكرار السقوط",
-      "source": "مثل لاتيني"
-    },
-    {
-      "lang": "ar",
-      "text": "من سار على الدرب وصل",
-      "source": "مثل عربي"
-    },
-    {
-      "lang": "ar",
-      "text": "من جدّ وجد، ومن زرع حصد",
-      "source": "مثل عربي"
-    },
-    {
-      "lang": "ar",
-      "text": "الوقت كالسيف إن لم تقطعه قطعك",
-      "source": "مثل عربي"
-    },
-    {
-      "lang": "ar",
-      "text": "لا تؤجل عمل اليوم إلى الغد",
-      "source": "مثل عربي"
-    },
-    {
-      "lang": "ar",
-      "text": "يمشي رويداً ويكون أولاً",
-      "source": "مثل عربي"
-    },
-    {
-      "lang": "ar",
-      "text": "الكلاب تعوي والقافلة تسير",
-      "source": "مثل عربي"
-    },
-    {
-      "lang": "ar",
-      "text": "أول الشجرة بذرة",
-      "source": "مثل عربي"
-    },
-    {
-      "lang": "ar",
-      "text": "الحصاة من الجبل",
-      "source": "مثل عربي"
-    },
-    {
-      "lang": "ar",
-      "text": "ما حك جلدك مثل ظفرك",
-      "source": "مثل عربي"
-    },
-    {
-      "lang": "ar",
-      "text": "في التأني السلامة وفي العجلة الندامة",
-      "source": "مثل عربي"
-    },
-    {
-      "lang": "ar",
-      "text": "من تأنى أدرك ما تمنى",
-      "source": "مثل عربي"
-    },
-    {
-      "lang": "ar",
-      "text": "الصبر مفتاح الفرج",
-      "source": "مثل عربي"
-    },
-    {
-      "lang": "ar",
-      "text": "لكل جواد كبوة",
-      "source": "مثل عربي"
-    },
-    {
-      "lang": "ar",
-      "text": "خير البر عاجله",
-      "source": "مثل عربي"
-    },
-    {
-      "lang": "ar",
-      "text": "طول البال يهدم الجبال",
-      "source": "مثل شعبي"
-    },
-    {
-      "lang": "ar",
-      "text": "الدوام يثقب الرخام",
-      "source": "مثل مغربي"
-    },
-    {
-      "lang": "ar",
-      "text": "من استعجل شيئاً قبل أوانه عوقب بحرمانه",
-      "source": "قاعدة فقهية"
-    },
-    {
-      "lang": "ar",
-      "text": "دوام الحال من المحال",
-      "source": "مثل عربي"
-    },
-    {
-      "lang": "ar",
-      "text": "إن غداً لناظره قريب",
-      "source": "مثل عربي"
-    },
-    {
-      "lang": "en",
-      "text": "A journey of a thousand miles begins with a single step.",
-      "source": "Laozi, Tao Te Ching, chapter 64"
-    },
-    {
-      "lang": "en",
-      "text": "All truly great thoughts are conceived while walking.",
-      "source": "Friedrich Nietzsche, Twilight of the Idols (1889)"
-    },
-    {
-      "lang": "en",
-      "text": "Above all, do not lose your desire to walk: every day I walk myself into a state of well-being and walk away from every illness.",
-      "source": "Søren Kierkegaard, letter to Henriette Lund (1847)"
-    },
-    {
-      "lang": "en",
-      "text": "I think that I cannot preserve my health and spirits, unless I spend four hours a day at least sauntering through the woods and over the hills and fields, absolutely free from all worldly engagements.",
-      "source": "Henry David Thoreau, \"Walking\" (1862)"
-    },
-    {
-      "lang": "en",
-      "text": "It is not because things are difficult that we do not dare; it is because we do not dare that things are difficult.",
-      "source": "Seneca, Letters to Lucilius, 104"
-    },
-    {
-      "lang": "en",
-      "text": "At dawn, when you have trouble getting out of bed, tell yourself: I have to go to work, as a human being.",
-      "source": "Marcus Aurelius, Meditations, Book 5 (Hays translation)"
-    },
-    {
-      "lang": "en",
-      "text": "First say to yourself what you would be; and then do what you have to do.",
-      "source": "Epictetus, Discourses, Book III"
-    },
-    {
-      "lang": "en",
-      "text": "For the things we have to learn before we can do, we learn by doing.",
-      "source": "Aristotle, Nicomachean Ethics, Book II"
-    },
-    {
-      "lang": "en",
-      "text": "What it lies in our power to do, it lies in our power not to do.",
-      "source": "Aristotle, Nicomachean Ethics, Book III"
-    },
-    {
-      "lang": "en",
-      "text": "The roots of education are bitter, but the fruit is sweet.",
-      "source": "Aristotle, as reported by Diogenes Laërtius"
-    },
-    {
-      "lang": "en",
-      "text": "To rank the effort above the prize may be called love.",
-      "source": "Confucius, Analects, 6.20"
-    },
-    {
-      "lang": "en",
-      "text": "Beautiful objects are wrought by study through effort, but ugly things are reaped automatically without toil.",
-      "source": "Democritus, fragments"
-    },
-    {
-      "lang": "en",
-      "text": "Perseverance is more prevailing than violence; and many things which cannot be overcome when they are together, yield themselves up when taken little by little.",
-      "source": "Plutarch, Parallel Lives, Sertorius"
-    },
-    {
-      "lang": "en",
-      "text": "Water continually dropping will wear hard rocks hollow.",
-      "source": "Plutarch, Of the Training of Children"
-    },
-    {
-      "lang": "en",
-      "text": "The drop hollows out the stone not by strength, but by constant falling.",
-      "source": "Latin proverb (Gutta cavat lapidem)"
-    },
-    {
-      "lang": "en",
-      "text": "What's well begun is half done.",
-      "source": "Horace, Epistles, I.2"
-    },
-    {
-      "lang": "en",
-      "text": "Begin; to begin is half the work. Let half still remain; again begin this, and you will have finished.",
-      "source": "Ausonius, Epigrams"
-    },
-    {
-      "lang": "en",
-      "text": "The beginnings of all things are small.",
-      "source": "Cicero, De Finibus, V.21"
-    },
-    {
-      "lang": "en",
-      "text": "In all matters, before beginning, a diligent preparation should be made.",
-      "source": "Cicero, De Officiis, I.21"
-    },
-    {
-      "lang": "en",
-      "text": "The distance is nothing; it is only the first step that costs.",
-      "source": "Madame du Deffand, letter to d'Alembert (1763)"
-    },
-    {
-      "lang": "en",
-      "text": "The only joy in the world is to begin.",
-      "source": "Cesare Pavese, This Business of Living"
-    },
-    {
-      "lang": "en",
-      "text": "Many strokes, though with a little axe, hew down and fell the hardest-timber'd oak.",
-      "source": "William Shakespeare, Henry VI Part 3, Act II"
-    },
-    {
-      "lang": "en",
-      "text": "The soft drops of rain pierce the hard marble; many strokes overthrow the tallest oaks.",
-      "source": "John Lyly, Euphues (1579)"
-    },
-    {
-      "lang": "en",
-      "text": "Attempt the end and never stand to doubt; nothing's so hard, but search will find it out.",
-      "source": "Robert Herrick, \"Seek and Find\""
-    },
-    {
-      "lang": "en",
-      "text": "We shall escape the uphill by never turning back.",
-      "source": "Christina Rossetti, \"Amor Mundi\""
-    },
-    {
-      "lang": "en",
-      "text": "Ah, but a man's reach should exceed his grasp, or what's a heaven for?",
-      "source": "Robert Browning, \"Andrea del Sarto\""
-    },
-    {
-      "lang": "en",
-      "text": "Never give in, never give in, never, never, never, never, in nothing, great or small, large or petty, never give in except to convictions of honour and good sense.",
-      "source": "Winston Churchill, speech at Harrow School (1941)"
-    },
-    {
-      "lang": "en",
-      "text": "Perseverance is not a long race; it is many short races one after another.",
-      "source": "Walter Elliott, The Spiritual Life (1918)"
-    },
-    {
-      "lang": "en",
-      "text": "Perseverance is a great element of success. If you only knock long enough and loud enough at the gate, you are sure to wake up somebody.",
-      "source": "Henry Wadsworth Longfellow, Table-talk"
-    },
-    {
-      "lang": "en",
-      "text": "With ordinary talent and extraordinary perseverance, all things are attainable.",
-      "source": "Thomas Fowell Buxton"
-    },
-    {
-      "lang": "en",
-      "text": "What destiny sends, bear! Whoever perseveres will be crowned.",
-      "source": "Johann Gottfried Herder"
-    },
-    {
-      "lang": "en",
-      "text": "By perseverance the snail reached the ark.",
-      "source": "Proverb, in Charles Spurgeon's The Salt-Cellars (1889)"
-    },
-    {
-      "lang": "en",
-      "text": "We choose to go to the Moon in this decade and do the other things, not because they are easy, but because they are hard.",
-      "source": "John F. Kennedy, Rice University address (1962)"
-    },
-    {
-      "lang": "en",
-      "text": "Well done is better than well said.",
-      "source": "Benjamin Franklin, Poor Richard's Almanack (1737)"
-    },
-    {
-      "lang": "en",
-      "text": "Up, sluggard, and waste not life; in the grave will be sleeping enough.",
-      "source": "Benjamin Franklin, Poor Richard's Almanack (1741)"
-    },
-    {
-      "lang": "en",
-      "text": "The sleeping fox catches no poultry.",
-      "source": "Benjamin Franklin, Poor Richard's Almanack (1743)"
-    },
-    {
-      "lang": "en",
-      "text": "Human felicity is produced not so much by great pieces of good fortune that seldom happen, as by little advantages that occur every day.",
-      "source": "Benjamin Franklin, Autobiography"
-    },
-    {
-      "lang": "en",
-      "text": "The mode in which the inevitable comes to pass is through effort.",
-      "source": "Oliver Wendell Holmes Jr., \"Ideals and Doubts\""
-    },
-    {
-      "lang": "en",
-      "text": "If there is effort, there is always accomplishment.",
-      "source": "Jigoro Kano"
-    },
-    {
-      "lang": "en",
-      "text": "To have striven, to have made the effort, to have been true to certain ideals: this alone is worth the struggle.",
-      "source": "William Osler"
-    },
-    {
-      "lang": "en",
-      "text": "The smallest effort is not lost; each wavelet on the ocean tossed aids in the ebb-tide or the flow.",
-      "source": "Charles Mackay, \"The Old and the New\" (1857)"
-    },
-    {
-      "lang": "en",
-      "text": "It is part of the cure to wish to be cured.",
-      "source": "Seneca, Phaedra"
-    },
-    {
-      "lang": "en",
-      "text": "Our prayers should be for a sound mind in a healthy body.",
-      "source": "Juvenal, Satires, X"
-    },
-    {
-      "lang": "en",
-      "text": "Health is the second blessing that we mortals are capable of: a blessing that money cannot buy.",
-      "source": "Izaak Walton, The Compleat Angler"
-    },
-    {
-      "lang": "en",
-      "text": "Health and cheerfulness mutually beget each other.",
-      "source": "Joseph Addison, The Spectator, No. 387"
-    },
-    {
-      "lang": "en",
-      "text": "Health consists with temperance alone.",
-      "source": "Alexander Pope, An Essay on Man"
-    },
-    {
-      "lang": "en",
-      "text": "Health is the vital principle of bliss, and exercise of health.",
-      "source": "James Thomson, The Castle of Indolence (1748)"
-    },
-    {
-      "lang": "en",
-      "text": "Health is the greatest gift, contentment the greatest wealth, a trusted friend the best relative.",
-      "source": "Dhammapada, verse 204"
-    },
-    {
-      "lang": "en",
-      "text": "Health that snuffs the morning air.",
-      "source": "James Grainger, \"Solitude, an Ode\""
-    },
-    {
-      "lang": "en",
-      "text": "Victory belongs to the most persevering.",
-      "source": "Napoleon Bonaparte, as quoted in Treasury of Thought (1894)"
-    }
-  ]
+ "quotes": [
+  {
+   "lang": "ar",
+   "text": "على قدر أهل العزم تأتي العزائم\nوتأتي على قدر الكرام المكارم",
+   "source": "المتنبي"
+  },
+  {
+   "lang": "ar",
+   "text": "إذا غامرت في شرف مروم\nفلا تقنع بما دون النجوم",
+   "source": "المتنبي"
+  },
+  {
+   "lang": "ar",
+   "text": "ولم أر في عيوب الناس شيئاً\nكنقص القادرين على التمام",
+   "source": "المتنبي"
+  },
+  {
+   "lang": "ar",
+   "text": "وإذا كانت النفوس كباراً\nتعبت في مرادها الأجسام",
+   "source": "المتنبي"
+  },
+  {
+   "lang": "ar",
+   "text": "ما كل ما يتمنى المرء يدركه\nتجري الرياح بما لا تشتهي السفن",
+   "source": "المتنبي"
+  },
+  {
+   "lang": "ar",
+   "text": "لولا المشقة ساد الناس كلهم\nالجود يفقر والإقدام قتال",
+   "source": "المتنبي"
+  },
+  {
+   "lang": "ar",
+   "text": "تريدين لقيان المعالي رخيصة\nولا بد دون الشهد من إبر النحل",
+   "source": "المتنبي"
+  },
+  {
+   "lang": "ar",
+   "text": "أعز مكان في الدنى سرج سابح\nوخير جليس في الزمان كتاب",
+   "source": "المتنبي"
+  },
+  {
+   "lang": "ar",
+   "text": "وإذا لم يكن من الموت بد\nفمن العجز أن تكون جبانا",
+   "source": "المتنبي"
+  },
+  {
+   "lang": "ar",
+   "text": "إذا الشعب يوماً أراد الحياة\nفلا بد أن يستجيب القدر",
+   "source": "أبو القاسم الشابي"
+  },
+  {
+   "lang": "ar",
+   "text": "ولا بد لليل أن ينجلي\nولا بد للقيد أن ينكسر",
+   "source": "أبو القاسم الشابي"
+  },
+  {
+   "lang": "ar",
+   "text": "ومن لا يحب صعود الجبال\nيعش أبد الدهر بين الحفر",
+   "source": "أبو القاسم الشابي"
+  },
+  {
+   "lang": "ar",
+   "text": "إذا ما طمحت إلى غاية\nركبت المنى ونسيت الحذر",
+   "source": "أبو القاسم الشابي"
+  },
+  {
+   "lang": "ar",
+   "text": "ومن لم يعانقه شوق الحياة\nتبخر في جوها واندثر",
+   "source": "أبو القاسم الشابي"
+  },
+  {
+   "lang": "ar",
+   "text": "سأعيش رغم الداء والأعداء\nكالنسر فوق القمة الشماء",
+   "source": "أبو القاسم الشابي"
+  },
+  {
+   "lang": "ar",
+   "text": "وما نيل المطالب بالتمني\nولكن تؤخذ الدنيا غلابا",
+   "source": "أحمد شوقي"
+  },
+  {
+   "lang": "ar",
+   "text": "وما استعصى على قوم منال\nإذا الإقدام كان لهم ركابا",
+   "source": "أحمد شوقي"
+  },
+  {
+   "lang": "ar",
+   "text": "دقات قلب المرء قائلة له\nإن الحياة دقائق وثوان",
+   "source": "أحمد شوقي"
+  },
+  {
+   "lang": "ar",
+   "text": "وإنما الأمم الأخلاق ما بقيت\nفإن هم ذهبت أخلاقهم ذهبوا",
+   "source": "أحمد شوقي"
+  },
+  {
+   "lang": "ar",
+   "text": "قف دون رأيك في الحياة مجاهداً\nإن الحياة عقيدة وجهاد",
+   "source": "أحمد شوقي"
+  },
+  {
+   "lang": "ar",
+   "text": "إني رأيت وقوف الماء يفسده\nإن ساح طاب وإن لم يجر لم يطب",
+   "source": "الإمام الشافعي"
+  },
+  {
+   "lang": "ar",
+   "text": "والشمس لو وقفت في الفلك دائمة\nلملها الناس من عجم ومن عرب",
+   "source": "الإمام الشافعي"
+  },
+  {
+   "lang": "ar",
+   "text": "والأسد لولا فراق الأرض ما افترست\nوالسهم لولا فراق القوس لم يصب",
+   "source": "الإمام الشافعي"
+  },
+  {
+   "lang": "ar",
+   "text": "سافر تجد عوضاً عمن تفارقه\nوانصب فإن لذيذ العيش في النصب",
+   "source": "الإمام الشافعي"
+  },
+  {
+   "lang": "ar",
+   "text": "ما حك جلدك مثل ظفرك\nفتول أنت جميع أمرك",
+   "source": "الإمام الشافعي"
+  },
+  {
+   "lang": "ar",
+   "text": "نعيب زماننا والعيب فينا\nوما لزماننا عيب سوانا",
+   "source": "الإمام الشافعي"
+  },
+  {
+   "lang": "ar",
+   "text": "دع الأيام تفعل ما تشاء\nوطب نفساً إذا حكم القضاء",
+   "source": "الإمام الشافعي"
+  },
+  {
+   "lang": "ar",
+   "text": "ولرب نازلة يضيق لها الفتى\nذرعاً وعند الله منها المخرج",
+   "source": "ينسب إلى الإمام الشافعي"
+  },
+  {
+   "lang": "ar",
+   "text": "ضاقت فلما استحكمت حلقاتها\nفرجت وكنت أظنها لا تفرج",
+   "source": "ينسب إلى الإمام الشافعي"
+  },
+  {
+   "lang": "ar",
+   "text": "بقدر الكد تكتسب المعالي\nومن طلب العلا سهر الليالي",
+   "source": "ينسب إلى الإمام الشافعي"
+  },
+  {
+   "lang": "ar",
+   "text": "وطول مقام المرء في الحي مخلق\nلديباجتيه فاغترب تتجدد",
+   "source": "أبو تمام"
+  },
+  {
+   "lang": "ar",
+   "text": "فإني رأيت الشمس زيدت محبة\nإلى الناس أن ليست عليهم بسرمد",
+   "source": "أبو تمام"
+  },
+  {
+   "lang": "ar",
+   "text": "السيف أصدق إنباء من الكتب\nفي حده الحد بين الجد واللعب",
+   "source": "أبو تمام"
+  },
+  {
+   "lang": "ar",
+   "text": "خفف الوطء ما أظن أديم الـ\nأرض إلا من هذه الأجساد",
+   "source": "أبو العلاء المعري"
+  },
+  {
+   "lang": "ar",
+   "text": "وإني وإن كنت الأخير زمانه\nلآت بما لم تستطعه الأوائل",
+   "source": "أبو العلاء المعري"
+  },
+  {
+   "lang": "ar",
+   "text": "أيهذا الشاكي وما بك داء\nكن جميلاً ترى الوجود جميلا",
+   "source": "إيليا أبو ماضي"
+  },
+  {
+   "lang": "ar",
+   "text": "قال السماء كئيبة وتجهما\nقلت ابتسم يكفي التجهم في السما",
+   "source": "إيليا أبو ماضي"
+  },
+  {
+   "lang": "ar",
+   "text": "أعلل النفس بالآمال أرقبها\nما أضيق العيش لولا فسحة الأمل",
+   "source": "الطغرائي"
+  },
+  {
+   "lang": "ar",
+   "text": "اطلب العلم ولا تكسل فما\nأبعد الخير على أهل الكسل",
+   "source": "ابن الوردي"
+  },
+  {
+   "lang": "ar",
+   "text": "لا تقل أصلي وفصلي أبداً\nإنما أصل الفتى ما قد حصل",
+   "source": "ابن الوردي"
+  },
+  {
+   "lang": "ar",
+   "text": "إن الشباب والفراغ والجدة\nمفسدة للمرء أي مفسدة",
+   "source": "أبو العتاهية"
+  },
+  {
+   "lang": "ar",
+   "text": "ألا ليت الشباب يعود يوماً\nفأخبره بما فعل المشيب",
+   "source": "أبو العتاهية"
+  },
+  {
+   "lang": "ar",
+   "text": "ستبدي لك الأيام ما كنت جاهلاً\nويأتيك بالأخبار من لم تزود",
+   "source": "طرفة بن العبد"
+  },
+  {
+   "lang": "ar",
+   "text": "سيذكرني قومي إذا جد جدهم\nوفي الليلة الظلماء يفتقد البدر",
+   "source": "أبو فراس الحمداني"
+  }
+ ]
 }

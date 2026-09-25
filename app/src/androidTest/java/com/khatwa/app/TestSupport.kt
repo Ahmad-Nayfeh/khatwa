@@ -27,6 +27,15 @@ object TestSupport {
         // the first UiDevice is created.
         androidx.test.uiautomator.Configurator.getInstance()
             .setUiAutomationFlags(android.app.UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES)
+        // Every screen that shows the account talks to Firebase. When the Firebase emulator runs
+        // (CI), point the app at it before any test can touch Firebase, so no test ever reaches
+        // the real project, whatever order the tests run in.
+        val emulator = runCatching {
+            java.net.Socket().use { it.connect(java.net.InetSocketAddress(GroupsTest.EMULATOR_HOST, 8080), 2_000) }
+            true
+        }.getOrDefault(false)
+        if (emulator) com.khatwa.app.groups.GroupsRepository.emulatorHost = GroupsTest.EMULATOR_HOST
+        Log.i(TAG, "firebase emulator reachable: $emulator")
     }
 
     val device: UiDevice get() = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
@@ -169,6 +178,16 @@ object TestSupport {
                 Log.i(TAG, "findRes($resId): accessibility cache cleared=$cleared")
             }
         }
+    }
+
+    /** Scrolls [scrollTag] forward, page by page, until a node with [resId] is on screen. */
+    fun scrollToRes(scrollTag: String, resId: String, maxScrolls: Int = 6): androidx.test.uiautomator.UiObject2? {
+        repeat(maxScrolls) {
+            device.wait(Until.findObject(By.res(resId)), 1_500)?.let { return it }
+            scrollForward(scrollTag)
+            Thread.sleep(400)
+        }
+        return device.wait(Until.findObject(By.res(resId)), 1_500)
     }
 
     /** The UiAutomation UiDevice uses (asking with other flags would reconnect it). */

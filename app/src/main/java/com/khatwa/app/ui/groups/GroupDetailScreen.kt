@@ -1,6 +1,11 @@
 package com.khatwa.app.ui.groups
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -71,6 +76,9 @@ fun GroupDetailScreen(vm: GroupsViewModel, gid: String, onBack: () -> Unit) {
         Muted("${s.membersCount(Fmt.n(memberCount))} · ${s.goalMetToday(Fmt.n(d.totals.goalMet), Fmt.n(memberCount))}")
         VSpace(8.dp)
         MembersSummary(d.totals, s)
+        VSpace()
+        val days by vm.groupDays.collectAsStateWithLifecycle()
+        GroupCharts(d, days, s)
         VSpace()
 
         KCard {
@@ -160,5 +168,75 @@ fun GroupDetailScreen(vm: GroupsViewModel, gid: String, onBack: () -> Unit) {
             confirmButton = { TextButton(onClick = { confirm = null; action() }) { Text(title) } },
             dismissButton = { TextButton(onClick = { confirm = null }) { Text(s.cancel) } },
         )
+    }
+}
+
+/** Short step numbers for chart labels: 950, 12.4k. */
+private fun compact(v: Long): String = if (v < 1_000) v.toString() else String.format(java.util.Locale.US, "%.1fk", v / 1000.0).replace(".0k", "k")
+
+/**
+ * The group in pictures: how many reached today's goal (a ring), the group's total over the last
+ * 7 days (columns; kept from the day this version runs), and each member's steps for the chosen
+ * period (bars). Bars and columns grow in when they appear.
+ */
+@Composable
+private fun GroupCharts(d: GroupDetailState, days: List<com.khatwa.app.groups.GroupDay>, s: com.khatwa.app.i18n.Strings) {
+    val today = java.time.LocalDate.now()
+    val count = (d.group?.memberCount ?: d.members.size).coerceAtLeast(1)
+    val todayTotals = com.khatwa.core.groups.Ranking.publicTotals(d.group?.summary, count, com.khatwa.core.groups.Period.TODAY, today)
+    val primary = MaterialTheme.colorScheme.primary
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { shown = true }
+    val grow by androidx.compose.animation.core.animateFloatAsState(if (shown) 1f else 0f, androidx.compose.animation.core.tween(900), label = "grow")
+
+    KCard(modifier = Modifier.testTag("group_charts")) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            val ratio = todayTotals.goalMet.toFloat() / count
+            com.khatwa.app.ui.components.ProgressRing(progress = ratio * grow, size = 84.dp, stroke = 9.dp) {
+                Text("${(ratio * 100).toInt()}%", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+            }
+            Column(Modifier.padding(start = 14.dp)) {
+                Text(s.goalMetToday(Fmt.n(todayTotals.goalMet), Fmt.n(count)), style = MaterialTheme.typography.titleMedium)
+                Muted("${s.groupTotal} ${Fmt.n(todayTotals.steps)}")
+            }
+        }
+        VSpace()
+        SectionTitle(s.groupWeekTrend)
+        val byDate = days.associateBy { it.date }
+        val week = (6 downTo 0).map { today.minusDays(it.toLong()) }
+        val max = week.maxOf { byDate[it.toString()]?.steps ?: 0L }.coerceAtLeast(1L)
+        Row(Modifier.fillMaxWidth().height(150.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.Bottom) {
+            week.forEach { date ->
+                val v = byDate[date.toString()]?.steps ?: 0L
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        if (v > 0) compact(v) else "", style = MaterialTheme.typography.labelSmall,
+                        modifier = if (date == today) Modifier.testTag("group_trend_today") else Modifier,
+                    )
+                    Box(
+                        Modifier.width(22.dp).height((100f * grow * v / max).coerceAtLeast(3f).dp)
+                            .background(if (date == today) primary else primary.copy(alpha = 0.55f), RoundedCornerShape(6.dp)),
+                    )
+                    VSpace(4.dp)
+                    Text(Fmt.dayShort(date.dayOfWeek.value), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+        if (days.size < 2) Muted(s.trendStartsToday)
+        if (d.rows.isNotEmpty()) {
+            VSpace()
+            SectionTitle(s.membersChart)
+            val top = d.rows.take(10)
+            val most = top.maxOf { it.row.steps }.coerceAtLeast(1L)
+            top.forEach { r ->
+                Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(r.member?.nickname ?: "?", maxLines = 1, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = if (r.isMe) FontWeight.Bold else FontWeight.Normal), modifier = Modifier.width(84.dp))
+                    Box(Modifier.weight(1f).height(14.dp)) {
+                        Box(Modifier.fillMaxWidth((grow * r.row.steps / most).coerceIn(0.02f, 1f)).height(14.dp).background(if (r.isMe) primary else primary.copy(alpha = 0.6f), RoundedCornerShape(7.dp)))
+                    }
+                    Text(compact(r.row.steps), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 8.dp))
+                }
+            }
+        }
     }
 }

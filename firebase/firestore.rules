@@ -10,7 +10,11 @@ rules_version = '2';
 //   groups/{gid}/private/invite      { code } — owner + members only
 //   groups/{gid}/members/{uid}       { nickname, joinedAt, code? } — members only
 //   groups/{gid}/contrib/{uid}       anonymous numbers (no name) — any signed-in user may read
+//   groups/{gid}/days/{yyyy-mm-dd}   the group's totals that day (7-day chart) — members write
 //   invites/{code}                   { groupId } — get by exact code only, never listed
+//   users/{uid}/backup/latest        private cloud backup of the phone's data — owner only
+//   admins/{uid}                     { key, claimedAt } — created once with the admin password
+//   config/admin                     { keySha256 } — the admin password's hash, set by the admin
 //
 // Everything is client-written (Spark plan, no Cloud Functions), so the rules validate shapes,
 // caps (60 000 steps/day, 5 owned groups, 200 members) and who may touch what.
@@ -33,6 +37,37 @@ service cloud.firestore {
     function validCode(c) { return c is string && c.size() == 8 && c.matches('[A-HJ-NP-Z2-9]{8}'); }
     function changedOnly(keys) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
 
+    // ---- admin -----------------------------------------------------------------------------
+    // The admin password is never stored anywhere: only its SHA-256. Until the admin chooses a
+    // password in the app (config/admin), the hash below (of a one-time key) is the one that
+    // counts; once config/admin exists, that one-time key stops working.
+    function adminKeySha256() { return '9ec71ea4c16e69692192b3e08c4b95a7c357f6ba748acbc193326bdf37bda804'; }
+    function adminConfigPath() { return /databases/$(db)/documents/config/admin; }
+    function isAdmin() { return signedIn() && exists(/databases/$(db)/documents/admins/$(uid())); }
+    function adminKeyMatches(key) {
+      return key is string && (
+        (exists(adminConfigPath()) && hashing.sha256(key).toHexString().lower() == get(adminConfigPath()).data.keySha256)
+        || (!exists(adminConfigPath()) && hashing.sha256(key).toHexString().lower() == adminKeySha256()));
+    }
+
+    match /admins/{adminId} {
+      allow get: if signedIn() && adminId == uid();
+      allow create: if signedIn() && adminId == uid()
+        && request.resource.data.keys().hasOnly(['key', 'claimedAt'])
+        && adminKeyMatches(request.resource.data.key);
+    }
+
+    // The admin reads and changes all groups, profiles, invites and admin settings. Personal
+    // backups (users/{uid}/backup) are NOT included: only their owner can read them.
+    match /groups/{rest=**} { allow read, write: if isAdmin(); }
+    match /invites/{rest=**} { allow read, write: if isAdmin(); }
+    match /admins/{rest=**} { allow read, write: if isAdmin(); }
+    match /config/{rest=**} { allow read, write: if isAdmin(); }
+    match /users/{userId} {
+      allow read, write: if isAdmin();
+      match /memberships/{gid} { allow read, write: if isAdmin(); }
+    }
+
     // ---- users ---------------------------------------------------------------------------
     match /users/{userId} {
       allow read: if signedIn() && userId == uid();
@@ -50,6 +85,13 @@ service cloud.firestore {
       // The user's own list of groups (group ids only), so "my groups" needs no collection-group query.
       match /memberships/{gid} {
         allow read, write: if signedIn() && userId == uid();
+      }
+      // Private cloud backup of the phone's data (gzip + base64 of the backup file). Owner only.
+      match /backup/{docId} {
+        allow read, delete: if signedIn() && userId == uid();
+        allow create, update: if signedIn() && userId == uid()
+          && request.resource.data.keys().hasOnly(['data', 'updatedAt', 'bytes', 'version'])
+          && request.resource.data.data is string && request.resource.data.data.size() <= 1000000;
       }
     }
 
@@ -155,6 +197,11 @@ service cloud.firestore {
 
       // Anonymous per-member numbers. Readable by any signed-in user (this is what non-members can
       // see through the API: numbers without names, as documented in the README).
+      // The group's totals per day (for the 7-day chart), refreshed by members when they publish.
+      match /days/{day} {
+        allow read: if signedIn();
+        allow create, update: if signedIn() && isMember(gid) && day.size() == 10 && validTotals(request.resource.data);
+      }
       match /contrib/{cuid} {
         allow read: if signedIn();
         allow create, update: if signedIn() && cuid == uid() && isMember(gid) && validStats(request.resource.data);

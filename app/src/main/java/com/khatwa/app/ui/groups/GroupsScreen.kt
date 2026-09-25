@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
@@ -34,6 +35,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.khatwa.app.AppContainer
@@ -52,18 +55,27 @@ import com.khatwa.app.util.Fmt
 import com.khatwa.core.groups.GroupSort
 import com.khatwa.core.groups.Period
 
-/** Groups tab: opt-in card, then "my groups" / "all groups" with the public ranking. */
+/** Groups tab: account (create / sign in), then "my groups" / "all groups" with the public ranking. */
 @Composable
 fun GroupsScreen(container: AppContainer) {
     val vm = containerViewModel { GroupsViewModel(it) }
+    val accountVm = containerViewModel { com.khatwa.app.ui.account.AccountViewModel(it) }
     val s = strings
     val enabled by vm.enabled.collectAsStateWithLifecycle()
+    val account by vm.account.collectAsStateWithLifecycle()
+    val isAdmin by vm.isAdmin.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
     var openGroup by rememberSaveable { mutableStateOf<String?>(null) }
+    var openAdmin by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(enabled) { if (enabled) vm.sync() }
 
+    if (openAdmin && isAdmin) {
+        BackHandler { openAdmin = false }
+        AdminScreen(container, onBack = { openAdmin = false })
+        return
+    }
     if (openGroup != null) {
         BackHandler { openGroup = null; vm.close() }
         GroupDetailScreen(vm, openGroup!!, onBack = { openGroup = null; vm.close() })
@@ -75,54 +87,54 @@ fun GroupsScreen(container: AppContainer) {
         VSpace()
         if (busy) { LinearProgressIndicator(Modifier.fillMaxWidth()); VSpace(8.dp) }
         message?.let { kind ->
-            KCard(tone = CardTone.Warning) {
+            KCard(tone = CardTone.Warning, modifier = Modifier.testTag("groups_message")) {
                 Text(s.errorText(kind))
                 TextButton(onClick = { vm.clearMessage() }) { Text(s.done) }
             }
             VSpace()
         }
+        com.khatwa.app.ui.account.AccountMessages(accountVm, s)
+        val acc = account
         when {
             !vm.configured -> KCard(tone = CardTone.Soft) { Text(s.groupsNotConfigured) }
-            !enabled -> OptInCard(vm, s)
-            else -> EnabledContent(vm, s) { gid -> vm.open(gid); openGroup = gid }
+            // An old anonymous account creates its email account here (same uid: its groups stay).
+            acc == null || (acc.anonymous && !enabled) -> {
+                com.khatwa.app.ui.account.AccountCard(accountVm, s, onSignedIn = { vm.turnOnNow() })
+                VSpace()
+                Muted(s.groupsWhatIsSent)
+                VSpace(6.dp)
+                Muted(s.groupsLimitation)
+            }
+            !enabled -> SignedInOffCard(vm, accountVm, s, acc.email)
+            else -> EnabledContent(vm, accountVm, s, acc, isAdmin, openAdmin = { openAdmin = true }) { gid -> vm.open(gid); openGroup = gid }
         }
         Box(Modifier.padding(bottom = 24.dp))
     }
 }
 
+/** Signed in, but groups are turned off on this phone. */
 @Composable
-private fun OptInCard(vm: GroupsViewModel, s: Strings) {
-    var nickname by rememberSaveable { mutableStateOf("") }
+private fun SignedInOffCard(vm: GroupsViewModel, accountVm: com.khatwa.app.ui.account.AccountViewModel, s: Strings, email: String?) {
     KCard {
         SectionTitle(s.groupsTitle)
-        Text(s.groupsIntro)
-        VSpace(8.dp)
-        Muted(s.groupsWhatIsSent)
-        VSpace(6.dp)
-        Muted(s.groupsPrivacy)
+        Text(s.signedInAs(email ?: "—"))
         VSpace()
-        OutlinedTextField(
-            value = nickname, onValueChange = { nickname = it.take(24) }, label = { Text(s.nickname) },
-            supportingText = { Text(s.nicknameHint) }, singleLine = true,
-            modifier = Modifier.fillMaxWidth().testTag("groups_nickname"),
-        )
+        PrimaryButton(s.turnOnGroups, Modifier.fillMaxWidth().testTag("groups_enable")) { vm.enable() }
         VSpace(8.dp)
-        PrimaryButton(s.enableGroups, Modifier.fillMaxWidth().testTag("groups_enable"), enabled = nickname.isNotBlank()) { vm.enable(nickname) }
+        SecondaryButton(s.signOut, Modifier.fillMaxWidth().testTag("groups_sign_out")) { accountVm.signOut() }
     }
-    VSpace()
-    Muted(s.groupsLimitation)
 }
 
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
-private fun EnabledContent(vm: GroupsViewModel, s: Strings, open: (String) -> Unit) {
+private fun EnabledContent(vm: GroupsViewModel, accountVm: com.khatwa.app.ui.account.AccountViewModel, s: Strings, account: com.khatwa.app.groups.Account, isAdmin: Boolean, openAdmin: () -> Unit, open: (String) -> Unit) {
     val nickname by vm.nickname.collectAsStateWithLifecycle()
     val myGroups by vm.myGroups.collectAsStateWithLifecycle()
     val publicGroups by vm.publicGroups.collectAsStateWithLifecycle()
     val filters by vm.publicFilters.collectAsStateWithLifecycle()
     val lastSync by vm.lastSync.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(0) }
-    var dialog by rememberSaveable { mutableStateOf<String?>(null) } // "create" | "join" | "nickname" | "disable"
+    var dialog by rememberSaveable { mutableStateOf<String?>(null) } // "create" | "join" | "nickname" | "disable" | "save"
 
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
@@ -131,6 +143,20 @@ private fun EnabledContent(vm: GroupsViewModel, s: Strings, open: (String) -> Un
         }
         TextButton(onClick = { dialog = "nickname" }) { Text(s.edit) }
         TextButton(onClick = { vm.sync() }) { Text(s.refresh) }
+    }
+    account.email?.let { Muted(s.signedInAs(it)) }
+    if (account.anonymous) {
+        VSpace(8.dp)
+        KCard(tone = CardTone.Warning) {
+            SectionTitle(s.saveAccountTitle)
+            Text(s.saveAccountText)
+            VSpace(6.dp)
+            PrimaryButton(s.saveAccountTitle, Modifier.fillMaxWidth().testTag("groups_save_account")) { dialog = "save" }
+        }
+    }
+    if (isAdmin) {
+        VSpace(8.dp)
+        PrimaryButton(s.adminPanel, Modifier.fillMaxWidth().testTag("admin_open"), onClick = openAdmin)
     }
     VSpace(8.dp)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -161,6 +187,11 @@ private fun EnabledContent(vm: GroupsViewModel, s: Strings, open: (String) -> Un
         VSpace()
         SecondaryButton(s.disableGroups, Modifier.fillMaxWidth()) { dialog = "disable" }
         Muted(s.disableGroupsHint)
+        if (!account.anonymous) {
+            VSpace()
+            SecondaryButton(s.signOut, Modifier.fillMaxWidth().testTag("groups_sign_out")) { accountVm.signOut() }
+            Muted(s.signOutHint)
+        }
     } else {
         OutlinedTextField(
             value = filters.query, onValueChange = { vm.publicFilters.value = filters.copy(query = it) },
@@ -243,6 +274,21 @@ private fun EnabledContent(vm: GroupsViewModel, s: Strings, open: (String) -> Un
                 title = { Text(s.nickname) },
                 text = { OutlinedTextField(value = name, onValueChange = { name = it.take(24) }, singleLine = true, modifier = Modifier.fillMaxWidth()) },
                 confirmButton = { TextButton(enabled = name.isNotBlank(), onClick = { dialog = null; vm.rename(name) }) { Text(s.save) } },
+                dismissButton = { TextButton(onClick = { dialog = null }) { Text(s.cancel) } },
+            )
+        }
+        "save" -> {
+            var email by remember { mutableStateOf("") }
+            var password by remember { mutableStateOf("") }
+            val nickname by vm.nickname.collectAsStateWithLifecycle()
+            AlertDialog(
+                modifier = Modifier.semantics { testTagsAsResourceId = true },
+                onDismissRequest = { dialog = null },
+                title = { Text(s.saveAccountTitle) },
+                text = { Column { com.khatwa.app.ui.account.EmailPasswordFields(s, email, { email = it }, password, { password = it }) } },
+                confirmButton = {
+                    TextButton(enabled = email.isNotBlank() && password.length >= 6, onClick = { dialog = null; accountVm.signUp(email, password, nickname.ifBlank { "khatwa" }) }, modifier = Modifier.testTag("groups_save_confirm")) { Text(s.save) }
+                },
                 dismissButton = { TextButton(onClick = { dialog = null }) { Text(s.cancel) } },
             )
         }

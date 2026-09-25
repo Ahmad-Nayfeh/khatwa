@@ -31,25 +31,33 @@ data class BackupFile(
 
 class Backup(private val c: AppContainer) {
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = true; encodeDefaults = true }
+    private val compactJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
-    suspend fun export(): String {
+    /**
+     * The backup file as JSON. [snapshotsSinceMs] drops older step snapshots (the only table that
+     * grows fast) when a size limit matters (cloud backup); [pretty] is for the file export.
+     */
+    suspend fun export(pretty: Boolean = true, snapshotsSinceMs: Long = 0L): String {
         c.tracker.flush()
         val db = c.db
         val file = BackupFile(
             exportedAtMs = System.currentTimeMillis(),
             settings = c.settings.exportMap().filterKeys { it != "lock_state" },
             days = db.days().all().map { DayJson(it.date, it.zone, it.carry, it.baseline, it.lastReading, it.steps, it.goal, it.lastUpdatedMs, it.closed) },
-            snapshots = db.snapshots().all().map { SnapshotJson(it.epochMs, it.date, it.stepsToday) },
+            snapshots = db.snapshots().all().filter { it.epochMs >= snapshotsSinceMs }.map { SnapshotJson(it.epochMs, it.date, it.stepsToday) },
             sessions = db.sessions().all().map { SessionJson(it.date, it.startMs, it.endMs, it.steps) },
             weights = db.weights().all().map { WeightJson(it.date, it.kg, it.createdMs) },
             surrenders = db.surrenders().all().map { SurrenderJson(it.epochMs, it.date, it.remainingSteps, it.lockType) },
             quotes = db.quotes().all().map { QuoteBackupJson(it.text, it.source, it.lang) },
         )
-        return json.encodeToString(BackupFile.serializer(), file)
+        return (if (pretty) json else compactJson).encodeToString(BackupFile.serializer(), file)
     }
 
-    /** Replaces everything with the backup. Returns a short human summary. */
-    suspend fun import(text: String): String {
+    /**
+     * Replaces everything with the backup. Returns a short human summary. [duringSetup]: restored
+     * on the first setup screen, so setup goes on (permissions) and nothing is started yet.
+     */
+    suspend fun import(text: String, duringSetup: Boolean = false): String {
         val file = json.decodeFromString<BackupFile>(text)
         require(file.app == "khatwa") { "not a khatwa backup" }
         StepService.stop(c.app)
@@ -63,7 +71,8 @@ class Backup(private val c: AppContainer) {
         file.surrenders.forEach { db.surrenders().insert(com.khatwa.app.data.SurrenderEntity(epochMs = it.epochMs, date = it.date, remainingSteps = it.remainingSteps, lockType = it.lockType)) }
         if (file.quotes.isNotEmpty()) db.quotes().insertAll(file.quotes.mapIndexed { i, q -> com.khatwa.app.data.QuoteEntity(text = q.text, source = q.source, sortOrder = i, lang = q.lang) })
         else c.features.quotes.seedIfNeeded()
-        c.settings.importMap(file.settings.filterKeys { it != "lock_state" })
+        val restoredSettings = file.settings.filterKeys { it != "lock_state" }
+        c.settings.importMap(if (duringSetup) restoredSettings + ("onboarding_done" to "false") else restoredSettings)
         c.tracker.reload()
         c.lock.refreshPolicy()
         val s = c.settings.current()

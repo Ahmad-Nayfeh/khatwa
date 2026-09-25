@@ -28,16 +28,17 @@ class SettingsBackupTest {
     @Test
     fun quotesAreSeededAndSettingsScreensOpen() {
         val count = runBlocking { c.db.quotes().count() }
-        // The bundled set is sourced (attributed) quotes in Arabic and English.
-        assertTrue("expected at least 100 bundled quotes, got $count", count >= 100)
-        val arabic = runBlocking { c.db.quotes().observeByLang("ar").first().size }
-        val english = runBlocking { c.db.quotes().observeByLang("en").first().size }
-        assertTrue("expected Arabic and English quotes, got ar=$arabic en=$english", arabic >= 50 && english >= 40)
+        // The bundled set is Arabic poetry verses, each with its poet, shown in both languages.
+        assertTrue("expected at least 40 bundled verses, got $count", count >= 40)
+        val all = runBlocking { c.db.quotes().all() }
+        assertTrue("every verse is Arabic with a poet", all.all { it.lang == "ar" && !it.source.isNullOrBlank() && it.text.contains('\n') })
+        val shownInEnglish = runBlocking { c.features.quotes.observeByLang("en").first().size }
+        assertEquals("English shows the same verses", count, shownInEnglish)
         TestSupport.evidence("quotes seeded: $count")
 
         TestSupport.launchApp()
-        device.wait(Until.findObject(By.res("home_steps")), 15_000)
-        device.findObject(By.res("tab_settings"))?.click()
+        TestSupport.findRes("home_steps", 15_000)
+        assertTrue(TestSupport.clickRes("tab_settings")) // retries if the tab was redrawn under the tap
         assertNotNull(device.wait(Until.findObject(By.text("قفل اللابتوب")), 5_000))
         TestSupport.screenshot("40-settings-root")
 
@@ -127,6 +128,6 @@ class SettingsBackupTest {
         assertEquals("24681357", runBlocking { c.settings.current().laptopSecret })
         assertEquals(5L, runBlocking { c.settings.current().laptopCounter })
         assertTrue(runBlocking { c.settings.current().onboardingDone })
-        assertTrue(runBlocking { c.db.quotes().count() } >= 100)
+        assertTrue(runBlocking { c.db.quotes().count() } >= 40)
     }
 }

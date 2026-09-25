@@ -42,6 +42,8 @@ private val tabs = listOf(Tab.Home, Tab.Stats, Tab.Groups, Tab.Settings)
 
 @Composable
 fun KhatwaRoot(container: AppContainer, settings: Settings) {
+    // "Restore the copy from your account?" / "your data is back": over any screen.
+    com.khatwa.app.ui.account.CloudBackupDialogs(container)
     if (!settings.onboardingDone) {
         OnboardingScreen(container)
         return
@@ -53,6 +55,7 @@ fun KhatwaRoot(container: AppContainer, settings: Settings) {
     val showBar = tabs.any { t -> current?.hierarchy?.any { it.route == t.route } == true }
 
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         bottomBar = {
             if (showBar) NavigationBar {
                 tabs.forEach { tab ->

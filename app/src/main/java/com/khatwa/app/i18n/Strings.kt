@@ -416,6 +416,88 @@ interface Strings {
     val errorUnknown: String
     val groupsLimitation: String
     val hiddenBadge: String
+
+    // Groups account + admin
+    val a11yGuideIntro: String
+    val a11yStep1: String
+    val a11yStep1Button: String
+    val a11yStep2: String
+    val a11yStep2Button: String
+    val a11yStep3: String
+    val a11yStep3Button: String
+    val a11yNamesNote: String
+    val a11yShowSteps: String
+    val groupWeekTrend: String
+    val membersChart: String
+    val trendStartsToday: String
+    val skip: String
+    val skipAccountTitle: String
+    val skipAccountText: String
+    val continueWithoutAccount: String
+    val account: String
+    val accountSignedOut: String
+    val accountStepTitle: String
+    val accountStepText: String
+    val cloudBackupTitle: String
+    val cloudBackupAuto: String
+    fun lastSaved(t: String): String
+    val notSavedYet: String
+    val saveNow: String
+    val savedToAccount: String
+    val saveFailed: String
+    val restoreFromAccount: String
+    fun restoreQuestion(t: String): String
+    val restore: String
+    val keepPhoneData: String
+    val dataRestoredTitle: String
+    val changeAdminPassword: String
+    val newPassword: String
+    val repeatPassword: String
+    val adminPasswordRules: String
+    val passwordsDontMatch: String
+    val adminPasswordSet: String
+    val accountIntro: String
+    val createAccount: String
+    val signIn: String
+    val email: String
+    val password: String
+    val passwordHint: String
+    val forgotPassword: String
+    val resetSent: String
+    val haveAccount: String
+    val noAccount: String
+    fun signedInAs(email: String): String
+    val signOut: String
+    val signOutHint: String
+    val turnOnGroups: String
+    val saveAccountTitle: String
+    val saveAccountText: String
+    val errorEmailInUse: String
+    val errorInvalidEmail: String
+    val errorWeakPassword: String
+    val errorWrongCredentials: String
+    val errorSignInDisabled: String
+    val errorTooManyAttempts: String
+    val errorNotSignedIn: String
+    val errorWrongAdminKey: String
+    val errorRemoveOwnerFirst: String
+    val adminKey: String
+    val adminKeyHint: String
+    val adminGranted: String
+    val adminPanel: String
+    fun adminGroups(n: String): String
+    fun adminUsers(n: String): String
+    fun adminOwns(n: String): String
+    val adminTheirGroups: String
+    val adminMakeOwner: String
+    val adminRename: String
+    val adminDeleteUser: String
+    val adminDeleteUserQuestion: String
+    val adminEditGroup: String
+    val adminShowInPublic: String
+    fun adminWeekSteps(n: String): String
+    val adminNoData: String
+    val confirm: String
 }
 
 object I18n {

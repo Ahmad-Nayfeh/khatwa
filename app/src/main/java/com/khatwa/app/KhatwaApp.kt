@@ -33,6 +33,7 @@ class AppContainer(val app: Application) {
     val features = Features(this)
     val lock = LockController(this)
     val groups = com.khatwa.app.groups.GroupsRepository(app, settings)
+    val cloud = com.khatwa.app.backup.CloudBackup(this)
 
     /** Called once from Application.onCreate. */
     fun start() {
@@ -47,6 +48,7 @@ class AppContainer(val app: Application) {
         }
         notifications.createChannels()
         lock.start()
+        com.khatwa.app.groups.GroupsSync.startLive(this)
         scope.launch {
             val s = settings.current()
             if (s.onboardingDone) {

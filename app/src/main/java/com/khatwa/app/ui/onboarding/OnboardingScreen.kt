@@ -19,17 +19,23 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -50,36 +56,45 @@ import com.khatwa.app.ui.components.VSpace
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
-private const val STEPS = 7
+private const val STEPS = 8
 
 /** Re-runs [onResume] every time the activity comes back (after a system settings screen). */
 @Composable
 fun OnResume(onResume: () -> Unit) {
     val owner = LocalLifecycleOwner.current
-    LaunchedEffect(owner) {
-        val obs = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_RESUME) onResume() }
+    val latest by rememberUpdatedState(onResume)
+    DisposableEffect(owner) {
+        val obs = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_RESUME) latest() }
         owner.lifecycle.addObserver(obs)
+        onDispose { owner.lifecycle.removeObserver(obs) }
     }
 }
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun OnboardingScreen(container: AppContainer) {
     val s = strings
     var step by rememberSaveable { mutableIntStateOf(0) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    // Owned here (not in SensorStep) so "Next" is enabled the moment the permission is granted.
+    var sensorGranted by remember { mutableStateOf(PermissionChecks.activityRecognition(context)) }
+    val signedIn = container.groups.observeAccount().collectAsStateWithLifecycle(initialValue = container.groups.account).value
+        ?.let { !it.anonymous } == true
+    var skipWarning by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 20.dp, vertical = 16.dp)) {
         LinearProgressIndicator(progress = { (step + 1f) / STEPS }, modifier = Modifier.fillMaxWidth())
         VSpace(20.dp)
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
             when (step) {
-                0 -> WelcomeStep()
-                1 -> SensorStep()
-                2 -> NotificationsStep()
-                3 -> GoalsStep(container)
-                4 -> LockPermissionsStep()
-                5 -> BatteryStep()
+                0 -> AccountStep(container)
+                1 -> WelcomeStep()
+                2 -> SensorStep(sensorGranted) { sensorGranted = it }
+                3 -> NotificationsStep()
+                4 -> GoalsStep(container)
+                5 -> LockPermissionsStep()
+                6 -> BatteryStep()
                 else -> DoneStep()
             }
         }
@@ -87,12 +102,15 @@ fun OnboardingScreen(container: AppContainer) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (step > 0) SecondaryButton(s.previous, Modifier.weight(1f)) { step-- }
             val last = step == STEPS - 1
+            // The first screen is the account: without one, "Skip" explains what that means first.
+            val skipping = step == 0 && !signedIn && container.groups.configured
             PrimaryButton(
-                if (last) s.start else s.next,
+                if (last) s.start else if (skipping) s.skip else s.next,
                 Modifier.weight(2f).testTag("onboarding_next"),
-                enabled = step != 1 || PermissionChecks.activityRecognition(context),
+                enabled = step != 2 || sensorGranted,
             ) {
-                if (last) {
+                if (skipping) skipWarning = true
+                else if (last) {
                     scope.launch {
                         val current = container.settings.current()
                         if (!current.allowlistInitialized) container.settings.setAllowlist(AllowlistDefaults.compute(context))
@@ -101,10 +119,43 @@ fun OnboardingScreen(container: AppContainer) {
                         StepService.start(context)
                         container.alarms.scheduleAll(container.settings.current())
                         SnapshotWorker.schedule(context)
+                        val s2 = container.settings.current()
+                        com.khatwa.app.groups.GroupsSync.schedule(context, s2.groupsEnabled && container.groups.configured)
                     }
                 } else step++
             }
         }
+    }
+    if (skipWarning) {
+        androidx.compose.material3.AlertDialog(
+            // Dialogs are separate windows: expose their test tags as resource ids too.
+            modifier = Modifier.semantics { testTagsAsResourceId = true },
+            onDismissRequest = { skipWarning = false },
+            title = { Text(s.skipAccountTitle) },
+            text = { Text(s.skipAccountText) },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = { skipWarning = false; step++ }, modifier = Modifier.testTag("onboarding_skip_confirm")) { Text(s.continueWithoutAccount) } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { skipWarning = false }) { Text(s.createAccount) } },
+        )
+    }
+}
+
+/**
+ * The first screen: create an account or sign in. Signing in to an account that already has a
+ * saved copy brings the data back at once (a reinstall, a new phone); setup then continues with
+ * the permissions. Skippable, with a warning that the data then lives only on this phone.
+ */
+@Composable
+private fun AccountStep(container: AppContainer) {
+    val s = strings
+    val vm = com.khatwa.app.ui.containerViewModel { com.khatwa.app.ui.account.AccountViewModel(it) }
+    val account by vm.account.collectAsStateWithLifecycle()
+    Title(s.accountStepTitle)
+    com.khatwa.app.ui.account.AccountMessages(vm, s)
+    val acc = account
+    when {
+        !vm.configured -> Muted(s.groupsNotConfigured)
+        acc != null && !acc.anonymous -> KCard(tone = CardTone.Accent, modifier = Modifier.testTag("onboarding_signed_in")) { Text(s.signedInAs(acc.email ?: "—")) }
+        else -> com.khatwa.app.ui.account.AccountCard(vm, s, fresh = true)
     }
 }
 
@@ -136,12 +187,11 @@ private fun WelcomeStep() {
 }
 
 @Composable
-private fun SensorStep() {
+private fun SensorStep(granted: Boolean, onGranted: (Boolean) -> Unit) {
     val s = strings
     val context = LocalContext.current
-    var granted by rememberSaveable { mutableStateOf(PermissionChecks.activityRecognition(context)) }
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted = it }
-    OnResume { granted = PermissionChecks.activityRecognition(context) }
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { onGranted(it) }
+    OnResume { onGranted(PermissionChecks.activityRecognition(context)) }
 
     Title(s.stepPermissionTitle)
     Body(s.stepPermissionText)
@@ -155,7 +205,7 @@ private fun SensorStep() {
         KCard(tone = CardTone.Accent) { Text(s.permissionGrantedCheck) }
     } else {
         PrimaryButton(s.grantPermission, Modifier.fillMaxWidth().testTag("grant_activity")) {
-            if (Build.VERSION.SDK_INT >= 29) launcher.launch(Manifest.permission.ACTIVITY_RECOGNITION) else granted = true
+            if (Build.VERSION.SDK_INT >= 29) launcher.launch(Manifest.permission.ACTIVITY_RECOGNITION) else onGranted(true)
         }
         VSpace(8.dp)
         Muted(s.permissionFallbackHint)
@@ -233,16 +283,7 @@ private fun LockPermissionsStep() {
         VSpace(6.dp)
         Text(s.accessibilityServiceText)
         VSpace(8.dp)
-        if (a11y) Text(s.enabledCheck, color = MaterialTheme.colorScheme.primary)
-        else {
-            PrimaryButton(s.openAccessibilitySettings, Modifier.fillMaxWidth()) { context.startActivity(PermissionChecks.accessibilityIntent()) }
-            VSpace(8.dp)
-            if (Build.VERSION.SDK_INT >= 33) {
-                Muted(s.restrictedSettingsHint)
-                VSpace(6.dp)
-                SecondaryButton(s.openAppSettings, Modifier.fillMaxWidth()) { context.startActivity(PermissionChecks.appInfoIntent(context)) }
-            }
-        }
+        com.khatwa.app.ui.components.AccessibilityGuide(a11y)
     }
     VSpace()
     KCard {

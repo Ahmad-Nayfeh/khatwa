@@ -62,6 +62,10 @@ data class Settings(
     val groupsNickname: String = "",
     /** Last Firebase anonymous uid seen (informational: shown in settings and kept in backups). */
     val groupsUid: String? = null,
+    /** When this phone last saved its data to the signed-in account (0: never). */
+    val cloudBackupAtMs: Long = 0,
+    /** The last day the goal celebration was shown (ISO date). */
+    val celebratedDate: String? = null,
 ) {
     /** The laptop pairing code in the current format (8 digits), or null (unpaired, or an old 16-character pairing). */
     val laptopPairing: String?
@@ -80,12 +84,18 @@ data class Settings(
      * long sentence of the current app language (Arabic or English).
      */
     val effectiveEmergencyPhrase: String
-        get() = if (emergencyPhrase == DEFAULT_EMERGENCY_PHRASE || emergencyPhrase.isBlank()) {
+        get() = if (emergencyPhrase == DEFAULT_EMERGENCY_PHRASE || emergencyPhrase in OLD_DEFAULT_PHRASES || emergencyPhrase.isBlank()) {
             com.khatwa.app.i18n.I18n.of(language).defaultEmergencyPhrase
         } else emergencyPhrase
 
     companion object {
-        const val DEFAULT_EMERGENCY_PHRASE = "أختار الاستسلام اليوم وأعلم أن هذا يسجل"
+        const val DEFAULT_EMERGENCY_PHRASE = "أختار الاستسلام اليوم بدلا من المشي، وأعلم أن هذا يسجل علي، وأعد نفسي أن أحاول من جديد غدا"
+        /** Earlier, shorter defaults (e.g. from an old backup): replaced by the current one. */
+        val OLD_DEFAULT_PHRASES = setOf(
+            "أختار الاستسلام اليوم وأعلم أن هذا يسجل",
+            "أختار الاستسلام اليوم وأعلم أن هذا يُسجَّل",
+            "I choose to give up today and I know this is recorded",
+        )
     }
 }
 
@@ -176,6 +186,8 @@ class SettingsRepository(private val context: Context) {
     suspend fun setGroupsNickname(v: String) = edit { it[K.groupsNickname] = v.trim().take(24) }
 
     suspend fun setGroupsUid(v: String?) = edit { if (v == null) it.remove(K.groupsUid) else it[K.groupsUid] = v }
+    suspend fun setCloudBackupAt(v: Long) = edit { it[K.cloudBackupAt] = v }
+    suspend fun setCelebratedDate(v: String) = edit { it[K.celebratedDate] = v }
 
     suspend fun setShowQuote(v: Boolean) = edit { it[K.showQuote] = v }
 
@@ -228,8 +240,9 @@ class SettingsRepository(private val context: Context) {
                 K.allowlist.name, K.scheduleDays.name ->
                     p[stringSetPreferencesKey(name)] = value.split(",").filter { it.isNotBlank() }.toSet()
                 K.laptopCounter.name -> value.toLongOrNull()?.let { p[K.laptopCounter] = it }
+                K.cloudBackupAt.name -> value.toLongOrNull()?.let { p[K.cloudBackupAt] = it }
                 K.goalStartDate.name, K.laptopSecret.name, K.lockState.name, K.laptopChallenge.name, K.quoteOverrideDate.name,
-                K.emergencyPhrase.name, K.scheduleSkipDate.name, K.groupsNickname.name, K.groupsUid.name ->
+                K.emergencyPhrase.name, K.scheduleSkipDate.name, K.groupsNickname.name, K.groupsUid.name, K.celebratedDate.name ->
                     p[stringPreferencesKey(name)] = value
             }
         }
@@ -269,6 +282,8 @@ class SettingsRepository(private val context: Context) {
         val groupsEnabled = booleanPreferencesKey("groups_enabled")
         val groupsNickname = stringPreferencesKey("groups_nickname")
         val groupsUid = stringPreferencesKey("groups_uid")
+        val cloudBackupAt = longPreferencesKey("cloud_backup_at")
+        val celebratedDate = stringPreferencesKey("celebrated_date")
     }
 
     private fun Preferences.toSettings(): Settings {
@@ -309,6 +324,8 @@ class SettingsRepository(private val context: Context) {
             groupsEnabled = this[K.groupsEnabled] ?: false,
             groupsNickname = this[K.groupsNickname] ?: "",
             groupsUid = this[K.groupsUid],
+            cloudBackupAtMs = this[K.cloudBackupAt] ?: 0L,
+            celebratedDate = this[K.celebratedDate],
         )
     }
 }

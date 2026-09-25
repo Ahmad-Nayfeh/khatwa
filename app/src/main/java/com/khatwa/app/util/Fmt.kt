@@ -31,6 +31,11 @@ object Fmt {
     private val full: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.US)
 
     fun dayMonth(d: LocalDate): String = d.format(dayMonth)
+    /** "24/9 · 7:10 م": a moment in the phone's time zone. */
+    fun dateTime(epochMs: Long): String {
+        val z = java.time.Instant.ofEpochMilli(epochMs).atZone(java.time.ZoneId.systemDefault())
+        return "${dayMonth(z.toLocalDate())} · ${time(z.hour * 60 + z.minute)}"
+    }
     fun iso(d: LocalDate): String = d.format(full)
 
     /** ISO day-of-week (Mon=1..Sun=7) to its name in the app language. */

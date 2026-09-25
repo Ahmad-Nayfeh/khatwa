@@ -144,8 +144,21 @@ class LockFlowTest {
         phrase.text = "جملة خاطئة"
         Thread.sleep(500)
         assertFalse(device.findObject(By.res("lock_continue")).isEnabled)
+        // The real keyboard: tap the field like a person does. The keyboard window appearing must
+        // not reset the emergency screen or take the lock away (it did on a real phone).
+        device.findObject(By.res("lock_phrase")).click()
+        Thread.sleep(2_000)
+        val keyboard = device.executeShellCommand("dumpsys input_method").lines().firstOrNull { "mInputShown" in it }?.trim()
+        TestSupport.evidence("keyboard after tapping the phrase field: $keyboard")
+        TestSupport.screenshot("24b-emergency-keyboard")
+        val field = device.findObject(By.res("lock_phrase"))
+        assertNotNull("the emergency screen was reset when the keyboard opened", field)
+        assertEquals("جملة خاطئة", field.text)
+        assertTrue(c.lock.overlay.isShown)
+        device.pressBack() // closes the keyboard only; the lock screen ignores Back
+        Thread.sleep(500)
         // Typed the way people type: no hamza on the alefs, no diacritics. It must still be accepted.
-        phrase.text = "اختار الاستسلام اليوم واعلم ان هذا يسجل"
+        device.findObject(By.res("lock_phrase")).text = TYPED_PHRASE
         device.wait(Until.findObject(By.res("lock_continue").enabled(true)), 5_000).click()
         device.wait(Until.findObject(By.res("lock_confirm")), 5_000).click()
         TestSupport.screenshot("25-emergency-confirmed")
@@ -160,13 +173,60 @@ class LockFlowTest {
     }
 
     @Test
+    fun popUpWindowsNeverBringTheLockOverTheApp() {
+        val blocked = blockedApp()
+        runBlocking { c.lock.startManual(2000) }
+        TestSupport.launchApp()
+        assertNotNull(device.wait(Until.findObject(By.res("home_steps")), 15_000))
+        val main = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+        val ime = com.khatwa.app.lock.AllowlistDefaults.inputMethods(TestSupport.context).firstOrNull()
+        // What a keyboard, an autofill list or a dialog of another app report when they appear
+        // over our app (e.g. while typing the emergency phrase on Home).
+        main.runOnMainSync {
+            ime?.let { c.lock.onForeground(it, "android.inputmethodservice.SoftInputWindow") }
+            c.lock.onForeground(blocked, "android.widget.PopupWindow\$PopupDecorView")
+            c.lock.onForeground(blocked, "android.app.Dialog")
+        }
+        assertFalse("a pop-up window brought the lock screen over the app", c.lock.overlay.isShown)
+        assertFalse(device.hasObject(By.res("lock_remaining")))
+        // An actual screen (activity) of the blocked app is still covered.
+        val activity = TestSupport.context.packageManager.getLaunchIntentForPackage(blocked)!!.component!!.className
+        main.runOnMainSync { c.lock.onForeground(blocked, activity) }
+        assertTrue("an activity of $blocked ($activity) must still be locked", c.lock.overlay.isShown)
+        TestSupport.evidence("pop-ups ignored (ime=$ime); activity $activity locked")
+        main.runOnMainSync { c.lock.overlay.hide() }
+    }
+
+    @Test
+    fun aLockStartedFromHomeDoesNotCoverHome() {
+        val blocked = blockedApp()
+        // The last app screen before ours was a blocked app (e.g. the app was opened from a notification).
+        val activity = TestSupport.context.packageManager.getLaunchIntentForPackage(blocked)!!.component!!.className
+        val main = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+        main.runOnMainSync { c.lock.onForeground(blocked, activity) }
+        TestSupport.launchApp()
+        assertNotNull(device.wait(Until.findObject(By.res("home_steps")), 15_000))
+        main.runOnMainSync { c.lock.onForeground(TestSupport.PKG, "com.khatwa.app.ui.MainActivity") }
+        runBlocking { c.lock.startManual(1000) }
+        main.runOnMainSync { } // let the posted re-check run
+        assertFalse("the lock screen covered our own Home", c.lock.overlay.isShown)
+        assertNotNull(device.wait(Until.findObject(By.res("home_steps")), 5_000))
+    }
+
+    @Test
     fun disabledAccessibilityShowsWarningOnHome() {
         TestSupport.disableAccessibility()
         waitUntil(10_000, "accessibility disconnected") { !KhatwaAccessibilityService.connected }
         TestSupport.launchApp()
         val warning = device.wait(Until.findObject(By.res("lock_warning")), 15_000)
         assertNotNull("'القفل لا يعمل' warning missing", warning)
+        // The warning stays short: today's steps are still on the first screen.
+        assertNotNull("steps pushed off screen by the warning", TestSupport.findRes("home_steps", 5_000))
         TestSupport.screenshot("26-accessibility-disabled-warning")
+        // One tap opens the guided three steps in place.
+        assertTrue(TestSupport.clickRes("lock_warning_how"))
+        assertNotNull("guide did not open", TestSupport.scrollToRes("home_scroll", "a11y_step_3"))
+        TestSupport.screenshot("26b-accessibility-guide-on-home")
         // Re-enable and the warning goes away on the next open.
         TestSupport.enableAccessibility()
         waitUntil(20_000, "accessibility reconnected") { KhatwaAccessibilityService.connected }
@@ -183,5 +243,10 @@ class LockFlowTest {
             Thread.sleep(200)
         }
         assertTrue("timed out waiting for: $what", cond())
+    }
+
+    companion object {
+        /** The default phrase typed the way people type: no hamza, no commas. */
+        const val TYPED_PHRASE = "اختار الاستسلام اليوم بدلا من المشي واعلم ان هذا يسجل علي واعد نفسي ان احاول من جديد غدا"
     }
 }
