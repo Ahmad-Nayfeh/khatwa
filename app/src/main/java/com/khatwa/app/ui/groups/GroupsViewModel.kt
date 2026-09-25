@@ -116,6 +116,11 @@ class GroupsViewModel(private val c: AppContainer) : ViewModel() {
 
     private val inviteCode = MutableStateFlow<String?>(null)
 
+    /** The open group's totals for its last days (7-day chart). */
+    val groupDays: StateFlow<List<com.khatwa.app.groups.GroupDay>> = selected.flatMapLatest { gid ->
+        if (gid == null) flowOf(emptyList()) else c.groups.observeGroupDays(gid).catch { emit(emptyList()) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     fun open(gid: String) {
         inviteCode.value = null
         selected.value = gid

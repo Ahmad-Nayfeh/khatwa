@@ -18,7 +18,10 @@ import com.khatwa.core.groups.Ranking
 import com.khatwa.core.stats.DayStat
 import com.khatwa.core.stats.Stats
 import com.khatwa.core.time.Days
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
@@ -59,6 +62,27 @@ object GroupsSync {
             week = period(weekStart, Period.WEEK),
             month = period(monthStart, Period.MONTH),
         )
+    }
+
+    /** Publishing while walking: at most this often, so members see each other move. */
+    const val LIVE_INTERVAL_MS = 10 * 60 * 1000L
+    @Volatile private var lastLivePublishMs = 0L
+
+    /**
+     * Publishes whenever the step count changes, at most every [LIVE_INTERVAL_MS], while groups
+     * are on and someone is signed in. (The periodic worker stays as a fallback.)
+     */
+    fun startLive(c: AppContainer) {
+        c.scope.launch {
+            c.tracker.today.map { it.steps }.distinctUntilChanged().collect {
+                val now = System.currentTimeMillis()
+                if (now - lastLivePublishMs < LIVE_INTERVAL_MS) return@collect
+                val s = c.settings.current()
+                if (!s.groupsEnabled || !c.groups.configured || c.groups.account == null) return@collect
+                lastLivePublishMs = now
+                syncNow(c)
+            }
+        }
     }
 
     /** Publishes now; failures are logged, never shown (the next sync retries). */

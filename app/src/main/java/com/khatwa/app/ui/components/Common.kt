@@ -21,6 +21,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -95,7 +98,10 @@ fun ProgressRing(
     content: @Composable () -> Unit,
 ) {
     Box(modifier = Modifier.size(size), contentAlignment = Alignment.Center) {
-        val p = progress.coerceIn(0f, 1f)
+        // The ring fills smoothly when the steps change.
+        val p by androidx.compose.animation.core.animateFloatAsState(
+            progress.coerceIn(0f, 1f), androidx.compose.animation.core.tween(900), label = "ring",
+        )
         Canvas(modifier = Modifier.size(size)) {
             val sw = stroke.toPx()
             val inset = sw / 2
@@ -132,4 +138,30 @@ fun KeyValueRow(key: String, value: String) {
         Text(key, style = MaterialTheme.typography.bodyLarge)
         Text(value, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
+}
+
+/**
+ * One line of text that shrinks to fit [maxWidth] (e.g. 50,000 steps inside the ring), never
+ * below [minSize]. Measured once per text: width grows linearly with the font size.
+ */
+@Composable
+fun FitText(
+    text: String,
+    style: androidx.compose.ui.text.TextStyle,
+    maxWidth: Dp,
+    modifier: Modifier = Modifier,
+    minSize: androidx.compose.ui.unit.TextUnit = 20.sp,
+) {
+    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val fitted = remember(text, style, maxWidth) {
+        val width = measurer.measure(text, style, maxLines = 1, softWrap = false).size.width.toFloat()
+        val limit = with(density) { maxWidth.toPx() }
+        if (width <= limit) style
+        else {
+            val scaled = (style.fontSize.value * limit / width * 0.97f).coerceAtLeast(minSize.value)
+            style.copy(fontSize = scaled.sp, lineHeight = (scaled * 1.12f).sp)
+        }
+    }
+    Text(text, style = fitted, maxLines = 1, softWrap = false, modifier = modifier)
 }

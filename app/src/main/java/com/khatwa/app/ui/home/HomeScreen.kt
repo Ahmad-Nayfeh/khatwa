@@ -76,6 +76,7 @@ fun HomeScreen(container: AppContainer, onOpenSettings: () -> Unit) {
     val remaining = (today.goal - today.steps).coerceAtLeast(0)
     val progress = if (today.goal > 0) today.steps.toFloat() / today.goal else 0f
 
+    Box(Modifier.fillMaxSize()) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).testTag("home_scroll").padding(horizontal = 20.dp, vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -98,7 +99,9 @@ fun HomeScreen(container: AppContainer, onOpenSettings: () -> Unit) {
         VSpace(4.dp)
         ProgressRing(progress = progress) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(Fmt.n(today.steps), style = MaterialTheme.typography.displayLarge, modifier = Modifier.testTag("home_steps"))
+                // Counts up to the new total, and shrinks to fit the ring (50,000+ steps).
+                val shown by androidx.compose.animation.core.animateIntAsState(today.steps.toInt(), androidx.compose.animation.core.tween(900), label = "steps")
+                com.khatwa.app.ui.components.FitText(Fmt.n(shown.toLong()), MaterialTheme.typography.displayLarge, maxWidth = 170.dp, modifier = Modifier.testTag("home_steps"))
                 Muted(s.ofGoal(Fmt.n(today.goal)))
             }
         }
@@ -175,5 +178,8 @@ fun HomeScreen(container: AppContainer, onOpenSettings: () -> Unit) {
             PrimaryButton(s.restartCounter, Modifier.fillMaxWidth()) { StepService.start(context) }
         }
         Box(Modifier.padding(bottom = 24.dp))
+    }
+    // Once a day, the first time Home shows the goal reached: a burst of confetti.
+    GoalCelebration(container, today.date, reached = today.goal > 0 && today.steps >= today.goal)
     }
 }

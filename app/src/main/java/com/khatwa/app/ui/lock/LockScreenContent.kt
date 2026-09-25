@@ -71,7 +71,7 @@ fun LockScreenContent(c: AppContainer, onOpenAllowed: () -> Unit) {
         VSpace(20.dp)
         ProgressRing(progress = progress, size = 240.dp) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(Fmt.n(remaining), style = MaterialTheme.typography.displayLarge, modifier = Modifier.testTag("lock_remaining"))
+                com.khatwa.app.ui.components.FitText(Fmt.n(remaining), MaterialTheme.typography.displayLarge, maxWidth = 185.dp, modifier = Modifier.testTag("lock_remaining"))
                 Muted(s.stepsRemaining)
             }
         }

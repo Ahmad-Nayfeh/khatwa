@@ -10,6 +10,7 @@ rules_version = '2';
 //   groups/{gid}/private/invite      { code } — owner + members only
 //   groups/{gid}/members/{uid}       { nickname, joinedAt, code? } — members only
 //   groups/{gid}/contrib/{uid}       anonymous numbers (no name) — any signed-in user may read
+//   groups/{gid}/days/{yyyy-mm-dd}   the group's totals that day (7-day chart) — members write
 //   invites/{code}                   { groupId } — get by exact code only, never listed
 //   users/{uid}/backup/latest        private cloud backup of the phone's data — owner only
 //   admins/{uid}                     { key, claimedAt } — created once with the admin password
@@ -196,6 +197,11 @@ service cloud.firestore {
 
       // Anonymous per-member numbers. Readable by any signed-in user (this is what non-members can
       // see through the API: numbers without names, as documented in the README).
+      // The group's totals per day (for the 7-day chart), refreshed by members when they publish.
+      match /days/{day} {
+        allow read: if signedIn();
+        allow create, update: if signedIn() && isMember(gid) && day.size() == 10 && validTotals(request.resource.data);
+      }
       match /contrib/{cuid} {
         allow read: if signedIn();
         allow create, update: if signedIn() && cuid == uid() && isMember(gid) && validStats(request.resource.data);

@@ -418,6 +418,13 @@ interface Strings {
     val hiddenBadge: String
 
     // Groups account + admin
+    val groupWeekTrend: String
+    val membersChart: String
+    val trendStartsToday: String
+    val skip: String
+    val skipAccountTitle: String
+    val skipAccountText: String
+    val continueWithoutAccount: String
     val account: String
     val accountSignedOut: String
     val accountStepTitle: String

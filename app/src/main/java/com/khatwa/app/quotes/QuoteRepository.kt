@@ -14,8 +14,8 @@ data class QuoteJson(val text: String, val source: String? = null, val lang: Str
 data class QuotesFile(val quotes: List<QuoteJson>)
 
 /**
- * Quotes live in the database so the user can edit them. The bundled set (assets/quotes.json,
- * sourced classical quotes in Arabic and English) is seeded once per [BUNDLED_VERSION]: when the
+ * Quotes live in the database so the user can edit them. The bundled set (assets/quotes.json:
+ * Arabic poetry verses with their poets, shown in both app languages) is seeded once per [BUNDLED_VERSION]: when the
  * bundled set changes, the next start replaces the table with the new set.
  */
 class QuoteRepository(private val context: Context, private val dao: QuoteDao, private val settings: SettingsRepository) {
@@ -23,7 +23,9 @@ class QuoteRepository(private val context: Context, private val dao: QuoteDao, p
 
     fun observeAll() = dao.observeAll()
 
-    fun observeByLang(lang: String) = dao.observeByLang(lang)
+    /** The quotes shown for [lang]: the same Arabic verses in every language (poetry is not translated). */
+    @Suppress("UNUSED_PARAMETER")
+    fun observeByLang(lang: String) = dao.observeAll()
 
     /** Seeds the bundled quotes on first start, and re-seeds when the bundled set was updated. */
     suspend fun seedIfNeeded() {
@@ -71,6 +73,6 @@ class QuoteRepository(private val context: Context, private val dao: QuoteDao, p
 
     companion object {
         /** Bump when assets/quotes.json changes so existing installs pick up the new set. */
-        const val BUNDLED_VERSION = 2
+        const val BUNDLED_VERSION = 3
     }
 }

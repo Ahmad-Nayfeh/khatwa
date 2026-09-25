@@ -49,6 +49,9 @@ data class Member(val uid: String, val nickname: String, val joinedAt: Long)
 /** The signed-in account. [anonymous] accounts are from before email accounts existed. */
 data class Account(val uid: String, val email: String?, val anonymous: Boolean)
 
+/** A group's totals on one day ([date] yyyy-mm-dd). */
+data class GroupDay(val date: String, val steps: Long, val goalMet: Int, val members: Int)
+
 /** A profile as the admin sees it. */
 data class UserProfile(val uid: String, val nickname: String, val ownedGroups: Int, val createdAt: Long)
 
@@ -490,6 +493,15 @@ class GroupsRepository(private val context: Context, private val settings: Setti
         })
     }
 
+    /** The group's totals for its most recent days (newest first), for the 7-day chart. */
+    fun observeGroupDays(gid: String): Flow<List<GroupDay>> = flow {
+        ensureSignedIn()
+        val q = db.collection("groups/$gid/days").orderBy(com.google.firebase.firestore.FieldPath.documentId(), Query.Direction.DESCENDING).limit(7)
+        emitAll(snapshots(q).flatMapLatest { qs ->
+            flowOf(qs.documents.map { GroupDay(it.id, it.getLong("steps") ?: 0L, (it.getLong("goalMet") ?: 0L).toInt(), (it.getLong("members") ?: 0L).toInt()) })
+        })
+    }
+
     private fun snapshots(q: Query): Flow<com.google.firebase.firestore.QuerySnapshot> = callbackFlow {
         val reg = q.addSnapshotListener { snap, err ->
             if (err != null) { close(GroupsException(kindOf(err), err)); return@addSnapshotListener }
@@ -519,6 +531,8 @@ class GroupsRepository(private val context: Context, private val settings: Setti
                     "date" to summary.date, "today" to totalsMap(summary.today), "week" to totalsMap(summary.week),
                     "month" to totalsMap(summary.month), "updatedAt" to now(),
                 )).await()
+                // Today's totals, kept per day for the group's 7-day chart.
+                db.document("groups/$gid/days/${summary.date}").set(totalsMap(summary.today)).await()
             }.onFailure { Log.w(TAG, "publish to $gid failed: ${it.message}") }
         }
     }

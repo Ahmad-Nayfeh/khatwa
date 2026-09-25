@@ -48,6 +48,7 @@ class AppContainer(val app: Application) {
         }
         notifications.createChannels()
         lock.start()
+        com.khatwa.app.groups.GroupsSync.startLive(this)
         scope.launch {
             val s = settings.current()
             if (s.onboardingDone) {

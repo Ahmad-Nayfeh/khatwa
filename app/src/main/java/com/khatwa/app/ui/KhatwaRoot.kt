@@ -55,6 +55,7 @@ fun KhatwaRoot(container: AppContainer, settings: Settings) {
     val showBar = tabs.any { t -> current?.hierarchy?.any { it.route == t.route } == true }
 
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         bottomBar = {
             if (showBar) NavigationBar {
                 tabs.forEach { tab ->
