@@ -68,7 +68,10 @@ class GroupsTest {
 
         // --- user A through the UI: create the account, create a group, read the invite code.
         TestSupport.launchApp()
-        assertNotNull(device.wait(Until.findObject(By.res("home_steps")), 15_000))
+        // findRes clears a stale accessibility cache ("Node returned null child" right after relaunch).
+        val home = TestSupport.findRes("home_steps", 15_000)
+        if (home == null) TestSupport.dump("groups-missing-home")
+        assertNotNull("home not shown", home)
         assertTrue(TestSupport.clickRes("tab_groups"))
         val nick = device.wait(Until.findObject(By.res("groups_nickname")), 8_000)
         assertNotNull("account card missing", nick)

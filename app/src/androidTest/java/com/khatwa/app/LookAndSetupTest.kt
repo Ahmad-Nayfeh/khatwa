@@ -39,7 +39,7 @@ class LookAndSetupTest {
                 for ((hour, label) in listOf(7f to "dawn", 12f to "day", 18.7f to "sunset", 23f to "night")) {
                     LivingBackgroundPreview.hour = hour
                     TestSupport.launchApp()
-                    assertNotNull(device.wait(Until.findObject(By.res("home_steps")), 15_000))
+                    assertNotNull(TestSupport.findRes("home_steps", 15_000))
                     Thread.sleep(1_200)
                     TestSupport.screenshot("70-bg-$name-$label")
                 }
