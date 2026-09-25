@@ -389,6 +389,14 @@ object En : Strings {
     override val hiddenBadge = "Hidden"
 
     // Groups account + admin
+    override val a11yGuideIntro = "Because the app is installed from outside the store, Android asks for three short steps to turn on the lock. Do them in order:"
+    override val a11yStep1 = "Open Accessibility → Installed apps → tap Khatwa. A “Restricted setting” message appears: tap OK. This is what makes the three dots appear in the next step."
+    override val a11yStep1Button = "1. Open Accessibility"
+    override val a11yStep2 = "In App info, tap the three dots at the top → “Allow restricted settings” → confirm."
+    override val a11yStep2Button = "2. Open App info"
+    override val a11yStep3 = "Go back to Accessibility → Installed apps → Khatwa, and turn it on."
+    override val a11yStep3Button = "3. Open Accessibility and turn on Khatwa"
+    override val a11yNamesNote = "Names can differ slightly by phone, e.g. “Installed apps” or “Downloaded apps”."
     override val groupWeekTrend = "Group steps, last 7 days"
     override val membersChart = "Members' steps"
     override val trendStartsToday = "This chart fills up day by day from now on."

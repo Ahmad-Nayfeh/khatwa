@@ -279,16 +279,7 @@ private fun LockPermissionsStep() {
         VSpace(6.dp)
         Text(s.accessibilityServiceText)
         VSpace(8.dp)
-        if (a11y) Text(s.enabledCheck, color = MaterialTheme.colorScheme.primary)
-        else {
-            PrimaryButton(s.openAccessibilitySettings, Modifier.fillMaxWidth()) { context.startActivity(PermissionChecks.accessibilityIntent()) }
-            VSpace(8.dp)
-            if (Build.VERSION.SDK_INT >= 33) {
-                Muted(s.restrictedSettingsHint)
-                VSpace(6.dp)
-                SecondaryButton(s.openAppSettings, Modifier.fillMaxWidth()) { context.startActivity(PermissionChecks.appInfoIntent(context)) }
-            }
-        }
+        com.khatwa.app.ui.components.AccessibilityGuide(a11y)
     }
     VSpace()
     KCard {

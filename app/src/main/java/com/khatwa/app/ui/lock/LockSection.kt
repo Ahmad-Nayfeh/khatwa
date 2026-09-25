@@ -60,10 +60,12 @@ fun LockSection(container: AppContainer, today: Today, onOpenSettings: () -> Uni
             if (!health.accessibility) Text(s.accessibilityOff)
             if (!health.overlay) Text(s.overlayOff)
             VSpace(8.dp)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (!health.accessibility) PrimaryButton(s.openAccessibilitySettings, Modifier.weight(1f)) { context.startActivity(PermissionChecks.accessibilityIntent()) }
-                if (!health.overlay) PrimaryButton(s.grantOverlay, Modifier.weight(1f)) { context.startActivity(PermissionChecks.overlayIntent(context)) }
+            if (!health.accessibility) {
+                // Android 13+ needs three steps for an app from outside the store: a guided list.
+                com.khatwa.app.ui.components.AccessibilityGuide(false)
+                VSpace(8.dp)
             }
+            if (!health.overlay) PrimaryButton(s.grantOverlay, Modifier.fillMaxWidth()) { context.startActivity(PermissionChecks.overlayIntent(context)) }
             VSpace(6.dp)
             Muted(s.fullStepsHint)
         }
