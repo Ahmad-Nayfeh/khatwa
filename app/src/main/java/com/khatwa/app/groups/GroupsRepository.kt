@@ -493,10 +493,14 @@ class GroupsRepository(private val context: Context, private val settings: Setti
         })
     }
 
-    /** The group's totals for its most recent days (newest first), for the 7-day chart. */
+    /**
+     * The group's totals for its last 7 days, for the chart. Day ids are yyyy-mm-dd, so a range on
+     * the id selects them (Firestore cannot sort ids in descending order).
+     */
     fun observeGroupDays(gid: String): Flow<List<GroupDay>> = flow {
         ensureSignedIn()
-        val q = db.collection("groups/$gid/days").orderBy(com.google.firebase.firestore.FieldPath.documentId(), Query.Direction.DESCENDING).limit(7)
+        val from = LocalDate.now().minusDays(6).toString()
+        val q = db.collection("groups/$gid/days").whereGreaterThanOrEqualTo(com.google.firebase.firestore.FieldPath.documentId(), from)
         emitAll(snapshots(q).flatMapLatest { qs ->
             flowOf(qs.documents.map { GroupDay(it.id, it.getLong("steps") ?: 0L, (it.getLong("goalMet") ?: 0L).toInt(), (it.getLong("members") ?: 0L).toInt()) })
         })

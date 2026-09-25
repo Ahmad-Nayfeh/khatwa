@@ -209,7 +209,10 @@ private fun GroupCharts(d: GroupDetailState, days: List<com.khatwa.app.groups.Gr
             week.forEach { date ->
                 val v = byDate[date.toString()]?.steps ?: 0L
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(if (v > 0) compact(v) else "", style = MaterialTheme.typography.labelSmall)
+                    Text(
+                        if (v > 0) compact(v) else "", style = MaterialTheme.typography.labelSmall,
+                        modifier = if (date == today) Modifier.testTag("group_trend_today") else Modifier,
+                    )
                     Box(
                         Modifier.width(22.dp).height((100f * grow * v / max).coerceAtLeast(3f).dp)
                             .background(if (date == today) primary else primary.copy(alpha = 0.55f), RoundedCornerShape(6.dp)),
