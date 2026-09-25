@@ -220,7 +220,13 @@ class LockFlowTest {
         TestSupport.launchApp()
         val warning = device.wait(Until.findObject(By.res("lock_warning")), 15_000)
         assertNotNull("'القفل لا يعمل' warning missing", warning)
+        // The warning stays short: today's steps are still on the first screen.
+        assertNotNull("steps pushed off screen by the warning", TestSupport.findRes("home_steps", 5_000))
         TestSupport.screenshot("26-accessibility-disabled-warning")
+        // One tap opens the guided three steps in place.
+        assertTrue(TestSupport.clickRes("lock_warning_how"))
+        assertNotNull("guide did not open", TestSupport.scrollToRes("home_scroll", "a11y_step_3"))
+        TestSupport.screenshot("26b-accessibility-guide-on-home")
         // Re-enable and the warning goes away on the next open.
         TestSupport.enableAccessibility()
         waitUntil(20_000, "accessibility reconnected") { KhatwaAccessibilityService.connected }

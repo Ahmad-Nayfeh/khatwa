@@ -426,6 +426,7 @@ interface Strings {
     val a11yStep3: String
     val a11yStep3Button: String
     val a11yNamesNote: String
+    val a11yShowSteps: String
     val groupWeekTrend: String
     val membersChart: String
     val trendStartsToday: String

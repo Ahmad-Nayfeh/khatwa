@@ -397,6 +397,7 @@ object En : Strings {
     override val a11yStep3 = "Go back to Accessibility → Installed apps → Khatwa, and turn it on."
     override val a11yStep3Button = "3. Open Accessibility and turn on Khatwa"
     override val a11yNamesNote = "Names can differ slightly by phone, e.g. “Installed apps” or “Downloaded apps”."
+    override val a11yShowSteps = "How do I turn it on? (3 steps)"
     override val groupWeekTrend = "Group steps, last 7 days"
     override val membersChart = "Members' steps"
     override val trendStartsToday = "This chart fills up day by day from now on."

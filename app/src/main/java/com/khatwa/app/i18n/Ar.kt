@@ -397,6 +397,7 @@ object Ar : Strings {
     override val a11yStep3 = "ارجع إلى «الإتاحة» ← «التطبيقات المثبتة» ← «خطوة»، وفعّل الخدمة."
     override val a11yStep3Button = "3. افتح الإتاحة وفعّل «خطوة»"
     override val a11yNamesNote = "قد تختلف الأسماء قليلاً حسب الجوال، مثل «التطبيقات المثبتة» أو «التطبيقات التي تم تنزيلها»."
+    override val a11yShowSteps = "كيف أفعّله؟ (٣ خطوات)"
     override val groupWeekTrend = "خطوات المجموعة في آخر 7 أيام"
     override val membersChart = "خطوات الأعضاء"
     override val trendStartsToday = "يمتلئ هذا الرسم يوماً بعد يوم من الآن."
