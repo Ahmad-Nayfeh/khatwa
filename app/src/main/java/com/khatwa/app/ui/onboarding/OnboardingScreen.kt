@@ -34,6 +34,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -68,6 +70,7 @@ fun OnResume(onResume: () -> Unit) {
     }
 }
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun OnboardingScreen(container: AppContainer) {
     val s = strings
@@ -125,6 +128,8 @@ fun OnboardingScreen(container: AppContainer) {
     }
     if (skipWarning) {
         androidx.compose.material3.AlertDialog(
+            // Dialogs are separate windows: expose their test tags as resource ids too.
+            modifier = Modifier.semantics { testTagsAsResourceId = true },
             onDismissRequest = { skipWarning = false },
             title = { Text(s.skipAccountTitle) },
             text = { Text(s.skipAccountText) },
@@ -145,7 +150,6 @@ private fun AccountStep(container: AppContainer) {
     val vm = com.khatwa.app.ui.containerViewModel { com.khatwa.app.ui.account.AccountViewModel(it) }
     val account by vm.account.collectAsStateWithLifecycle()
     Title(s.accountStepTitle)
-    Body(s.accountStepText)
     com.khatwa.app.ui.account.AccountMessages(vm, s)
     val acc = account
     when {

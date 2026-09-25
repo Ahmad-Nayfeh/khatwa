@@ -86,7 +86,9 @@ class GroupsTest {
         assertNotNull(name)
         name!!.text = "مشاة الحي"
         assertTrue(TestSupport.clickRes("group_create_confirm"))
-        val codeView = device.wait(Until.findObject(By.res("group_invite_code")), 20_000)
+        assertNotNull("group detail did not open", device.wait(Until.findObject(By.res("group_detail")), 20_000))
+        // The charts come first; the owner's invite code is further down.
+        val codeView = TestSupport.scrollToRes("group_detail", "group_invite_code")
         assertNotNull("group detail / invite code missing", codeView)
         var code = codeView!!.text.replace("-", "")
         val end = System.currentTimeMillis() + 10_000

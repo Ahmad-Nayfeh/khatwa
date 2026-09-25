@@ -180,6 +180,16 @@ object TestSupport {
         }
     }
 
+    /** Scrolls [scrollTag] forward, page by page, until a node with [resId] is on screen. */
+    fun scrollToRes(scrollTag: String, resId: String, maxScrolls: Int = 6): androidx.test.uiautomator.UiObject2? {
+        repeat(maxScrolls) {
+            device.wait(Until.findObject(By.res(resId)), 1_500)?.let { return it }
+            scrollForward(scrollTag)
+            Thread.sleep(400)
+        }
+        return device.wait(Until.findObject(By.res(resId)), 1_500)
+    }
+
     /** The UiAutomation UiDevice uses (asking with other flags would reconnect it). */
     private fun automation(): android.app.UiAutomation = InstrumentationRegistry.getInstrumentation()
         .getUiAutomation(androidx.test.uiautomator.Configurator.getInstance().uiAutomationFlags)

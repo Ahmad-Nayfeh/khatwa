@@ -61,7 +61,8 @@ fun LivingBackground(dark: Boolean, modifier: Modifier = Modifier) {
         drawClouds(seconds, lerp(Color.White, sky.top, 0.35f + 0.4f * night))
         drawHills(seconds, sky, night)
         // The veil: the theme's background colour over the scene keeps every text readable.
-        drawRect(veil.copy(alpha = if (dark) 0.62f else 0.5f))
+        // (A little thicker in the light theme at night, when the sky itself is dark.)
+        drawRect(veil.copy(alpha = if (dark) 0.62f else 0.5f + 0.22f * night))
     }
 }
 
