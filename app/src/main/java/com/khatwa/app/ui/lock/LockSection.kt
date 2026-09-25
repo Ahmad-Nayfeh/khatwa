@@ -48,6 +48,7 @@ fun LockSection(container: AppContainer, today: Today, onOpenSettings: () -> Uni
     var custom by remember { mutableStateOf(false) }
     var emergency by remember { mutableStateOf(false) }
     var pairing by remember { mutableStateOf(false) }
+    var showA11yGuide by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     val settings by container.settings.flow.collectAsStateWithLifecycle(initialValue = null)
     val challenge by container.lock.challenge.collectAsStateWithLifecycle()
     val laptopSecret = settings?.laptopPairing
@@ -61,8 +62,13 @@ fun LockSection(container: AppContainer, today: Today, onOpenSettings: () -> Uni
             if (!health.overlay) Text(s.overlayOff)
             VSpace(8.dp)
             if (!health.accessibility) {
-                // Android 13+ needs three steps for an app from outside the store: a guided list.
-                com.khatwa.app.ui.components.AccessibilityGuide(false)
+                // Android 13+ needs three steps for an app from outside the store: a guided list,
+                // folded behind one button so today's steps stay on the first screen of Home.
+                if (android.os.Build.VERSION.SDK_INT >= 33 && !showA11yGuide) {
+                    PrimaryButton(s.a11yShowSteps, Modifier.fillMaxWidth().testTag("lock_warning_how")) { showA11yGuide = true }
+                } else {
+                    com.khatwa.app.ui.components.AccessibilityGuide(false)
+                }
                 VSpace(8.dp)
             }
             if (!health.overlay) PrimaryButton(s.grantOverlay, Modifier.fillMaxWidth()) { context.startActivity(PermissionChecks.overlayIntent(context)) }
