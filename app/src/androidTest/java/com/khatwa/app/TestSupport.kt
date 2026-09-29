@@ -184,6 +184,16 @@ object TestSupport {
         }
     }
 
+    /** Scrolls [scrollTag] forward, page by page, until [text] is on screen, then taps it. */
+    fun scrollToText(scrollTag: String, text: String, maxScrolls: Int = 5): Boolean {
+        repeat(maxScrolls) {
+            if (device.wait(Until.hasObject(By.text(text)), 1_500)) return clickText(text)
+            scrollForward(scrollTag)
+            Thread.sleep(400)
+        }
+        return clickText(text)
+    }
+
     /** Scrolls [scrollTag] forward, page by page, until a node with [resId] is on screen. */
     fun scrollToRes(scrollTag: String, resId: String, maxScrolls: Int = 6): androidx.test.uiautomator.UiObject2? {
         repeat(maxScrolls) {

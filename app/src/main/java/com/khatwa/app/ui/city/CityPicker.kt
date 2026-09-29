@@ -54,6 +54,8 @@ fun CityPicker(container: AppContainer) {
     var result by remember { mutableStateOf<Detected?>(null) }
     var detecting by remember { mutableStateOf(false) }
     val withLocation = rememberWithLocation(onDenied = { result = Detected.NoPermission })
+    // Close the keyboard once a city is chosen.
+    val focus = androidx.compose.ui.platform.LocalFocusManager.current
 
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
         OutlinedTextField(
@@ -84,6 +86,7 @@ fun CityPicker(container: AppContainer) {
                         result = null
                         query = ""
                         expanded = false
+                        focus.clearFocus()
                     },
                     modifier = Modifier.testTag("city_${c.id}"),
                 )
@@ -92,6 +95,7 @@ fun CityPicker(container: AppContainer) {
     }
     VSpace(8.dp)
     SecondaryButton(if (detecting) s.detectingCity else s.detectCity, Modifier.fillMaxWidth().testTag("city_detect"), enabled = !detecting) {
+        focus.clearFocus()
         withLocation {
             detecting = true
             scope.launch {

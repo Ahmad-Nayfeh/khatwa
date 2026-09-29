@@ -57,12 +57,13 @@ class SettingsBackupTest {
         TestSupport.screenshot("41-laptop-lock-settings")
         device.pressBack()
 
-        assertTrue(TestSupport.clickText("حالة الصلاحيات"))
+        // Lower in the list since 0.7 added "City and distance": scroll to it.
+        assertTrue(TestSupport.scrollToText("settings_scroll", "حالة الصلاحيات"))
         assertNotNull(device.wait(Until.findObject(By.textContains("النشاط البدني")), 5_000))
         TestSupport.screenshot("42-permissions-status")
         device.pressBack()
 
-        assertTrue(TestSupport.clickText("الحكم"))
+        assertTrue(TestSupport.scrollToText("settings_scroll", "الحكم"))
         assertNotNull(device.wait(Until.findObject(By.textContains("حكمة اليوم")), 5_000))
         TestSupport.screenshot("43-quotes-editor")
 

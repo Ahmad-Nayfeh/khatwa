@@ -192,7 +192,12 @@ class GroupsTest {
         assertTrue(TestSupport.clickRes("tab_settings"))
         assertTrue("account entry missing", TestSupport.clickRes("settings_account", 8_000))
         assertNotNull(device.wait(Until.findObject(By.res("account_signed_in")), 10_000))
-        assertNotNull(device.wait(Until.findObject(By.res("account_saved_at").textContains(":")), 10_000))
+        // The saved copy's time (a stale accessibility cache once hid it: look up with cache clearing).
+        var savedAt = TestSupport.findRes("account_saved_at", 10_000)
+        val savedEnd = System.currentTimeMillis() + 10_000
+        while (savedAt?.text?.contains(":") != true && System.currentTimeMillis() < savedEnd) { Thread.sleep(500); savedAt = TestSupport.findRes("account_saved_at", 2_000) }
+        if (savedAt?.text?.contains(":") != true) TestSupport.dump("missing-account_saved_at")
+        assertTrue("saved copy time missing: '${savedAt?.text}'", savedAt?.text?.contains(":") == true)
         TestSupport.screenshot("57-account")
         // The temporary key (test key; the real one is never in the repository) opens the panel.
         repeat(2) { TestSupport.scrollForward("settings_account_scroll"); Thread.sleep(300) }

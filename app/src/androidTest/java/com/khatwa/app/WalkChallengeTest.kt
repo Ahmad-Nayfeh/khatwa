@@ -131,10 +131,11 @@ class WalkChallengeTest {
         seedPlacesAndWeather()
         TestSupport.launchApp()
         assertNotNull(TestSupport.findRes("home_steps", 15_000))
-        val card = TestSupport.scrollToRes("home_scroll", "challenge_card")
-        if (card == null) TestSupport.dump("missing-challenge_card")
-        assertNotNull("no challenge card", card)
-        assertNotNull(device.findObject(By.res("challenge_when")))
+        // Scroll until the card's buttons (its bottom) are on screen.
+        val start = TestSupport.scrollToRes("home_scroll", "challenge_start")
+        if (start == null) TestSupport.dump("missing-challenge_card")
+        assertNotNull("no challenge card", start)
+        assertNotNull(TestSupport.findRes("challenge_when", 5_000))
         TestSupport.screenshot("85-home-challenge")
 
         val ready = runBlocking { withTimeout(10_000) { c.challenges.ui.first { it is ChallengeUi.Ready } } } as ChallengeUi.Ready
