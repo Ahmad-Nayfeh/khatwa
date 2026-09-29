@@ -196,10 +196,12 @@ class WalkChallengeTest {
 
     /** Places around Al-Rawdah at many distances (one fits any step target) and a mild forecast. */
     private fun seedPlacesAndWeather() {
+        // Generic names (the screenshots are used in the README and the video); positions are made up.
+        val names = listOf("حديقة الياسمين", "حديقة الورود", "حديقة النخيل", "حديقة الزيتون", "حديقة الريحان", "حديقة السرو", "حديقة الأقحوان", "حديقة الخزامى", "حديقة السدر")
         val places = listOf(250.0, 400.0, 550.0, 700.0, 900.0, 1100.0, 1400.0, 1800.0, 2300.0).mapIndexed { i, d ->
             val p = Geo.destination(home, 20.0 + i * 40.0, d)
-            PlaceJson("test/$i", "حديقة الاختبار ${i + 1}", "Test park ${i + 1}", PlaceKind.PARK.name, p.lat, p.lon)
-        } + PlaceJson("test/mall", "مول الاختبار", "Test mall", PlaceKind.MALL.name, Geo.destination(home, 200.0, 4000.0).lat, Geo.destination(home, 200.0, 4000.0).lon)
+            PlaceJson("test/$i", names[i], "Park ${i + 1}", PlaceKind.PARK.name, p.lat, p.lon)
+        } + PlaceJson("test/mall", "مول الحي", "Neighbourhood mall", PlaceKind.MALL.name, Geo.destination(home, 200.0, 4000.0).lat, Geo.destination(home, 200.0, 4000.0).lon)
         c.places.save(PlacesCache(home.lat, home.lon, System.currentTimeMillis(), places))
         val start = LocalDateTime.now().withMinute(0).withSecond(0).withNano(0).minusHours(1)
         val hours = (0 until 48).map { h -> HourJson(start.plusHours(h.toLong()).toString(), 24.0, 25.0, 0, 2.0) }
