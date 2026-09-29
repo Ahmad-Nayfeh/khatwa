@@ -34,6 +34,11 @@ class AppContainer(val app: Application) {
     val lock = LockController(this)
     val groups = com.khatwa.app.groups.GroupsRepository(app, settings)
     val cloud = com.khatwa.app.backup.CloudBackup(this)
+    val cities = com.khatwa.app.challenge.CityRepository(app, settings)
+    val places = com.khatwa.app.challenge.PlacesRepository(app)
+    val weather = com.khatwa.app.challenge.WeatherRepository(app)
+    val walks = com.khatwa.app.walks.WalkRecorder(this)
+    val challenges = com.khatwa.app.challenge.ChallengeRepository(this)
 
     /** Called once from Application.onCreate. */
     fun start() {

@@ -17,6 +17,9 @@ object DebugHooks {
     fun fakeStepSource(context: Context): StepSource? =
         if (FakeStepSource.shouldUse(context)) FakeStepSource.get(context) else null
 
+    fun fakeLocationSource(context: Context): com.khatwa.app.walks.LocationSource? =
+        if (FakeLocationSource.shouldUse(context)) FakeLocationSource.instance else null
+
     fun onAppCreate(context: Context) {
         Log.i("DebugHooks", "debug build; fake source active=${FakeStepSource.shouldUse(context)}")
     }

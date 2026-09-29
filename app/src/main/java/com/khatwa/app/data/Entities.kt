@@ -66,3 +66,21 @@ data class QuoteEntity(
     /** "ar" or "en": the card shows quotes in the app language. */
     @androidx.room.ColumnInfo(defaultValue = "ar") val lang: String = "ar",
 )
+
+/**
+ * A walk recorded with GPS. The route is an encoded polyline (simplified to ~3 m). [challengeKey]
+ * links it to the daily challenge it was started for; [completed] says whether it met it.
+ */
+@Entity(tableName = "walks", indices = [Index("startMs"), Index("date")])
+data class WalkEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val date: String,
+    val startMs: Long,
+    val endMs: Long,
+    val distanceM: Double,
+    val steps: Long,
+    val polyline: String,
+    val challengeKey: String? = null,
+    val placeName: String? = null,
+    val completed: Boolean = false,
+)

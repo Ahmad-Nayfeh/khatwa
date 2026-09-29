@@ -35,7 +35,7 @@ import com.khatwa.app.ui.containerViewModel
 import com.khatwa.app.util.Fmt
 
 @Composable
-fun StatsScreen(container: AppContainer) {
+fun StatsScreen(container: AppContainer, onOpenWalk: (Long) -> Unit = {}, onOpenMap: () -> Unit = {}, onOpenLive: () -> Unit = {}) {
     val s = strings
     val vm = containerViewModel { StatsViewModel(it) }
     val ui by vm.state.collectAsStateWithLifecycle()
@@ -53,7 +53,7 @@ fun StatsScreen(container: AppContainer) {
         if (ui.days.isNotEmpty()) {
             DaySlider(ui.days, onFocus = { focusedIndex = it })
             VSpace(10.dp)
-            focusedDay?.let { DayDetails(it, Modifier.padding(horizontal = 20.dp)) }
+            focusedDay?.let { DayDetails(it, ui.strideM, Modifier.padding(horizontal = 20.dp)) }
             VSpace()
         }
 
@@ -69,6 +69,9 @@ fun StatsScreen(container: AppContainer) {
                 StatPill(s.bestDay, Fmt.n(ui.month.bestDay?.steps ?: 0), Modifier.weight(1f))
                 StatPill(s.goalDays, "${Fmt.n(ui.month.daysAchieved)}/${Fmt.n(ui.month.daysCounted)}", Modifier.weight(1f))
             }
+            VSpace()
+
+            com.khatwa.app.ui.walks.WalksCard(container, onOpenWalk, onOpenMap, onOpenLive)
             VSpace()
 
             KCard {

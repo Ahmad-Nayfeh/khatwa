@@ -129,3 +129,24 @@ interface QuoteDao {
     @Query("DELETE FROM quotes")
     suspend fun deleteAll()
 }
+
+@Dao
+interface WalkDao {
+    @Insert
+    suspend fun insert(w: WalkEntity): Long
+
+    @Query("SELECT * FROM walks ORDER BY startMs DESC")
+    fun observeAll(): Flow<List<WalkEntity>>
+
+    @Query("SELECT * FROM walks ORDER BY startMs")
+    suspend fun all(): List<WalkEntity>
+
+    @Query("SELECT * FROM walks WHERE id = :id")
+    fun observe(id: Long): Flow<WalkEntity?>
+
+    @Query("DELETE FROM walks WHERE id = :id")
+    suspend fun delete(id: Long)
+
+    @Query("DELETE FROM walks")
+    suspend fun deleteAll()
+}

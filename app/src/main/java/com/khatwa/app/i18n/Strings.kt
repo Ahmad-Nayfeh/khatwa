@@ -498,6 +498,80 @@ interface Strings {
     fun adminWeekSteps(n: String): String
     val adminNoData: String
     val confirm: String
+
+    // 0.7: distance, city, daily challenge, walks
+    fun kmUnit(km: String): String
+    val distance: String
+    val heightLabel: String
+    val heightHint: String
+    fun strideLine(cm: String): String
+    val cityTitle: String
+    val cityStepIntro: String
+    val cityField: String
+    val citySearchHint: String
+    val detectCity: String
+    val detectingCity: String
+    fun cityDetected(name: String): String
+    val outsideArea: String
+    val locationNoFix: String
+    val locationDenied: String
+    val citiesSaudiOnly: String
+    val cityAndDistance: String
+    val cityAndDistanceSubtitle: String
+    val challengeTitle: String
+    val challengeTomorrow: String
+    val chooseCityPrompt: String
+    val chooseCity: String
+    val challengeUnavailable: String
+    val challengeUnavailableHint: String
+    fun challengeTo(place: String): String
+    fun challengeAt(place: String): String
+    val challengeAtHint: String
+    val challengeLoop: String
+    fun challengeLoopToward(direction: String): String
+    fun directionName(i: Int): String
+    fun challengeDistance(km: String, steps: String, minutes: String): String
+    fun bestTime(label: String, time: String): String
+    fun feelsLike(t: String): String
+    val timeNow: String
+    val timeAfterFajr: String
+    val timeMorning: String
+    val timeAfterDhuhr: String
+    val timeAfterAsr: String
+    val timeAfterMaghrib: String
+    val timeAfterIsha: String
+    fun timeForPrayer(prayer: String): String
+    fun prayerName(i: Int): String
+    val tomorrowWord: String
+    val startWalk: String
+    val directions: String
+    val anotherChallenge: String
+    val dailyChallengeDone: String
+    val dailyChallengeDoneHint: String
+    fun placeKind(i: Int): String
+    val walkRecording: String
+    fun walkingTo(place: String): String
+    fun walkKm(km: String): String
+    val walkWaitingForGps: String
+    val stopWalk: String
+    val newWalk: String
+    val myWalks: String
+    val myMap: String
+    val noWalksYet: String
+    fun walksSummary(n: String, km: String): String
+    fun exploredKm(km: String): String
+    val walkTitle: String
+    val duration: String
+    val pace: String
+    fun paceKmh(v: String): String
+    val walkMetChallenge: String
+    val locationForWalk: String
+    val deleteWalk: String
+    val liveWalk: String
+    fun toTarget(m: String): String
+    val targetReached: String
+    val dataSources: String
+    val walkTooShort: String
 }
 
 object I18n {

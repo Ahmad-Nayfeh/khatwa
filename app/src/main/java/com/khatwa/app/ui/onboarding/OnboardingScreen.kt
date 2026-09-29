@@ -56,7 +56,7 @@ import com.khatwa.app.ui.components.VSpace
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
-private const val STEPS = 8
+private const val STEPS = 9
 
 /** Re-runs [onResume] every time the activity comes back (after a system settings screen). */
 @Composable
@@ -93,8 +93,9 @@ fun OnboardingScreen(container: AppContainer) {
                 2 -> SensorStep(sensorGranted) { sensorGranted = it }
                 3 -> NotificationsStep()
                 4 -> GoalsStep(container)
-                5 -> LockPermissionsStep()
-                6 -> BatteryStep()
+                5 -> CityStep(container)
+                6 -> LockPermissionsStep()
+                7 -> BatteryStep()
                 else -> DoneStep()
             }
         }
@@ -157,6 +158,17 @@ private fun AccountStep(container: AppContainer) {
         acc != null && !acc.anonymous -> KCard(tone = CardTone.Accent, modifier = Modifier.testTag("onboarding_signed_in")) { Text(s.signedInAs(acc.email ?: "—")) }
         else -> com.khatwa.app.ui.account.AccountCard(vm, s, fresh = true)
     }
+}
+
+/** Your city (drop-down or GPS) for the daily challenge, and your height for the distance. */
+@Composable
+private fun CityStep(container: AppContainer) {
+    val s = strings
+    Title(s.cityTitle)
+    Body(s.cityStepIntro)
+    com.khatwa.app.ui.city.CityPicker(container)
+    VSpace()
+    com.khatwa.app.ui.city.HeightField(container)
 }
 
 @Composable

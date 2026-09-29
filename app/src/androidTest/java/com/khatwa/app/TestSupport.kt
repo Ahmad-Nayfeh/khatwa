@@ -76,6 +76,10 @@ object TestSupport {
         wake()
         shell("pm grant $PKG android.permission.ACTIVITY_RECOGNITION")
         shell("pm grant $PKG android.permission.POST_NOTIFICATIONS")
+        shell("pm grant $PKG android.permission.ACCESS_FINE_LOCATION")
+        shell("pm grant $PKG android.permission.ACCESS_COARSE_LOCATION")
+        // GPS readings come from the test (the emulator does not walk); set before any screen asks.
+        com.khatwa.app.debug.FakeLocationSource.setEnabled(context, true)
         shell("appops set $PKG SYSTEM_ALERT_WINDOW allow")
         shell("mkdir -p $EVIDENCE_DIR")
         shell("settings put global window_animation_scale 0")

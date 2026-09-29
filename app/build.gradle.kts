@@ -54,7 +54,7 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = (findProperty("khatwa.versionCode") as String?)?.toInt() ?: 1
-        versionName = (findProperty("khatwa.versionName") as String?) ?: "0.6.0"
+        versionName = (findProperty("khatwa.versionName") as String?) ?: "0.7.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
     }
@@ -101,6 +101,9 @@ android {
     testOptions {
         animationsDisabled = true
     }
+
+    // Room's exported schemas, so the migration test can build the old database versions.
+    sourceSets.getByName("androidTest").assets.srcDir("$projectDir/schemas")
 }
 
 ksp {
@@ -132,6 +135,8 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.vico.compose.m3)
+    // Maps: OpenStreetMap tiles, no API key.
+    implementation(libs.osmdroid)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.auth)
@@ -145,4 +150,5 @@ dependencies {
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.uiautomator)
     androidTestImplementation(libs.kotlinx.coroutines.core)
+    androidTestImplementation(libs.androidx.room.testing)
 }

@@ -44,6 +44,8 @@ data class StatsUiState(
     val hours: List<Double> = emptyList(),
     val surrendersThisMonth: Int = 0,
     val goal: Int = 0,
+    /** Step length for distances (meters). */
+    val strideM: Double = com.khatwa.core.walk.Stride.DEFAULT_M,
 )
 
 class StatsViewModel(private val c: AppContainer) : ViewModel() {
@@ -61,6 +63,7 @@ class StatsViewModel(private val c: AppContainer) : ViewModel() {
 
     val state: StateFlow<StatsUiState> = combine(
         c.tracker.today, c.db.days().observeAll(), sessions, snapshots, c.db.weights().observeAll(), surrenders,
+        c.settings.flow.map { it.strideM },
     ) { arr ->
         @Suppress("UNCHECKED_CAST")
         build(
@@ -70,7 +73,7 @@ class StatsViewModel(private val c: AppContainer) : ViewModel() {
             snapshots = arr[3] as List<SnapshotEntity>,
             weights = arr[4] as List<WeightEntity>,
             surrenders = arr[5] as List<SurrenderEntity>,
-        )
+        ).copy(strideM = arr[6] as Double)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StatsUiState())
 
     private fun build(today: Today, all: List<DayEntity>, sessions: List<SessionEntity>, snapshots: List<SnapshotEntity>, weights: List<WeightEntity>, surrenders: List<SurrenderEntity>): StatsUiState {

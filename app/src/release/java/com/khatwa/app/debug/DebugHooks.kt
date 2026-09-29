@@ -10,5 +10,6 @@ import com.khatwa.app.steps.StepSource
 object DebugHooks {
     const val ENABLED = false
     fun fakeStepSource(context: Context): StepSource? = null
+    fun fakeLocationSource(context: Context): com.khatwa.app.walks.LocationSource? = null
     fun onAppCreate(context: Context) = Unit
 }

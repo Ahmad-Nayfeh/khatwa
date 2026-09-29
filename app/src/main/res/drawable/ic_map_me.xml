@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The user's position on the map: a green dot with a white ring. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="22dp" android:height="22dp" android:viewportWidth="22" android:viewportHeight="22">
+    <path android:fillColor="#FFFFFFFF" android:pathData="M11,11m-10,0a10,10 0,1 1,20 0a10,10 0,1 1,-20 0" />
+    <path android:fillColor="#FF2E8B57" android:pathData="M11,11m-7,0a7,7 0,1 1,14 0a7,7 0,1 1,-14 0" />
+</vector>

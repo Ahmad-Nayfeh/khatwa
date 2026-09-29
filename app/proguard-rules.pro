@@ -11,3 +11,4 @@
 }
 # Room entities are accessed via generated code; keep their fields.
 -keep class com.khatwa.app.data.** { *; }
+-dontwarn org.osmdroid.**

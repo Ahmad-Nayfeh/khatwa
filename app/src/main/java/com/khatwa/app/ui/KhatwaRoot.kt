@@ -79,8 +79,33 @@ fun KhatwaRoot(container: AppContainer, settings: Settings) {
         },
     ) { padding ->
         NavHost(nav, startDestination = Tab.Home.route, modifier = Modifier.padding(padding)) {
-            composable(Tab.Home.route) { HomeScreen(container, onOpenSettings = { nav.navigate(Tab.Settings.route) }) }
-            composable(Tab.Stats.route) { StatsScreen(container) }
+            composable(Tab.Home.route) {
+                HomeScreen(
+                    container,
+                    onOpenSettings = { nav.navigate(Tab.Settings.route) },
+                    onOpenCity = { nav.navigate("city") },
+                    onOpenLive = { nav.navigate("livewalk") },
+                )
+            }
+            composable(Tab.Stats.route) {
+                StatsScreen(
+                    container,
+                    onOpenWalk = { nav.navigate("walk/$it") },
+                    onOpenMap = { nav.navigate("mymap") },
+                    onOpenLive = { nav.navigate("livewalk") },
+                )
+            }
+            composable("walk/{id}") { e ->
+                com.khatwa.app.ui.walks.WalkDetailScreen(container, e.arguments?.getString("id")?.toLongOrNull() ?: 0L) { nav.popBackStack() }
+            }
+            composable("mymap") { com.khatwa.app.ui.walks.MyMapScreen(container) { nav.popBackStack() } }
+            composable("city") { com.khatwa.app.ui.city.CityScreen(container) { nav.popBackStack() } }
+            composable("livewalk") {
+                com.khatwa.app.ui.walks.LiveWalkScreen(container, onBack = { nav.popBackStack() }) { id ->
+                    nav.popBackStack()
+                    if (id != null) nav.navigate("walk/$id")
+                }
+            }
             composable(Tab.Groups.route) { com.khatwa.app.ui.groups.GroupsScreen(container) }
             composable(Tab.Settings.route) { SettingsNav(container) }
         }
