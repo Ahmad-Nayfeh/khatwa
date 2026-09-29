@@ -154,6 +154,8 @@ class WalkChallengeTest {
         route.forEachIndexed { i, p ->
             t += 10_000
             fake.emit(p, 6f, t)
+            // About 18 steps per 13 m, as a real walk would count.
+            if (i > 0) TestSupport.fake().add(18)
             if (i == half) {
                 Thread.sleep(1_500)
                 TestSupport.screenshot("86-live-walk-at-the-park")

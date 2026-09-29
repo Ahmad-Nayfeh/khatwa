@@ -46,6 +46,12 @@ class TrackBuilder(
 
     val points: List<LatLon> get() = kept
 
+    /** Time of the first and last reading used: the walk's real duration (GPS clock). */
+    var firstTimeMs: Long? = null
+        private set
+    var lastTimeMs: Long? = null
+        private set
+
     /** Returns true when the fix was used. */
     fun add(fix: Fix): Boolean {
         if (fix.accuracyM > maxAccuracyM) return false
@@ -53,6 +59,8 @@ class TrackBuilder(
         if (prev == null) {
             last = fix
             kept += fix.point
+            firstTimeMs = fix.timeMs
+            lastTimeMs = fix.timeMs
             return true
         }
         val d = Geo.distanceM(prev.point, fix.point)
@@ -63,6 +71,7 @@ class TrackBuilder(
         distanceM += d
         last = fix
         kept += fix.point
+        lastTimeMs = fix.timeMs
         return true
     }
 }

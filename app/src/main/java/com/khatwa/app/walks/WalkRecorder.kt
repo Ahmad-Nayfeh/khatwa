@@ -85,7 +85,9 @@ class WalkRecorder(private val c: AppContainer) {
         val id = c.db.walks().insert(
             WalkEntity(
                 date = LocalDate.now(ZoneId.systemDefault()).toString(),
-                startMs = w.startMs, endMs = end, distanceM = t.distanceM, steps = steps,
+                // Walking time from the GPS readings (not the wait for the first fix).
+                startMs = t.firstTimeMs ?: w.startMs, endMs = (t.lastTimeMs ?: end).coerceAtLeast(t.firstTimeMs ?: w.startMs),
+                distanceM = t.distanceM, steps = steps,
                 polyline = Geo.encode(route), challengeKey = w.challengeKey, placeName = w.placeName, completed = completed,
             ),
         )

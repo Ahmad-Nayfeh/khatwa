@@ -145,11 +145,16 @@ fun DayDetails(day: DayCard, strideM: Double, modifier: Modifier = Modifier) {
     val s = strings
     val stat = day.stat
     val pct = if (stat.goal > 0) (stat.steps * 100 / stat.goal).toInt() else 0
-    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        StatPill(s.ofGoalPct, "$pct%", Modifier.weight(1f))
-        StatPill(s.distance, s.kmUnit(com.khatwa.core.walk.Distances.km(stat.steps * strideM)), Modifier.weight(1f).testTag("stats_day_distance"))
-        StatPill(s.sessions, Fmt.n(day.sessions), Modifier.weight(1f))
-        StatPill(s.longestSession, if (day.longestSessionMs > 0) Fmt.duration(day.longestSessionMs) else "—", Modifier.weight(1f))
+    // Two rows of two: wide enough for "2,000%" and "12.4 km" on one line.
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            StatPill(s.ofGoalPct, "$pct%", Modifier.weight(1f))
+            StatPill(s.distance, s.kmUnit(com.khatwa.core.walk.Distances.km(stat.steps * strideM)), Modifier.weight(1f).testTag("stats_day_distance"))
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            StatPill(s.sessions, Fmt.n(day.sessions), Modifier.weight(1f))
+            StatPill(s.longestSession, if (day.longestSessionMs > 0) Fmt.duration(day.longestSessionMs) else "—", Modifier.weight(1f))
+        }
     }
     Box(Modifier.height(0.dp))
 }

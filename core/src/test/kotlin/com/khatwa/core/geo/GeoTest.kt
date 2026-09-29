@@ -89,5 +89,7 @@ class GeoTest {
         assertTrue(!at(Geo.destination(p, 0.0, 500.0)))
         assertEquals(1300.0, t.distanceM, 5.0)
         assertEquals(101, t.points.size)
+        // Duration from the readings used: first at 10 s, last at 1 030 s (two rejected readings in between also took 10 s each).
+        assertEquals(1_020_000L, t.lastTimeMs!! - t.firstTimeMs!!)
     }
 }
