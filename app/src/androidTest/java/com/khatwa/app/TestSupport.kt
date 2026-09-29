@@ -76,6 +76,10 @@ object TestSupport {
         wake()
         shell("pm grant $PKG android.permission.ACTIVITY_RECOGNITION")
         shell("pm grant $PKG android.permission.POST_NOTIFICATIONS")
+        shell("pm grant $PKG android.permission.ACCESS_FINE_LOCATION")
+        shell("pm grant $PKG android.permission.ACCESS_COARSE_LOCATION")
+        // GPS readings come from the test (the emulator does not walk); set before any screen asks.
+        com.khatwa.app.debug.FakeLocationSource.setEnabled(context, true)
         shell("appops set $PKG SYSTEM_ALERT_WINDOW allow")
         shell("mkdir -p $EVIDENCE_DIR")
         shell("settings put global window_animation_scale 0")
@@ -178,6 +182,16 @@ object TestSupport {
                 Log.i(TAG, "findRes($resId): accessibility cache cleared=$cleared")
             }
         }
+    }
+
+    /** Scrolls [scrollTag] forward, page by page, until [text] is on screen, then taps it. */
+    fun scrollToText(scrollTag: String, text: String, maxScrolls: Int = 5): Boolean {
+        repeat(maxScrolls) {
+            if (device.wait(Until.hasObject(By.text(text)), 1_500)) return clickText(text)
+            scrollForward(scrollTag)
+            Thread.sleep(400)
+        }
+        return clickText(text)
     }
 
     /** Scrolls [scrollTag] forward, page by page, until a node with [resId] is on screen. */

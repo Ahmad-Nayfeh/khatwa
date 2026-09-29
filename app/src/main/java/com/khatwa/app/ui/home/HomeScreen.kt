@@ -67,7 +67,7 @@ private fun ComparePill(pct: Int?, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun HomeScreen(container: AppContainer, onOpenSettings: () -> Unit) {
+fun HomeScreen(container: AppContainer, onOpenSettings: () -> Unit, onOpenCity: () -> Unit = {}, onOpenLive: () -> Unit = {}) {
     val s = strings
     val vm = containerViewModel { HomeViewModel(it) }
     val ui by vm.state.collectAsStateWithLifecycle()
@@ -103,6 +103,7 @@ fun HomeScreen(container: AppContainer, onOpenSettings: () -> Unit) {
                 val shown by androidx.compose.animation.core.animateIntAsState(today.steps.toInt(), androidx.compose.animation.core.tween(900), label = "steps")
                 com.khatwa.app.ui.components.FitText(Fmt.n(shown.toLong()), MaterialTheme.typography.displayLarge, maxWidth = 170.dp, modifier = Modifier.testTag("home_steps"))
                 Muted(s.ofGoal(Fmt.n(today.goal)))
+                Muted(s.kmUnit(com.khatwa.core.walk.Distances.km(today.steps * ui.settings.strideM)), Modifier.testTag("home_distance"))
             }
         }
         VSpace(10.dp)
@@ -112,6 +113,11 @@ fun HomeScreen(container: AppContainer, onOpenSettings: () -> Unit) {
             modifier = Modifier.testTag("home_remaining"),
         )
         VSpace(16.dp)
+
+        // A walk being recorded, then today's challenge.
+        com.khatwa.app.ui.walks.ActiveWalkBanner(container, onOpenLive)
+        ChallengeCard(container, onOpenCity, onOpenLive)
+        VSpace()
 
         // Quote of the day
         ui.quote?.let { q ->

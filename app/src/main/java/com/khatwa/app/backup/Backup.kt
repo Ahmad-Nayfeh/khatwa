@@ -13,6 +13,10 @@ import kotlinx.serialization.json.Json
 @Serializable data class WeightJson(val date: String, val kg: Double, val createdMs: Long)
 @Serializable data class SurrenderJson(val epochMs: Long, val date: String, val remainingSteps: Long, val lockType: String)
 @Serializable data class QuoteBackupJson(val text: String, val source: String? = null, val lang: String = "ar")
+@Serializable data class WalkJson(
+    val date: String, val startMs: Long, val endMs: Long, val distanceM: Double, val steps: Long, val polyline: String,
+    val challengeKey: String? = null, val placeName: String? = null, val completed: Boolean = false,
+)
 
 /** Full backup: settings (including the laptop secret and, later, the groups identity) + every table. */
 @Serializable
@@ -27,6 +31,8 @@ data class BackupFile(
     val weights: List<WeightJson>,
     val surrenders: List<SurrenderJson>,
     val quotes: List<QuoteBackupJson>,
+    /** GPS walks (0.7+); older backups have none. */
+    val walks: List<WalkJson> = emptyList(),
 )
 
 class Backup(private val c: AppContainer) {
@@ -49,6 +55,7 @@ class Backup(private val c: AppContainer) {
             weights = db.weights().all().map { WeightJson(it.date, it.kg, it.createdMs) },
             surrenders = db.surrenders().all().map { SurrenderJson(it.epochMs, it.date, it.remainingSteps, it.lockType) },
             quotes = db.quotes().all().map { QuoteBackupJson(it.text, it.source, it.lang) },
+            walks = db.walks().all().map { WalkJson(it.date, it.startMs, it.endMs, it.distanceM, it.steps, it.polyline, it.challengeKey, it.placeName, it.completed) },
         )
         return (if (pretty) json else compactJson).encodeToString(BackupFile.serializer(), file)
     }
@@ -69,6 +76,7 @@ class Backup(private val c: AppContainer) {
         file.sessions.forEach { db.sessions().insert(com.khatwa.app.data.SessionEntity(date = it.date, startMs = it.startMs, endMs = it.endMs, steps = it.steps)) }
         file.weights.forEach { db.weights().insert(com.khatwa.app.data.WeightEntity(date = it.date, kg = it.kg, createdMs = it.createdMs)) }
         file.surrenders.forEach { db.surrenders().insert(com.khatwa.app.data.SurrenderEntity(epochMs = it.epochMs, date = it.date, remainingSteps = it.remainingSteps, lockType = it.lockType)) }
+        file.walks.forEach { db.walks().insert(com.khatwa.app.data.WalkEntity(date = it.date, startMs = it.startMs, endMs = it.endMs, distanceM = it.distanceM, steps = it.steps, polyline = it.polyline, challengeKey = it.challengeKey, placeName = it.placeName, completed = it.completed)) }
         if (file.quotes.isNotEmpty()) db.quotes().insertAll(file.quotes.mapIndexed { i, q -> com.khatwa.app.data.QuoteEntity(text = q.text, source = q.source, sortOrder = i, lang = q.lang) })
         else c.features.quotes.seedIfNeeded()
         val restoredSettings = file.settings.filterKeys { it != "lock_state" }
@@ -98,6 +106,6 @@ class Backup(private val c: AppContainer) {
     private suspend fun clearTables() {
         val db = c.db
         db.days().deleteAll(); db.snapshots().deleteAll(); db.sessions().deleteAll()
-        db.weights().deleteAll(); db.surrenders().deleteAll(); db.quotes().deleteAll()
+        db.weights().deleteAll(); db.surrenders().deleteAll(); db.quotes().deleteAll(); db.walks().deleteAll()
     }
 }

@@ -66,7 +66,18 @@ data class Settings(
     val cloudBackupAtMs: Long = 0,
     /** The last day the goal celebration was shown (ISO date). */
     val celebratedDate: String? = null,
+    /** Height in cm, for the step length (distance). Null: not given (a 0.70 m step is assumed). */
+    val heightCm: Int? = null,
+    /** Step length measured from GPS walks (meters); replaces the estimate from the height. */
+    val calibratedStrideM: Double? = null,
+    /** The Saudi city chosen for the daily challenge (GeoNames id from assets/cities_sa.json). */
+    val cityId: String? = null,
+    /** Daily challenge state as JSON (today's pick, history); see ChallengeState. */
+    val challengeStateJson: String? = null,
 ) {
+    /** Step length used for distances. */
+    val strideM: Double get() = calibratedStrideM ?: com.khatwa.core.walk.Stride.fromHeightCm(heightCm)
+
     /** The laptop pairing code in the current format (8 digits), or null (unpaired, or an old 16-character pairing). */
     val laptopPairing: String?
         get() = laptopSecret?.takeIf { com.khatwa.core.laptop.LaptopCode.isSecret(it) }?.let { com.khatwa.core.laptop.LaptopCode.normalize(it) }
@@ -188,6 +199,14 @@ class SettingsRepository(private val context: Context) {
     suspend fun setGroupsUid(v: String?) = edit { if (v == null) it.remove(K.groupsUid) else it[K.groupsUid] = v }
     suspend fun setCloudBackupAt(v: Long) = edit { it[K.cloudBackupAt] = v }
     suspend fun setCelebratedDate(v: String) = edit { it[K.celebratedDate] = v }
+    suspend fun setHeightCm(v: Int?) = edit {
+        if (v == null) it.remove(K.heightCm) else it[K.heightCm] = v
+        // A new height restarts the estimate; GPS walks refine it again.
+        it.remove(K.strideM)
+    }
+    suspend fun setCalibratedStride(v: Double) = edit { it[K.strideM] = v.toString() }
+    suspend fun setCityId(v: String?) = edit { if (v == null) it.remove(K.cityId) else it[K.cityId] = v }
+    suspend fun setChallengeStateJson(v: String?) = edit { if (v == null) it.remove(K.challengeState) else it[K.challengeState] = v }
 
     suspend fun setShowQuote(v: Boolean) = edit { it[K.showQuote] = v }
 
@@ -235,14 +254,15 @@ class SettingsRepository(private val context: Context) {
                 K.language.name -> p[K.language] = AppLanguage.normalize(value)
                 K.tempGoal.name, K.finalGoal.name, K.weeklyIncrement.name, K.manualGoal.name, K.scheduleStart.name,
                 K.scheduleEnd.name, K.weightReminderDay.name, K.weightReminderMinute.name, K.morningMinute.name,
-                K.quoteOverrideIndex.name, K.quotesSeedVersion.name ->
+                K.quoteOverrideIndex.name, K.quotesSeedVersion.name, K.heightCm.name ->
                     value.toIntOrNull()?.let { p[intPreferencesKey(name)] = it }
                 K.allowlist.name, K.scheduleDays.name ->
                     p[stringSetPreferencesKey(name)] = value.split(",").filter { it.isNotBlank() }.toSet()
                 K.laptopCounter.name -> value.toLongOrNull()?.let { p[K.laptopCounter] = it }
                 K.cloudBackupAt.name -> value.toLongOrNull()?.let { p[K.cloudBackupAt] = it }
                 K.goalStartDate.name, K.laptopSecret.name, K.lockState.name, K.laptopChallenge.name, K.quoteOverrideDate.name,
-                K.emergencyPhrase.name, K.scheduleSkipDate.name, K.groupsNickname.name, K.groupsUid.name, K.celebratedDate.name ->
+                K.emergencyPhrase.name, K.scheduleSkipDate.name, K.groupsNickname.name, K.groupsUid.name, K.celebratedDate.name,
+                K.strideM.name, K.cityId.name, K.challengeState.name ->
                     p[stringPreferencesKey(name)] = value
             }
         }
@@ -284,6 +304,10 @@ class SettingsRepository(private val context: Context) {
         val groupsUid = stringPreferencesKey("groups_uid")
         val cloudBackupAt = longPreferencesKey("cloud_backup_at")
         val celebratedDate = stringPreferencesKey("celebrated_date")
+        val heightCm = intPreferencesKey("height_cm")
+        val strideM = stringPreferencesKey("stride_m")
+        val cityId = stringPreferencesKey("city_id")
+        val challengeState = stringPreferencesKey("challenge_state")
     }
 
     private fun Preferences.toSettings(): Settings {
@@ -326,6 +350,10 @@ class SettingsRepository(private val context: Context) {
             groupsUid = this[K.groupsUid],
             cloudBackupAtMs = this[K.cloudBackupAt] ?: 0L,
             celebratedDate = this[K.celebratedDate],
+            heightCm = this[K.heightCm],
+            calibratedStrideM = this[K.strideM]?.toDoubleOrNull(),
+            cityId = this[K.cityId],
+            challengeStateJson = this[K.challengeState],
         )
     }
 }

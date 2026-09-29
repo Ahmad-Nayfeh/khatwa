@@ -96,8 +96,15 @@ class HomeStatsTest {
         TestSupport.evidence("day slider after swipe: ${previous!!.text} steps")
         TestSupport.screenshot("11b-stats-day-slider")
 
-        TestSupport.scrollForward("stats_scroll")
-        assertNotNull(device.wait(Until.findObject(By.textContains("جلسات المشي")), 5_000))
+        // The walks card and the charts are further down: scroll until the sessions card shows.
+        var sessionsCard = device.findObject(By.textContains("جلسات المشي"))
+        repeat(5) {
+            if (sessionsCard == null) {
+                TestSupport.scrollForward("stats_scroll")
+                sessionsCard = device.wait(Until.findObject(By.textContains("جلسات المشي")), 2_000)
+            }
+        }
+        assertNotNull(sessionsCard)
         TestSupport.screenshot("11c-stats-charts")
     }
 

@@ -25,7 +25,13 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- Walks on the map, "find my city", nearby places (asked when first used, never in the background). -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+
     <uses-feature android:name="android.hardware.sensor.stepcounter" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 
     <application
         android:name=".KhatwaApp"
@@ -55,6 +61,12 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Counting the user's steps continuously from the step sensor so the walk-to-unlock lock can react in real time." />
         </service>
+
+        <!-- Records a walk with GPS while the user walks (started from the app, stopped from its notification). -->
+        <service
+            android:name=".walks.WalkService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
 
         <!-- exported must be true: system_server binds this service (the BIND_ACCESSIBILITY_SERVICE
              permission keeps everyone else out). With false the system never binds it. -->

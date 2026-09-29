@@ -89,5 +89,6 @@ class Notifications(private val context: Context) {
         const val ID_MORNING = 2003
         const val ID_WEIGHT = 2004
         const val ID_LOCK_STARTED = 2005
+        const val ID_WALK = 1002
     }
 }

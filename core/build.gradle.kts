@@ -18,6 +18,8 @@ kotlin {
 
 dependencies {
     implementation(libs.kotlinx.serialization.json)
+    // Prayer times (Umm al-Qura), computed on the phone: no network.
+    api(libs.adhan)
     testImplementation(libs.junit)
     testImplementation(kotlin("test"))
 }

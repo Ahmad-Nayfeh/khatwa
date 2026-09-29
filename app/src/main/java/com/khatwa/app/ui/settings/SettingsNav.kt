@@ -43,6 +43,7 @@ fun SettingsNav(container: AppContainer) {
         "backup" -> BackupScreen(container, back)
         "permissions" -> PermissionsScreen(container, back)
         "account" -> com.khatwa.app.ui.account.AccountScreen(container, back)
+        "city" -> com.khatwa.app.ui.city.CityScreen(container, back)
         else -> SettingsRoot(container) { screen = it }
     }
 }
@@ -60,6 +61,7 @@ private fun SettingsRoot(container: AppContainer, open: (String) -> Unit) {
             SettingsEntry(str.account, account?.takeIf { !it.anonymous }?.email?.let { str.signedInAs(it) } ?: str.accountSignedOut, tag = "settings_account") { open("account") }
         }
         SettingsEntry(str.goal, str.goalSubtitle) { open("goal") }
+        SettingsEntry(str.cityAndDistance, str.cityAndDistanceSubtitle, tag = "settings_city") { open("city") }
         SettingsEntry(str.scheduledLock, str.scheduledLockSubtitle) { open("schedule") }
         SettingsEntry(str.allowlist, str.allowlistSubtitle) { open("allowlist") }
         SettingsEntry(str.laptopLock, str.laptopLockSubtitle) { open("laptop") }

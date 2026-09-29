@@ -22,8 +22,13 @@ vico = "2.1.2"
 firebaseBom = "33.7.0"
 googleServices = "4.4.2"
 workTesting = "2.10.0"
+adhan = "1.2.1"
+osmdroid = "6.1.20"
 
 [libraries]
+adhan = { group = "com.batoulapps.adhan", name = "adhan", version.ref = "adhan" }
+osmdroid = { group = "org.osmdroid", name = "osmdroid-android", version.ref = "osmdroid" }
+androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
